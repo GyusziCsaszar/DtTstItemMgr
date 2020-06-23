@@ -473,12 +473,15 @@ begin
                       '   DECLARE VARIABLE ItmTypID BIGINT;' + CHR(13) + CHR(10) +
                       '   DECLARE VARIABLE ItmID BIGINT;' + CHR(13) + CHR(10) +
                       ' BEGIN' + CHR(13) + CHR(10) +
+                      // BUG: NODE is not unique!!!
+                      {
                       '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMGROUP) +
                       ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) + ' )' + //CHR(13) + CHR(10) +
                       '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) + ')' +
                       '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) + ' )' +
                       '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :ItmGrpID' +
                       ';' + CHR(13) + CHR(10) +
+                      }
                       '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
                       ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + //CHR(13) + CHR(10) +
                       '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ')' +
@@ -496,12 +499,21 @@ begin
                                ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
                       '  RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :ItmID' +
                       ';' + CHR(13) + CHR(10) +
+                      ' FOR SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                            ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEMGROUP) +
+                            ' WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) + ' = ' + 'NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
+                      ' INTO :ItmGrpID' +
+                      ' DO' +
+                      ' BEGIN' +
                       '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) +
                               ' ('      + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID) +
                               ', '      + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID) + ' )' + CHR(13) + CHR(10) +
                       '   VALUES( :ItmID' +
-                               ', :ItmGrpID' + ')' +
-                      ';' + CHR(13) + CHR(10) +
+                               ', :ItmGrpID' + ')' + ';' +
+                    //'   SUSPEND;' +
+                      ' END' +
+                    //';' +
+                      CHR(13) + CHR(10) +
                       ' END');
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');

@@ -9,7 +9,8 @@ uses
   { ATTN: for DBExpress: } midaslib,
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
-  Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Tabs;
+  Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Tabs,
+  System.ImageList, Vcl.ImgList;
 
 type
   TFrmMain = class(TForm)
@@ -35,8 +36,9 @@ type
     chbAutoLogin: TCheckBox;
     chbMetadataTablesOnly: TCheckBox;
     chbShowLog: TCheckBox;
-    lblLog: TLabel;
     lblBottom: TLabel;
+    tvTree: TTreeView;
+    ilTree: TImageList;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
@@ -82,6 +84,10 @@ type
     m_bObjects_MouseDown: Boolean;
     m_bTablesView: Boolean;
 
+    m_iDbInfo_HeightEx: integer;
+    m_iLbLog_WidthEx: integer;
+    m_iDbGrdBottom_HeightEx: integer;
+
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -92,6 +98,8 @@ type
     procedure DoGrid_Delete();
 
     procedure OpenSql(sTable, sSql: string);
+
+    procedure UpdateTree(sID: string);
 
     procedure DoDbConnect();
 
@@ -143,7 +151,7 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbItemMgr,
+  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbSql, uDtTstDbItemMgr,
   { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB,
   System.IOUtils, StrUtils, Clipbrd;
 
@@ -160,6 +168,10 @@ begin
 
   m_bTablesView := False;
 
+  m_iDbInfo_HeightEx      := 0;
+  m_iLbLog_WidthEx        := 0;
+  m_iDbGrdBottom_HeightEx := 0;
+
   m_oApp := TDtTstAppDb.Create(TPath.ChangeExtension(Application.ExeName, csLOG_UTF8_EXT), //csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
 
@@ -168,9 +180,8 @@ begin
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
   //Registry...
-  chbShowLog.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'ShowLog', True);
-
-  lblLog.Visible := chbShowLog.Checked;
+  if m_oApp.ADMIN_MODE then
+    chbShowLog.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'ShowLog', True);
 
   if chbShowLog.Checked then
   begin
@@ -212,6 +223,12 @@ begin
   self      .Caption := Application.Title;
   lblCaption.Caption := Application.Title;
 
+  m_iDbInfo_HeightEx := panDbInfo.Height;
+
+  m_iLbLog_WidthEx := tvTree.Left - lbLog.Left;
+
+  m_iDbGrdBottom_HeightEx := tvTree.Top - db_grid_Bottom.Top;
+
   // First LogINFO...
   m_oApp.LOG.LogVERSION('App Path: '  + Application.ExeName);
   m_oApp.LOG.LogVERSION('App Title: ' + Application.Title);
@@ -232,9 +249,34 @@ begin
   chbAutoLogin         .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin'   , False);
   chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
 
-  tmrStart.Enabled := True;
-
   chbMetadataTablesOnly.Visible := m_oApp.ADMIN_MODE;
+
+  db_grid_Top   .ReadOnly := (not m_oApp.ADMIN_MODE);
+  db_grid_Bottom.ReadOnly := (not m_oApp.ADMIN_MODE);
+
+  if not m_oApp.ADMIN_MODE then
+    chbShowLog.Visible := False;
+
+  if not chbShowLog.Checked then
+  begin
+    lbLog.Visible := False;
+    tvTree.Left  := tvTree.Left  - m_iLbLog_WidthEx;
+    tvTree.Width := tvTree.Width + m_iLbLog_WidthEx;
+  end;
+
+  db_grid_Bottom.Visible := False;
+  tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
+  tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+
+  if not m_oApp.ADMIN_MODE then
+  begin
+    lbObjects.Height := lbObjects.Height + m_iDbInfo_HeightEx;
+    lbTasks  .Height := lbTasks  .Height + m_iDbInfo_HeightEx;
+    lbLog    .Height := lbLog    .Height + m_iDbInfo_HeightEx;
+    tvTree   .Height := tvTree   .Height + m_iDbInfo_HeightEx;
+  end;
+
+  tmrStart.Enabled := True;
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
 end;
@@ -249,6 +291,14 @@ begin
 
   // Registry...
   chbAutoLogin         .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin'   , False);
+
+  if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) then
+  begin
+
+    lblBottom.Caption := csITEM_ITEMGROUP;
+    UpdateTree ('');
+
+  end;
 
   m_oApp.LOG.LogUI('TFrmMain.tmrStartTimer END');
 end;
@@ -391,7 +441,7 @@ begin
   end;
 
   try
-    lblBottom.Caption := 'N/A';
+    lblBottom.Caption := csITEM_ITEMGROUP; //'N/A';
 
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
@@ -424,23 +474,31 @@ procedure TFrmMain.ds_cds_TopDataChange(Sender: TObject; Field: TField);
 var
   iRelCnt, iRel: integer;
   sField, sDefault, sSql, sID: string;
+  bHasRel: Boolean;
 begin
 
-  // NOTE:
-  {
-  // SRC: http://www.delphigroups.info/2/ab/367701.html
-  sds_Bottom.IndexName := csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_ADM_X_ID;
-  sds_Bottom.SetRangeStart();
-  sds_Bottom.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
-  sds_Bottom.KeyExclusive := True;
-  sds_Bottom.SetRangeEnd();
-  sds_Bottom.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
-  sds_Bottom.KeyExclusive := True;
-  sds_Bottom.ApplyRange();
-  }
-
-  //if sds_Bottom.Active then
+  if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMNR) <> nil) then
   begin
+
+    if db_grid_Bottom.Visible then
+    begin
+      db_grid_Bottom.Visible := False;
+      tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
+      tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+    end;
+
+    lblBottom.Caption := csITEM_ITEMGROUP;
+    UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString);
+
+  end
+  else
+  begin
+
+    // TREE...
+    lblBottom.Caption := csITEM_ITEMGROUP;
+    UpdateTree ('');
+
+    bHasRel := False;
 
     iRelCnt := m_oApp.DB.GetINIRelCount();
     for iRel := 0 to iRelCnt - 1 do
@@ -450,6 +508,15 @@ begin
 
         if ds_cds_Top.DataSet.FindField(sField) <> nil then
         begin
+
+          bHasRel := True;
+
+          if not db_grid_Bottom.Visible then
+          begin
+            tvTree.Height := tvTree.Height - m_iDbGrdBottom_HeightEx;
+            tvTree.Top    := tvTree.Top    + m_iDbGrdBottom_HeightEx;
+            db_grid_Bottom.Visible := True;
+          end;
 
           sID := ds_cds_Top.DataSet.FieldByName(sField).AsString;
 
@@ -472,7 +539,157 @@ begin
 
       end;
     end;
+
+    if not bHasRel then
+    begin
+      if db_grid_Bottom.Visible then
+      begin
+        db_grid_Bottom.Visible := False;
+        tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
+        tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+      end;
+    end;
+
   end;
+
+end;
+
+procedure TFrmMain.UpdateTree(sID: string);
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  iItemCount: integer;
+  sTreePath: string;
+  asNodes: TStringList;
+  tn, tnTmp: TTreeNode;
+  sNode: string;
+  i: integer;
+begin
+
+  asNodes := TStringList.Create();
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    if not sID.IsEmpty() then
+    begin
+      sSql := 'SELECT ' +
+                   '(SELECT COUNT(*) FROM ' + csDB_TBL_USR_ITEM_ITEMGROUP + ' B' +
+                   ' JOIN ' + csDB_TBL_USR_ITEM + ' C ON C.' + csDB_FLD_ADM_X_ID + ' = B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
+                   ' WHERE B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID + ' = A.' + csDB_FLD_ADM_X_ID +
+                     ' AND C.' + csDB_FLD_USR_ITEM_ITEMNR + ' = ''' + sID + ''') AS ItemCount' +
+                   ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+               ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+           ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+    end
+    else
+    begin
+      sSql := 'SELECT ' + '0 AS ItemCount' +
+                   ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+               ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+           ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+    end;
+
+    oQry.SQLConnection := m_oApp.DB.SQLConnection;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add({m_oApp.LOG.LogSQL(}sSql); //);
+
+    oQry.Open();
+
+    tvTree.Items.BeginUpdate;
+
+    tvTree.Items.Clear();
+
+    while not oQry.Eof do
+    begin
+
+      iItemCount := oQry.FieldByName('ItemCount').AsInteger;
+      sTreePath  := oQry.FieldByName(csDB_FLD_USR_ITEMGROUP_PATH).AsString;
+
+      if sTreePath.Length > 4 then
+      begin
+
+        Split(csDB_TREE_Delimiter, sTreePath.Substring(2, sTreePath.Length - 4), asNodes);
+
+        tn := nil;
+        for sNode in asNodes do
+        begin
+
+          if tn = nil then
+          begin
+
+            for i := 0 to tvTree.Items.Count - 1 do
+            begin
+              if tvTree.Items[i].Text = sNode then
+              begin
+                tn := tvTree.Items[i];
+              end;
+            end;
+
+            if tn = nil then
+            begin
+              tn := tvTree.Items.AddChild(nil, sNode);
+              tn.StateIndex := 1;
+            end;
+
+          end
+          else
+          begin
+
+            tnTmp := tn.getFirstChild();
+            while tnTmp <> nil do
+            begin
+
+              if tnTmp.Text = sNode then
+              begin
+                tn := tnTmp;
+                Break;
+              end;
+
+              tnTmp := tn.GetNextChild(tnTmp);
+            end;
+
+            if tnTmp = nil then
+            begin
+              tn.Expanded := True;
+              tn := tvTree.Items.AddChild(tn, sNode);
+              tn.StateIndex := 1;
+            end;
+
+          end;
+
+          if iItemCount = 0 then
+          begin
+            //tn.StateIndex := 1;
+          end
+          else
+          begin
+            tn.StateIndex := 2;
+
+            tnTmp := tn.Parent;
+            while tnTmp <> nil do
+            begin
+              tnTmp.StateIndex := tn.StateIndex;
+              tnTmp := tnTmp.Parent;
+            end;
+          end;
+
+        end;
+      end;
+
+      oQry.Next;
+    end;
+
+    tvTree.Items.EndUpdate;
+
+    oQry.Close();
+
+  finally
+    FreeAndNil(asNodes);
+    FreeAndNil(oQry);
+  end;
+
 end;
 
 procedure TFrmMain.chbAutoLoginClick(Sender: TObject);
@@ -504,14 +721,20 @@ begin
   if chbShowLog.Checked then
   begin
     m_oApp.LOG.m_lbLogView := lbLog;
+
+    tvTree.Width := tvTree.Width - m_iLbLog_WidthEx;
+    tvTree.Left  := tvTree.Left  + m_iLbLog_WidthEx;
+    lbLog.Visible := True;
   end
   else
   begin
     m_oApp.LOG.m_lbLogView := nil;
     lbLog.Items.Clear();
-  end;
 
-  lblLog.Visible := chbShowLog.Checked;
+    lbLog.Visible := False;
+    tvTree.Left  := tvTree.Left  - m_iLbLog_WidthEx;
+    tvTree.Width := tvTree.Width + m_iLbLog_WidthEx;
+  end;
 
   m_oApp.LOG.LogUI('TFrmMain.chbShowLogClick END');
 end;
@@ -946,7 +1169,7 @@ begin
     iIdx := -1;
     DoRefreshMetaData_PRODUCT(iIdx);
 
-    if m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE then
+    if (m_oApp.ADMIN_MODE) and (m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE) then
     begin
 
       iIdx := iIdx + 1;
@@ -1007,6 +1230,13 @@ begin
                                     1));
 
       iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View #2)' + '|' +
+                                   'SELECT *' +
+                                   ' FROM ' + 'V_' + csDB_TBL_USR_ITEM + '_EX' +
+                                   ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME,
+                                    1));
+
+      iIdx := iIdx + 1;
       lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + ' (Table)' + '|' +
                                    'SELECT ' + csDB_FLD_ADM_X_ID +
                                         ', ' + csDB_FLD_USR_ITEMGROUP_NODE +
@@ -1056,7 +1286,7 @@ begin
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
                                  'SELECT *' +
-                                 ' FROM ' + 'V_' + csDB_TBL_USR_ITEM + '_EX' +
+                                 ' FROM ' + 'V_' + csDB_TBL_USR_ITEM + //'_EX' + // ATTN: ..._EX duplicates multi-node ITEM(s)!!!
                                  ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME,
                                   1));
 
@@ -1871,9 +2101,14 @@ begin
 
     Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'               );
 
-    Menu_AddTask_Group(                               'DB Grid (Edit)'      , 0 );
-    Menu_AddTask_Button(ccMnuBtnID_GrdInsert          , 'Insert'                );
-    Menu_AddTask_Button(ccMnuBtnID_GrdDelete          , 'Delete'                );
+    if m_oApp.ADMIN_MODE then
+    begin
+
+      Menu_AddTask_Group(                               'DB Grid (Edit)'      , 0 );
+      Menu_AddTask_Button(ccMnuBtnID_GrdInsert          , 'Insert'                );
+      Menu_AddTask_Button(ccMnuBtnID_GrdDelete          , 'Delete'                );
+
+    end;
 
     case cID of
 
@@ -1945,6 +2180,11 @@ begin
         begin
           Menu_AddTask_Group(                             'Import'              , 1 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item_Type , 'Import (CSV)'          );
+        end
+        else if asParts[1] = csITEM + ' (View #1)' then
+        begin
+          Menu_AddTask_Group(                             'Import'              , 1 );
+          Menu_AddTask_Button(ccMnuBtnID_Import_Item_v1      , 'Import (CSV)'          );
         end
         else if asParts[1] = csITEM then
         begin
@@ -2061,7 +2301,7 @@ begin
 
       end;
 
-      ccMnuBtnID_Import_Item : begin
+      ccMnuBtnID_Import_Item_v1 : begin
 
         asParts := TStringList.Create();
 
@@ -2074,6 +2314,27 @@ begin
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
 
         DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
+
+      end;
+
+      ccMnuBtnID_Import_Item : begin
+
+        asParts := TStringList.Create();
+
+        Split('|', sCaption_Object, asParts);
+
+        asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEM_ITEMNR);
+        asCols.Add(csDB_FLD_USR_ITEM_NAME);
+        asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
+        asCols.Add(csDB_FLD_USR_ITEM_AMO);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE);
+
+        DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
+
+        // TREE...
+        lblBottom.Caption := csITEM_ITEMGROUP;
+        UpdateTree ('');
 
       end;
 
@@ -2090,6 +2351,10 @@ begin
         asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL + ' ' + csDB_TREE_LEVEL);
 
         DoImportTable(asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
+
+        // TREE...
+        lblBottom.Caption := csITEM_ITEMGROUP;
+        UpdateTree ('');
 
       end;
 

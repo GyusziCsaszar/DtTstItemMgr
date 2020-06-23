@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 132;
-  csVERSION_TITLE       = 'v1.32';
+  ciVERSION             = 133;
+  csVERSION_TITLE       = 'v1.33';
 
   { App - Strings }
   csITEM                = 'ITEM';
@@ -56,8 +56,9 @@ const
   ccMnuBtnID_GrdInsert         = 'K';
   // { Product }
   ccMnuBtnID_Import_Item_Type  = 'L';
-  ccMnuBtnID_Import_Item       = 'M';
-  ccMnuBtnID_Import_Item_Group = 'N';
+  ccMnuBtnID_Import_Item_v1    = 'M';
+  ccMnuBtnID_Import_Item       = 'N';
+  ccMnuBtnID_Import_Item_Group = 'O';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
