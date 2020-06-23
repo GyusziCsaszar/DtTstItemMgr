@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 117;
-  csVERSION_TITLE       = 'v1.17';
+  ciVERSION             = 118;
+  csVERSION_TITLE       = 'v1.18';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -43,7 +43,10 @@ const
   csISQL_FILE_IN              = '_Isql_IN.sql';
   csISQL_FILE_OUT             = '_Isql_OUT.txt';
   csISQL_SUCCESS              = 'ISQL_EXEC_OK';
-  csFBRD_DBFILE_FILTER        = 'Firebird Database Files (*.FDB)|*.fdb';
+  csFBRD_FDB_FILE_FILTER      = 'Firebird Database Files (*.FDB)|*.fdb';
+
+  { Generic }
+  csCSV_FILE_FILTER           = 'CSV Files (*.CSV)|*.csv';
 
   { Database - SAMPLE }
   csDB_TBL_SAMPLE             = 'SAMPLETABLE';

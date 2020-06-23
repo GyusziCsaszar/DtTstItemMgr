@@ -56,6 +56,8 @@ type
     edTerm: TEdit;
     btnDbOpen: TButton;
     btnDrpCol: TButton;
+    btnImpTbl: TButton;
+    chbAutoConnect: TCheckBox;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -82,6 +84,8 @@ type
     procedure btnIsqlExecSampleClick(Sender: TObject);
     procedure btnDbOpenClick(Sender: TObject);
     procedure btnDrpColClick(Sender: TObject);
+    procedure btnImpTblClick(Sender: TObject);
+    procedure chbAutoConnectClick(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -108,7 +112,7 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstWin, uDtTstFirebird, uDtTstDbItemMgr, uFrmProgress,
+  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDbItemMgr, uFrmProgress, uFrmDataImport,
   System.IOUtils, Vcl.Clipbrd, StrUtils;
 
 constructor TFrmMain.Create(AOwner: TComponent);
@@ -190,6 +194,16 @@ begin
   // ATTN: Force event handler...
   tsDev.TabIndex := 1; tsDev.TabIndex := 0;
 
+  // Registry...
+  chbAutoConnect       .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'AutoConnect'   , False);
+  chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
+
+  // Auto Start...
+  if chbAutoConnect.Checked then
+  begin
+    if (not TComboBox_Text(cbbDb).IsEmpty()) and (btnConnect.Enabled) then btnConnect.Click;
+  end;
+
   m_oLog.LogUI('TFrmMain.FormShow END');
 end;
 
@@ -209,7 +223,7 @@ begin
     frmOf.Options := [ofFileMustExist];
 
     // Allow only .xyz files to be selected
-    frmOf.Filter := csFBRD_DBFILE_FILTER + '|All Files (*.*)|*.*';
+    frmOf.Filter := csFBRD_FDB_FILE_FILTER + '|All Files (*.*)|*.*';
 
     // Select .xyz as the starting filter type
     frmOf.FilterIndex := 1;
@@ -418,6 +432,42 @@ begin
   if btnGetMetadata.Enabled then btnGetMetadata.Click;
 
   m_oLog.LogUI('TFrmMain.btnDrpTblClick END');
+end;
+
+procedure TFrmMain.btnImpTblClick(Sender: TObject);
+var
+  sItem, sType, sTable: string;
+  frmImp: TFrmDataImport;
+begin
+  m_oLog.LogUI('TFrmMain.btnImpTblClick BEGIN');
+
+  if GetSelectedMetaItem({var} sItem, {var} sType) then
+  begin
+    if sType = 'TABLE' then
+    begin
+      sTable := sItem;
+    end
+    else
+    begin
+      WarningMsgDlg('Item type "' + sType + '" is not supported by this operation!');
+      Exit;
+    end;
+  end
+  else
+  begin
+    Exit;
+  end;
+
+  frmImp := TFrmDataImport.Create(self, m_oLog);
+  try
+
+    frmImp.ShowModal();
+
+  finally
+    FreeAndNil(frmImp);
+  end;
+
+  m_oLog.LogUI('TFrmMain.btnImpTblClick END');
 end;
 
 procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
@@ -721,10 +771,23 @@ begin
   end;
 end;
 
+procedure TFrmMain.chbAutoConnectClick(Sender: TObject);
+begin
+  m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick BEGIN');
+
+  SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'AutoConnect', chbAutoConnect.Checked);
+
+  m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
+end;
+
 procedure TFrmMain.chbMetadataTablesOnlyClick(Sender: TObject);
 begin
   m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick BEGIN');
+
+  SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', chbMetadataTablesOnly.Checked);
+
   if btnGetMetadata.Enabled then btnGetMetadata.Click();
+
   m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
 end;
 

@@ -2,7 +2,17 @@ unit uDtTstUtils;
 
 interface
 
+uses
+  System.Classes, Vcl.StdCtrls, StrUtils;
+
 procedure CreateUTF8BOMFile(sPath: string; bOverWrite: Boolean);
+
+procedure Split(cDelimiter: Char; str: string; ListOfStrings: TStringList);
+
+function TComboBox_Text(ctrl: TComboBox) : string;
+function TEdit_Text(ctrl: TEdit) : string;
+
+function IIF(pResult: Boolean; pIfTrue: Variant; pIfFalse: Variant): Variant;
 
 function DateTimeToStrHu(dt: TDatetime): string;
 
@@ -17,6 +27,34 @@ begin
   begin
     TFile.WriteAllBytes(sPath, [$EF, $BB, $BF]);
   end;
+end;
+
+procedure Split(cDelimiter: Char; str: string; ListOfStrings: TStringList);
+// SRC: https://stackoverflow.com/questions/2625707/split-a-string-into-an-array-of-strings-based-on-a-delimiter
+begin
+ ListOfStrings.Clear;
+ ListOfStrings.Delimiter       := cDelimiter;
+ ListOfStrings.StrictDelimiter := True; // Requires D2006 or newer.
+ ListOfStrings.DelimitedText   := str;
+end;
+
+function TEdit_Text(ctrl: TEdit) : string;
+begin
+  Result := ctrl.Text;
+end;
+
+function TComboBox_Text(ctrl: TComboBox) : string;
+begin
+  Result := ctrl.Text;
+end;
+
+function IIF(pResult: Boolean; pIfTrue: Variant; pIfFalse: Variant): Variant;
+// SRC: https://stackoverflow.com/questions/20425142/delphi-executing-conditional-statements-in-a-string
+begin
+  if pResult then
+    Result := pIfTrue
+  else
+    Result := pIfFalse;
 end;
 
 function DateTimeToStrHu(dt: TDatetime): string;

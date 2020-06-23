@@ -7,6 +7,12 @@ uses
 
 procedure CreateProcess_WAIT(sPath, sParameters: string; bVisible: Boolean);
 
+function LoadStringReg(sCompany, sProduct, sKey, sValueName: string; sDefault: string) : string;
+procedure SaveStringReg(sCompany, sProduct, sKey, sValueName: string; sValue: string);
+
+function LoadBooleanReg(sCompany, sProduct, sKey, sValueName: string; bDefault: Boolean) : Boolean;
+procedure SaveBooleanReg(sCompany, sProduct, sKey, sValueName: string; bValue: Boolean);
+
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 procedure SaveFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 
@@ -18,6 +24,7 @@ function QuestionMsgDlg(sQun: string) : boolean;
 implementation
 
 uses
+  { DtTst Units: } uDtTstUtils,
   Vcl.Dialogs, Vcl.Controls,
   System.SysUtils, System.Win.Registry,
   Winapi.Windows;
@@ -68,6 +75,130 @@ begin
   begin
     RaiseLastOSError;
   end;
+end;
+
+function LoadStringReg(sCompany, sProduct, sKey, sValueName: string; sDefault: string) : string;
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+  Result := sDefault;
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    if reg.ValueExists(sValueName) then
+    begin
+      Result := reg.ReadString(sValueName);
+    end;
+
+  finally
+    FreeAndNil(reg);
+  end;
+
+end;
+
+procedure SaveStringReg(sCompany, sProduct, sKey, sValueName: string; sValue: string);
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    reg.WriteString(sValueName, sValue);
+
+  finally
+    FreeAndNil(reg);
+  end;
+
+end;
+
+function LoadBooleanReg(sCompany, sProduct, sKey, sValueName: string; bDefault: Boolean) : Boolean;
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+  Result := bDefault;
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    if reg.ValueExists(sValueName) then
+    begin
+      Result := (reg.ReadInteger(sValueName) <> 0);
+    end;
+
+  finally
+    FreeAndNil(reg);
+  end;
+
+end;
+
+procedure SaveBooleanReg(sCompany, sProduct, sKey, sValueName: string; bValue: Boolean);
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    reg.WriteInteger(sValueName, IIF(bValue, 1, 0));
+
+  finally
+    FreeAndNil(reg);
+  end;
+
 end;
 
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);

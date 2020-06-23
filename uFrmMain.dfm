@@ -97,7 +97,7 @@ object FrmMain: TFrmMain
     Left = 8
     Top = 164
     Width = 273
-    Height = 381
+    Height = 351
     Anchors = [akLeft, akTop, akBottom]
     ItemHeight = 13
     TabOrder = 4
@@ -165,7 +165,7 @@ object FrmMain: TFrmMain
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 144
-    Top = 137
+    Top = 141
     Width = 150
     Height = 17
     Caption = 'List Tables Only (On/Off)'
@@ -181,8 +181,8 @@ object FrmMain: TFrmMain
     TabOrder = 12
   end
   object btnCreTblSample: TButton
-    Left = 6
-    Top = 581
+    Left = 8
+    Top = 555
     Width = 273
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -193,8 +193,8 @@ object FrmMain: TFrmMain
     OnClick = btnCreTblSampleClick
   end
   object btnDrpTbl: TButton
-    Left = 6
-    Top = 551
+    Left = 8
+    Top = 583
     Width = 81
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -235,7 +235,7 @@ object FrmMain: TFrmMain
   end
   object chbDoDbUpdate: TCheckBox
     Left = 179
-    Top = 63
+    Top = 53
     Width = 97
     Height = 17
     Caption = 'Do DB Update'
@@ -375,8 +375,8 @@ object FrmMain: TFrmMain
     OnClick = btnDbOpenClick
   end
   object btnDrpCol: TButton
-    Left = 93
-    Top = 551
+    Left = 95
+    Top = 583
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -384,6 +384,25 @@ object FrmMain: TFrmMain
     Enabled = False
     TabOrder = 30
     OnClick = btnDrpColClick
+  end
+  object btnImpTbl: TButton
+    Left = 8
+    Top = 523
+    Width = 137
+    Height = 25
+    Anchors = [akLeft, akBottom]
+    Caption = 'Import Table (.CSV)'
+    TabOrder = 31
+    OnClick = btnImpTblClick
+  end
+  object chbAutoConnect: TCheckBox
+    Left = 179
+    Top = 71
+    Width = 97
+    Height = 17
+    Caption = 'Auto Connect'
+    TabOrder = 32
+    OnClick = chbAutoConnectClick
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'

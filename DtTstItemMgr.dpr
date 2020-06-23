@@ -10,7 +10,8 @@ uses
   uDtTstWin in 'uDtTstWin.pas',
   uDtTstDbItemMgr in 'uDtTstDbItemMgr.pas',
   uDtTstFirebird in 'uDtTstFirebird.pas',
-  uFrmProgress in 'uFrmProgress.pas' {FrmProgress};
+  uFrmProgress in 'uFrmProgress.pas' {FrmProgress},
+  uFrmDataImport in 'uFrmDataImport.pas' {FrmDataImport};
 
 {$R *.res}
 
