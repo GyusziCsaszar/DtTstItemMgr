@@ -100,6 +100,14 @@ object FrmMain: TFrmMain
       Width = 145
       Height = 17
       Caption = 'Tables and Queries Only'
+      Color = clWindow
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
       TabOrder = 1
       OnClick = chbMetadataTablesOnlyClick
     end
@@ -110,6 +118,14 @@ object FrmMain: TFrmMain
       Height = 17
       Caption = 'Log Viewer'
       Checked = True
+      Color = clWindow
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
       State = cbChecked
       TabOrder = 2
       OnClick = chbShowLogClick
@@ -154,7 +170,12 @@ object FrmMain: TFrmMain
     OnClick = lbObjectsClick
     OnDblClick = lbObjectsDblClick
     OnDrawItem = lbObjectsDrawItem
+    OnKeyDown = lbObjectsKeyDown
+    OnKeyPress = lbObjectsKeyPress
+    OnKeyUp = lbObjectsKeyUp
     OnMeasureItem = lbObjectsMeasureItem
+    OnMouseDown = lbObjectsMouseDown
+    OnMouseUp = lbObjectsMouseUp
   end
   object btnRsInsert: TButton
     Left = 790

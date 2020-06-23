@@ -45,8 +45,8 @@ end;
 
 procedure TDtTstDbSql.InsertOrUpdate(sTable: string; asColNames, asValues: TStringList);
 var
-  sSql, str: string;
-  iIdx: Integer;
+  iIdx: integer;
+  sColList, sValList, sSql, sVal: string;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
 begin
@@ -55,43 +55,33 @@ begin
   oQry := TSQLQuery.Create(nil);
   try
 
+    if asColNames.Count <> asValues.Count then
+    begin
+      raise Exception.Create('ERROR(TDtTstDbSql.InsertOrUpdate): Count of Columns (' + IntToStr(asColNames.Count) + ') and Values (' + IntToStr(asValues.Count) + ') differ!');
+    end;
+
+    sColList := '';
+    for iIdx := 0 to asColNames.Count - 1 do
+    begin
+
+      if not asColNames[iIdx].IsEmpty() then  // Would happen with DB Tree!
+      begin
+
+        if not sColList.IsEmpty() then sColList := sColList + ',';
+        sColList := sColList + ' ' + asColNames[iIdx];
+
+        if not sValList.IsEmpty() then sValList := sValList + ',';
+        sValList := sValList + ' ' + ':VAL' + IntToStr(iIdx + 1);
+
+      end;
+    end;
+
     // FIX: Before Insert Trigger!!!
-    sSql := 'UPDATE OR INSERT INTO ' + m_oApp.DB.FIXOBJNAME(sTable) + ' (';
+    sSql := 'UPDATE OR INSERT INTO ' + m_oApp.DB.FIXOBJNAME(sTable);
 
-    iIdx := -1;
-    for str in asColNames do
-    begin
-      iIdx := iIdx + 1;
+    sSql := sSql + ' (' + sColList + ' ) VALUES (' + sValList + ' )';
 
-      if iIdx > 0 then sSql := sSql + ',';
-      sSql := sSql + ' ' + str;
-    end;
-
-    sSql := sSql + ' ) VALUES ( ';
-
-    iIdx := -1;
-    for str in asValues do
-    begin
-      iIdx := iIdx + 1;
-
-      if iIdx > 0 then sSql := sSql + ',';
-      sSql := sSql + ' ' + ':VAL' + IntToStr(iIdx + 1);
-    end;
-
-    sSql := sSql + ' )';
-
-    sSql := sSql + ' MATCHING ( ';
-
-    iIdx := -1;
-    for str in asColNames do
-    begin
-      iIdx := iIdx + 1;
-
-      if iIdx > 0 then sSql := sSql + ',';
-      sSql := sSql + ' ' + str;
-    end;
-
-    sSql := sSql + ' )';
+    sSql := sSql + ' MATCHING (' + sColList + ' )';
 
     // TODO...
     {
@@ -112,11 +102,16 @@ begin
     }
 
     iIdx := -1;
-    for str in asValues do
+    for sVal in asValues do
     begin
       iIdx := iIdx + 1;
 
-      oQry.Params.ParamByName('VAL' + IntToStr(iIdx + 1)).AsString := str;
+      if not asColNames[iIdx].IsEmpty() then  // Would happen with DB Tree!
+      begin
+
+        oQry.Params.ParamByName('VAL' + IntToStr(iIdx + 1)).AsString := sVal;
+
+      end;
     end;
 
     //oQry.Prepared := True;

@@ -11,7 +11,10 @@ type
     m_lbLogView: TListBox;
   private
     m_sLogPath: string;
+    m_sLogPath_SQL: string;
     m_iLogLevel_REQU: integer;
+
+    procedure AppendLogFile(sPath, sLn: string);
   public
     constructor Create(sLogPath: string; sIniPath: string);
     destructor Destroy(); override;
@@ -21,6 +24,7 @@ type
     procedure LogUI(sLogLine: string);
     function LogSQL(sSql: string) : string;
     procedure LogINFO(sLogLine: string);
+    procedure LogDECOR(sLogLine: string);
     procedure LogLINE(iLogLevel: integer; sLogLine: string);
   end;
 
@@ -38,6 +42,14 @@ begin
   m_lbLogView := nil;
 
   m_sLogPath  := sLogPath;
+
+  m_sLogPath_SQL := '';
+  if not sLogPath.IsEmpty() then
+  begin
+    m_sLogPath_SQL := TPath.GetDirectoryName(sLogPath) + '\' +
+            TPath.GetFileNameWithoutExtension(sLogPath) + '.SQL' + TPath.GetExtension(sLogPath);
+  end;
+
   m_iLogLevel_REQU := ciLOGLEVEL_ALL;
 
   inherited Create();
@@ -74,8 +86,8 @@ begin
     end;
   end;
 
-  LogLINE(ciLOGLEVEL_DECORATION, '');
-  LogLINE(ciLOGLEVEL_DECORATION, '-=<[LOG START (LEVEL = ' + IntToStr(m_iLogLevel_REQU) + ' )]>=-');
+  LogDECOR('');
+  LogDECOR('-=<[LOG START (LEVEL = ' + IntToStr(m_iLogLevel_REQU) + ' )]>=-');
 
   if bIniPresent then
   begin
@@ -87,7 +99,8 @@ end;
 
 destructor TDtTstLog.Destroy();
 begin
-  LogLINE(ciLOGLEVEL_DECORATION, '-=<[LOG END]>=-');
+
+  LogDECOR('-=<[LOG END]>=-');
 
   m_lbLogView := nil;
 
@@ -118,12 +131,33 @@ end;
 function TDtTstLog.LogSQL(sSql: string) : string;
 begin
   Result := sSql;
+
   LogLINE(ciLOGLEVEL_SQL, 'SQL | ' + sSql);
+
+  if not m_sLogPath_SQL.IsEmpty() then
+  begin
+
+    AppendLogFile(m_sLogPath_SQL, DateTimeToStrHu(Now) + ' | ' + sSql);
+
+  end;
 end;
 
 procedure TDtTstLog.LogINFO(sLogLine: string);
 begin
   LogLINE(ciLOGLEVEL_NA, 'INF | ' + sLogLine);
+end;
+
+procedure TDtTstLog.LogDECOR(sLogLine: string);
+begin
+  LogLINE(ciLOGLEVEL_DECOR, sLogLine);
+
+  if not m_sLogPath_SQL.IsEmpty() then
+  begin
+
+    AppendLogFile(m_sLogPath_SQL, DateTimeToStrHu(Now) + ' | ' + sLogLine);
+
+  end;
+
 end;
 
 procedure TDtTstLog.LogLINE(iLogLevel: integer; sLogLine: string);
@@ -149,19 +183,7 @@ begin
 
   if m_sLogPath.Length > 0 then
   begin
-    try
-
-      // ATTN!!!
-      CreateUTF8BOMFile(m_sLogPath, False {bOverWrite});
-
-      TFile.AppendAllText(m_sLogPath, sLn + Chr(13) + Chr(10));
-
-    except
-      on exc : Exception do
-      begin
-        // NOP...
-      end;
-    end;
+    AppendLogFile(m_sLogPath, sLn);
   end;
 
   if Assigned(m_lbLogView) and Assigned(m_lbLogView.Parent) then
@@ -173,6 +195,23 @@ begin
       begin
         // NOP...
       end;
+    end;
+  end;
+end;
+
+procedure TDtTstLog.AppendLogFile(sPath, sLn: string);
+begin
+  try
+
+    // ATTN!!!
+    CreateUTF8BOMFile(sPath, False {bOverWrite});
+
+    TFile.AppendAllText(sPath, sLn + Chr(13) + Chr(10));
+
+  except
+    on exc : Exception do
+    begin
+      // NOP...
     end;
   end;
 end;

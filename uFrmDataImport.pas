@@ -42,6 +42,8 @@ type
     lbTree: TListBox;
     chbTblCsvEmpty: TCheckBox;
     btnRememberDef: TButton;
+    chbShowTreeDetails: TCheckBox;
+    btnSortTree: TButton;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -58,6 +60,7 @@ type
     procedure btnTblColResetClick(Sender: TObject);
     procedure tmrStartTimer(Sender: TObject);
     procedure btnRememberDefClick(Sender: TObject);
+    procedure btnSortTreeClick(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
@@ -76,8 +79,17 @@ type
 
     m_sDefAsString: string;
 
+    m_bDB_TREE: Boolean;
+    m_iCol_DB_TREE_NODE   : integer;
+    m_iCol_DB_TREE_PARENT : integer;
+    m_iCol_DB_TREE_PATH   : integer;
+    m_iCol_DB_TREE_LEVEL  : integer;
+
     procedure ClearPreview();
     procedure ClearPreview_DEF();
+    procedure ClearPreview_DB_TREE();
+
+    procedure ShowTreeCtrls();
 
     function OpenCSV() : Boolean;
     function ReadCSVLine() : Boolean;
@@ -87,6 +99,9 @@ type
     function LoadNextCSVRow() : Boolean;
 
     procedure ProcessCSV(bChkOnly: Boolean);
+
+    procedure DB_TREE_Add(asTblCols, asCsvVals, asCsvCols: TStringList);
+    function DB_TREE_AddKey(sKey: string) : string;
 
   public
     { Public declarations }
@@ -125,6 +140,13 @@ begin
   m_sTableOrView := '';
 
   m_asColInfos := TStringList.Create();
+
+  //lbTree.Items.Clear();
+  m_bDB_TREE := False;
+  m_iCol_DB_TREE_NODE   := -1;
+  m_iCol_DB_TREE_PARENT := -1;
+  m_iCol_DB_TREE_PATH   := -1;
+  m_iCol_DB_TREE_LEVEL  := -1;
 
   inherited Create(AOwner);
 
@@ -227,6 +249,35 @@ begin
 
   m_sDefAsString := '';
 
+  ClearPreview_DB_TREE();
+end;
+
+procedure TFrmDataImport.ClearPreview_DB_TREE();
+begin
+
+  { DB TREE }
+
+  lbTree.Items.Clear();
+  lbTree.Sorted := False;
+
+  chbShowTreeDetails.Visible := False;
+  btnSortTree       .Visible := False;
+
+  m_bDB_TREE := False;
+
+  m_iCol_DB_TREE_NODE   := -1;
+  m_iCol_DB_TREE_PARENT := -1;
+  m_iCol_DB_TREE_PATH   := -1;
+  m_iCol_DB_TREE_LEVEL  := -1;
+
+end;
+
+procedure TFrmDataImport.ShowTreeCtrls;
+begin
+
+  chbShowTreeDetails.Visible := True;
+  btnSortTree       .Visible := True;
+
 end;
 
 procedure TFrmDataImport.edCsvDelimChange(Sender: TObject);
@@ -262,6 +313,28 @@ end;
 procedure TFrmDataImport.btnCloseClick(Sender: TObject);
 begin
   Close();
+end;
+
+procedure TFrmDataImport.btnPreCheckClick(Sender: TObject);
+begin
+  ProcessCSV(True {bChkOnly});
+end;
+
+procedure TFrmDataImport.btnRememberDefClick(Sender: TObject);
+begin
+  SaveStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', m_sTableOrView + '_Def', m_sDefAsString);
+
+  InfoMsgDlg('Definitions saved!');
+end;
+
+procedure TFrmDataImport.btnSortTreeClick(Sender: TObject);
+begin
+  lbTree.Sorted := True;
+end;
+
+procedure TFrmDataImport.btnImportClick(Sender: TObject);
+begin
+  ProcessCSV(False {bChkOnly});
 end;
 
 procedure TFrmDataImport.btnCsvOpenClick(Sender: TObject);
@@ -909,7 +982,7 @@ begin
         if not bHit then
         begin
 
-          sMsg := 'ERROR: Table Column "' + sTblCol_NOT_NULL + '" has to get Value from CSV file! Cannot be NULL';
+          sMsg := 'ERROR: Table Column "' + sTblCol_NOT_NULL + '" has to get Value from CSV file! Cannot be NULL!';
 
           frmPrs.AddStep(sMsg);
           Application.ProcessMessages;
@@ -927,36 +1000,151 @@ begin
 
       end;
 
-      asCsvCols := TStringList.Create();
+      { DB TREE }
 
-      aiCsvColIndices := TArray<Integer>.Create();
-      SetLength(aiCsvColIndices, sgrdDef.RowCount);
+      ClearPreview_DB_TREE();
+
       for iRow := 1 to sgrdDef.RowCount - 1 do
       begin
+        sTblCol := sgrdDef.Cells[0, iRow];
 
-        aiCsvColIndices[iRow - 1] := -1;
-
-        for iCol := 0 to sgrd.ColCount - 1 do
+        if {EndsText not worked!} ContainsText(sTblCol, csDB_TREE_NODE) then
         begin
-          if sgrd.Cells[iCol, 0] = sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] then
-          begin
-            aiCsvColIndices[iRow - 1] := iCol;
-            Break;
-          end;
+          m_bDB_TREE := True;
+          ShowTreeCtrls();
+
+          m_iCol_DB_TREE_NODE := iRow - 1;
+
+          sTblCol := TRIM(sTblCol.Replace(csDB_TREE_NODE, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sTblCol, csDB_TREE_PARENT) then
+        begin
+          m_bDB_TREE := True;
+          ShowTreeCtrls();
+
+          m_iCol_DB_TREE_PARENT := iRow - 1;
+
+          sTblCol := TRIM(sTblCol.Replace(csDB_TREE_PARENT, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sTblCol, csDB_TREE_PATH) then
+        begin
+          m_bDB_TREE := True;
+          ShowTreeCtrls();
+
+          m_iCol_DB_TREE_PATH := iRow - 1;
+
+          sTblCol := TRIM(sTblCol.Replace(csDB_TREE_PATH, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sTblCol, csDB_TREE_LEVEL) then
+        begin
+          m_bDB_TREE := True;
+          ShowTreeCtrls();
+
+          m_iCol_DB_TREE_LEVEL := iRow - 1;
+
+          sTblCol := TRIM(sTblCol.Replace(csDB_TREE_LEVEL, '', [rfReplaceAll]));
         end;
 
-        if aiCsvColIndices[iRow - 1] = -1 then
+        asTblCols[iRow - 1] := sTblCol;
+      end;
+
+      if m_bDB_TREE then
+      begin
+
+        sMsg := '';
+
+        if m_iCol_DB_TREE_NODE < 0 then
         begin
-          // CHNG: Case of Empty Text Value!
-          //raise Exception.Create('CSV Column "' + sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] + '" not found!');
+          if sMsg.IsEmpty() then
+            sMsg := 'ERROR: '
+          else
+            sMsg := sMsg + CHR(10) + CHR(10);
+
+          sMsg := sMsg + 'Required column (ending with) "' + csDB_TREE_NODE + '" is not defined!';
         end;
 
-        asCsvCols.Add(sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow]);
+        if m_iCol_DB_TREE_PARENT < 0 then
+        begin
+          if sMsg.IsEmpty() then
+            sMsg := 'ERROR: '
+          else
+            sMsg := sMsg + CHR(10) + CHR(10);
+
+          sMsg := sMsg + 'Required column (ending with) "' + csDB_TREE_PARENT + '" is not defined!';
+        end;
+
+        if m_iCol_DB_TREE_PATH < 0 then
+        begin
+          if sMsg.IsEmpty() then
+            sMsg := 'ERROR: '
+          else
+            sMsg := sMsg + CHR(10) + CHR(10);
+
+          sMsg := sMsg + 'Required column (ending with) "' + csDB_TREE_PATH + '" is not defined!';
+        end;
+
+        if m_iCol_DB_TREE_LEVEL < 0 then
+        begin
+          if sMsg.IsEmpty() then
+            sMsg := 'ERROR: '
+          else
+            sMsg := sMsg + CHR(10) + CHR(10);
+
+          sMsg := sMsg + 'Required column (ending with) "' + csDB_TREE_LEVEL + '" is not defined!';
+        end;
+
+        if not sMsg.IsEmpty() then
+        begin
+
+          frmPrs.AddStep(sMsg);
+          Application.ProcessMessages;
+
+          //sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+          iErrCnt := iErrCnt + 1;
+          {if not ErrorQuestionMsgDlg} ErrorMsgDlg(sMsg); { then
+          begin}
+            bBreak := True;
+            {Break;
+          end;}
+        end;
 
       end;
 
-      asCsvVals := TStringList.Create;
+      if not bBreak then
+      begin
 
+        asCsvCols := TStringList.Create();
+
+        aiCsvColIndices := TArray<Integer>.Create();
+        SetLength(aiCsvColIndices, sgrdDef.RowCount);
+        for iRow := 1 to sgrdDef.RowCount - 1 do
+        begin
+
+          aiCsvColIndices[iRow - 1] := -1;
+
+          for iCol := 0 to sgrd.ColCount - 1 do
+          begin
+            if sgrd.Cells[iCol, 0] = sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] then
+            begin
+              aiCsvColIndices[iRow - 1] := iCol;
+              Break;
+            end;
+          end;
+
+          if aiCsvColIndices[iRow - 1] = -1 then
+          begin
+            // CHNG: Case of Empty Text Value!
+            //raise Exception.Create('CSV Column "' + sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] + '" not found!');
+          end;
+
+          asCsvCols.Add(sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow]);
+
+        end;
+
+        asCsvVals := TStringList.Create;
+
+      end;
     end;
 
     if iErrCnt = 0 then frmPrs.AddStepEnd('Done!');
@@ -1142,34 +1330,66 @@ begin
 
         if bBreak then Break;
 
-        if not bChkOnly then
+        if m_bDB_TREE then
         begin
 
-          try
+            try
 
-            dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+              DB_TREE_Add(asTblCols, asCsvVals, asCsvCols);
 
-          except
-            on exc : Exception do
-            begin
-              m_oApp.LOG.LogERROR(exc);
-
-              sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
-
-              frmPrs.AddStep(sMsg);
-              Application.ProcessMessages;
-
-              sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
-
-              iErrCnt := iErrCnt + 1;
-              if not ErrorQuestionMsgDlg(sMsg) then
+            except
+              on exc : Exception do
               begin
-                bBreak := True;
-                Break;
+                m_oApp.LOG.LogERROR(exc);
+
+                sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+                frmPrs.AddStep(sMsg);
+                Application.ProcessMessages;
+
+                sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+                iErrCnt := iErrCnt + 1;
+                if not ErrorQuestionMsgDlg(sMsg) then
+                begin
+                  bBreak := True;
+                  Break;
+                end;
               end;
             end;
-          end;
 
+        end
+        else
+        begin
+          if not bChkOnly then
+          begin
+
+            try
+
+              dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+
+            except
+              on exc : Exception do
+              begin
+                m_oApp.LOG.LogERROR(exc);
+
+                sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+                frmPrs.AddStep(sMsg);
+                Application.ProcessMessages;
+
+                sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+                iErrCnt := iErrCnt + 1;
+                if not ErrorQuestionMsgDlg(sMsg) then
+                begin
+                  bBreak := True;
+                  Break;
+                end;
+              end;
+            end;
+
+          end;
         end;
 
       end;
@@ -1224,21 +1444,191 @@ begin
 
 end;
 
-procedure TFrmDataImport.btnPreCheckClick(Sender: TObject);
+procedure TFrmDataImport.DB_TREE_Add(asTblCols, asCsvVals, asCsvCols: TStringList);
+var
+  cKeyDelim: char;
+  sDblKeyDelim: string;
+  sNode, sParent, sKeyStart: string;
 begin
-  ProcessCSV(True {bChkOnly});
+
+  cKeyDelim    := ';';
+  sDblKeyDelim := ';;';
+
+  sNode := asCsvVals[m_iCol_DB_TREE_NODE];
+
+  if sNode.IsEmpty then
+  begin
+    raise Exception.Create('Tree Node cannot be empty!');
+  end;
+
+  sParent := asCsvVals[m_iCol_DB_TREE_PARENT];
+
+  if sParent.IsEmpty() then
+  begin
+    DB_TREE_AddKey (sDblKeyDelim + sNode + sDblKeyDelim);
+  end
+  else
+  begin
+    sKeyStart := DB_TREE_AddKey (sDblKeyDelim + sParent + sDblKeyDelim);
+    DB_TREE_AddKey ({sDblKeyDelim + sParent + cKeyDelim} sKeyStart + sNode + sDblKeyDelim);
+  end;
+
+  // DEBUG...
+  //lbTree.Items.Add(sParent + '|' + sNode)
+
+  {
+  m_iCol_DB_TREE_NODE   := -1;
+  m_iCol_DB_TREE_PARENT := -1;
+  m_iCol_DB_TREE_PATH   := -1;
+  m_iCol_DB_TREE_LEVEL  := -1;
+  }
+
 end;
 
-procedure TFrmDataImport.btnRememberDefClick(Sender: TObject);
+function TFrmDataImport.DB_TREE_AddKey(sKey: string) : string;
+var
+  sKeyEnd, sKeyStart, sNewKeyStart: string;
+  iIdx, iCmp, iIdxSub, iPos, iIdxSubSub, iCmpSubSub, iIdxMoveTo: integer;
+  bExists: Boolean;
 begin
-  SaveStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', m_sTableOrView + '_Def', m_sDefAsString);
+  Result := sKey.Substring(0, sKey.Length - 1);
 
-  InfoMsgDlg('Definitions saved!');
-end;
+  { Looking for Key }
 
-procedure TFrmDataImport.btnImportClick(Sender: TObject);
-begin
-  ProcessCSV(False {bChkOnly});
+  sKeyEnd := sKey.Substring(1);
+
+  iIdx := -1;
+  while True do
+  begin
+    iIdx := iIdx + 1;
+
+    if iIdx >= lbTree.Items.Count then Break;
+
+    if ContainsText(lbTree.Items[iIdx], sKeyEnd) then
+    begin
+      Result := lbTree.Items[iIdx].Substring(0, lbTree.Items[iIdx].Length - 1); // - sKeyEnd.Length);
+
+      Exit;
+    end;
+
+  end;
+
+  { Inserting new Key }
+
+  iIdx := -1;
+  while True do
+  begin
+    iIdx := iIdx + 1;
+
+    if iIdx >= lbTree.Items.Count then Break;
+
+    iCmp := CompareText(sKey, lbTree.Items[iIdx]);
+
+    if iCmp = 0 then
+      Exit; // Exists!
+
+    if iCmp < 0 then
+      Break; // Sorted!
+  end;
+
+  if iIdx >= lbTree.Items.Count then
+    lbTree.Items.Add(sKey)
+  else
+    lbTree.Items.Insert(iIdx, sKey);
+
+  // DEBUG...
+  //Exit;
+
+  { Updating existing Keys }
+
+  sNewKeyStart := sKey.Substring(0, sKey.Length - 1);
+
+  iPos := sKey.Substring(2).IndexOf(';');
+  sKeyStart := ';' + sKey.Substring(2 + iPos, sKey.Length - (2 + iPos + 1));
+  if sKeyStart.Length > 3 then
+  begin
+
+    iIdxMoveTo := -1;
+
+    iIdxSub := -1;
+    while True do
+    begin
+      iIdxSub := iIdxSub + 1;
+
+      if iIdxSub >= lbTree.Items.Count then Break;
+
+      if iIdxSub <> iIdx then
+      begin
+
+        iCmp := CompareText(sKeyStart, lbTree.Items[iIdxSub].Substring(0, sKeyStart.Length));
+
+        if StartsText(sKeyStart, lbTree.Items[iIdxSub]) then
+        begin
+
+          bExists := False;
+
+          if iIdxMoveTo < 0 then
+          begin
+            iIdxSubSub := -1;
+            while True do
+            begin
+              iIdxSubSub := iIdxSubSub + 1;
+
+              if iIdxSubSub >= lbTree.Items.Count then Break;
+
+              iCmpSubSub := CompareText(sKeyStart + sKeyStart[2], lbTree.Items[iIdxSubSub]);
+
+              if iCmpSubSub = 0 then
+              begin
+                bExists := True;
+                Break; // Exists!
+              end;
+
+              if iCmpSubSub < 0 then Break; // Sorted!
+            end;
+          end;
+
+          if bExists then
+          begin
+            iIdxMoveTo := iIdx + 1; // ATTN: Each further keys here are Children of this!!!
+
+            lbTree.Items.Delete(iIdxSub);
+            iIdxSub := iIdxSub - 1;
+
+          end
+          else
+          begin
+            if iIdxMoveTo >= 0 then
+            begin
+
+              lbTree.Items.Insert(iIdxMoveTo, sNewKeyStart + lbTree.Items[iIdxSub].Substring(sKeyStart.Length));
+
+              if iIdxMoveTo <= iIdxSub then
+                iIdxSub := iIdxSub + 1;
+
+              iIdxMoveTo := iIdxMoveTo + 1;
+
+              lbTree.Items.Delete(iIdxSub);
+              iIdxSub := iIdxSub - 1;
+
+              if iIdxMoveTo > iIdxSub then
+                iIdxMoveTo := iIdxMoveTo - 1;
+            end
+            else
+            begin
+              lbTree.Items[iIdxSub] := sNewKeyStart + lbTree.Items[iIdxSub].Substring(sKeyStart.Length);
+            end;
+          end;
+
+        end;
+
+        if iCmp < 0 then Break; // Sorted!
+
+      end;
+    end;
+
+  end;
+
 end;
 
 end.

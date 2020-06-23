@@ -105,7 +105,6 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
-        ExplicitWidth = 701
         ColWidths = (
           64)
         RowHeights = (
@@ -283,7 +282,7 @@ object FrmDataImport: TFrmDataImport
     object btnImport: TButton
       Left = 12
       Top = 392
-      Width = 75
+      Width = 61
       Height = 25
       Anchors = [akLeft, akBottom]
       Caption = 'Import'
@@ -292,9 +291,9 @@ object FrmDataImport: TFrmDataImport
       OnClick = btnImportClick
     end
     object btnPreCheck: TButton
-      Left = 98
+      Left = 79
       Top = 392
-      Width = 132
+      Width = 122
       Height = 25
       Anchors = [akLeft, akBottom]
       Caption = 'Check before Import'
@@ -322,14 +321,43 @@ object FrmDataImport: TFrmDataImport
       TabOrder = 5
     end
     object btnRememberDef: TButton
-      Left = 280
+      Left = 352
       Top = 392
-      Width = 161
+      Width = 145
       Height = 25
       Anchors = [akLeft, akBottom]
       Caption = 'Remember this Definition'
       TabOrder = 6
       OnClick = btnRememberDefClick
+    end
+    object chbShowTreeDetails: TCheckBox
+      Left = 209
+      Top = 396
+      Width = 83
+      Height = 17
+      Anchors = [akLeft, akBottom]
+      Caption = 'Tree Details'
+      Checked = True
+      Color = clWindow
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 7
+    end
+    object btnSortTree: TButton
+      Left = 288
+      Top = 392
+      Width = 58
+      Height = 25
+      Anchors = [akLeft, akBottom]
+      Caption = 'Sort Tree'
+      TabOrder = 8
+      OnClick = btnSortTreeClick
     end
   end
   object tmrStart: TTimer

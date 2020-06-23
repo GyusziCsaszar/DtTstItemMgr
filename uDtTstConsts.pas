@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 129;
-  csVERSION_TITLE       = 'v1.29';
+  ciVERSION             = 130;
+  csVERSION_TITLE       = 'v1.30';
 
   { App - Strings }
   csITEM                = 'ITEM';
@@ -38,32 +38,35 @@ const
   ccMnuItmID_Table_Constraint  = '6';
   ccMnuItmID_Query             = '7';
   // --------------------------------
-  ccMnuBtnID_Refresh           = '1';
-  ccMnuBtnID_Details           = '2';
-  ccMnuBtnID_Open              = '3';
-  ccMnuBtnID_Import_Table      = '4';
-  ccMnuBtnID_Delete_From_Table = '5';
-  ccMnuBtnID_Drop_Table        = '6';
-  ccMnuBtnID_Drop_Column       = '7';
-  ccMnuBtnID_Drop_View         = '8';
+  ccMnuBtnID_Tables            = '8';
+  ccMnuBtnID_Tables_Back       = '9';
   //
-  ccMnuBtnID_GrdRefresh        = '9';
+  ccMnuBtnID_Refresh           = 'A';
+  ccMnuBtnID_Details           = 'B';
+  ccMnuBtnID_Open              = 'C';
+  ccMnuBtnID_Import_Table      = 'D';
+  ccMnuBtnID_Delete_From_Table = 'E';
+  ccMnuBtnID_Drop_Table        = 'F';
+  ccMnuBtnID_Drop_Column       = 'G';
+  ccMnuBtnID_Drop_View         = 'H';
+  //
+  ccMnuBtnID_GrdRefresh        = 'I';
   // { Product }
-  ccMnuBtnID_Import_Item_Type  = 'A';
-  ccMnuBtnID_Import_Item       = 'B';
-  ccMnuBtnID_Import_Item_Group = 'C';
+  ccMnuBtnID_Import_Item_Type  = 'J';
+  ccMnuBtnID_Import_Item       = 'K';
+  ccMnuBtnID_Import_Item_Group = 'L';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
   csLOG_UTF8_EXT        = '.UTF-8.LOG';
   ciLOGLEVEL_ALL        = -1;
   ciLOGLEVEL_NONE       = 0;
-  ciLOGLEVEL_DECORATION = 0;
-  ciLOGLEVEL_ERROR      = 1;
-  ciLOGLEVEL_VERSION    = 2;
-  ciLOGLEVEL_LIFETIME   = 3;
-  ciLOGLEVEL_UI         = 4;
-  ciLOGLEVEL_SQL        = 5;
+  ciLOGLEVEL_DECOR      = 0;
+  ciLOGLEVEL_SQL        = 1;
+  ciLOGLEVEL_ERROR      = 2;
+  ciLOGLEVEL_VERSION    = 3;
+  ciLOGLEVEL_LIFETIME   = 4;
+  ciLOGLEVEL_UI         = 5;
   ciLOGLEVEL_NA         = 6;
 
   { INI File }

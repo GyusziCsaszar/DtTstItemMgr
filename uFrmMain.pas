@@ -69,11 +69,22 @@ type
     procedure lbTasksKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure lbTasksKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure lbObjectsMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure lbObjectsMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure lbObjectsKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure lbObjectsKeyPress(Sender: TObject; var Key: Char);
+    procedure lbObjectsKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
-    m_bTasksMouseDown: Boolean;
     m_oApp: TDtTstAppDb;
+    m_bTasks_MouseDown: Boolean;
+    m_bObjects_MouseDown: Boolean;
+    m_bTablesView: Boolean;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -91,7 +102,7 @@ type
 
     procedure DoDeleteFromTable(cID_Object: char; sCaption_Object: string);
 
-    procedure DoRefreshMetaData();
+    procedure DoRefreshMetaData(bTablesView: Boolean);
     procedure DoRefreshMetaData_PRODUCT(var iIdx: integer);
 
     procedure DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
@@ -102,7 +113,7 @@ type
 
     procedure DoTaskOpenClick(cID_Object: char; sCaption_Object: string);
 
-    procedure DoObjectClick();
+    procedure DoObjectsClick();
     procedure DoTasksClick();
 
     procedure DoLbMeasuerItem(Control: TWinControl; Index: Integer; var Height: Integer);
@@ -115,6 +126,8 @@ type
     function MnuITM_Selectable(cID: char; sCaption: string; iIndent: integer) : string;
     function MnuITM(sCaption: string; iIndent: integer) : string;
     function MnuSPC() : string;
+    function MnuBTN(cID: char; sCaption: string) : string;
+
     procedure Menu_ExtractItem(sItem: string; var rcID: char; var rsCaption: string);
 
     procedure Menu_AddTask_Button(cID: char; sCaption: string);
@@ -143,7 +156,10 @@ begin
 
   con_Firebird := nil;
 
-  m_bTasksMouseDown := False;
+  m_bTasks_MouseDown   := False;
+  m_bObjects_MouseDown := False;
+
+  m_bTablesView := False;
 
   m_oApp := TDtTstAppDb.Create(TPath.ChangeExtension(Application.ExeName, csLOG_UTF8_EXT), //csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
@@ -516,7 +532,7 @@ begin
 
   SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', chbMetadataTablesOnly.Checked);
 
-  DoRefreshMetaData();
+  DoRefreshMetaData(m_bTablesView);
 
   m_oApp.LOG.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
 end;
@@ -583,7 +599,7 @@ begin
 
     m_oApp.LOG.LogINFO('SQL Connection is Connected!');
 
-    DoRefreshMetaData();
+    DoRefreshMetaData(m_bTablesView);
 
     if not sSqlOpenSelect.IsEmpty() then
     begin
@@ -632,7 +648,7 @@ begin
       end;
     end;
 
-    DoRefreshMetaData();
+    DoRefreshMetaData(m_bTablesView);
 
   finally
     FreeAndNil(asParts);
@@ -684,7 +700,7 @@ begin
     end;
   end;
 
-  DoRefreshMetaData();
+  DoRefreshMetaData(m_bTablesView);
 end;
 
 procedure TFrmMain.DoDropView(cID_Object: char; sCaption_Object: string);
@@ -708,10 +724,10 @@ begin
     end;
   end;
 
-  DoRefreshMetaData();
+  DoRefreshMetaData(m_bTablesView);
 end;
 
-procedure TFrmMain.DoRefreshMetaData();
+procedure TFrmMain.DoRefreshMetaData(bTablesView: Boolean);
 var
   iIdx: integer;
   cID: char;
@@ -726,7 +742,7 @@ begin
   lbObjects.Items.Clear();
   lbTasks.Items.Clear();
 
-  if m_oApp.ADMIN_MODE then
+  if bTablesView and m_oApp.ADMIN_MODE then
   begin
 
     con_Firebird.GetTableNames(lbObjects.Items, False);
@@ -737,7 +753,7 @@ begin
     end;
   end;
 
-  if (not chbMetadataTablesOnly.Checked) and m_oApp.ADMIN_MODE then
+  if (not chbMetadataTablesOnly.Checked) and bTablesView and m_oApp.ADMIN_MODE then
   begin
 
     iIdx := -1;
@@ -864,7 +880,10 @@ begin
       lbObjects.Items.Insert(iIdx, MnuSPC());
 
     end;
+  end;
 
+  if (not chbMetadataTablesOnly.Checked) and (not bTablesView) and m_oApp.ADMIN_MODE then
+  begin
     iIdx := -1;
 
     iIdx := iIdx + 1;
@@ -876,16 +895,16 @@ begin
     }
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuITM('Login Username: ' + con_Firebird.GetLoginUsername(), 0));
+    lbObjects.Items.Insert(iIdx, MnuITM('Login Username: ' + con_Firebird.GetLoginUsername(), 1));
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuITM('Default SchemaName: ' + con_Firebird.GetDefaultSchemaName(), 0));
+    lbObjects.Items.Insert(iIdx, MnuITM('Default SchemaName: ' + con_Firebird.GetDefaultSchemaName(), 1));
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuITM('Driver Func: ' + con_Firebird.GetDriverFunc, 0));
+    lbObjects.Items.Insert(iIdx, MnuITM('Driver Func: ' + con_Firebird.GetDriverFunc, 1));
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuITM('Server Charset: ' + con_Firebird.Params.Values['ServerCharset'] + ' // NOTE: Requested by client!', 0));
+    lbObjects.Items.Insert(iIdx, MnuITM('Server Charset: ' + con_Firebird.Params.Values['ServerCharset'] + ' // NOTE: Requested by client!', 1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuGRP('Generators', 0));
@@ -897,7 +916,7 @@ begin
       for sItem in asItems do
       begin
         iIdx := iIdx + 1;
-        lbObjects.Items.Insert(iIdx, MnuITM(sItem, 0));
+        lbObjects.Items.Insert(iIdx, MnuITM(sItem, 1));
       end;
     finally
       FreeAndNil(asItems);
@@ -913,7 +932,7 @@ begin
       for sItem in asItems do
       begin
         iIdx := iIdx + 1;
-        lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_View, sItem, 0)); //MnuITM(sItem, 0));
+        lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_View, sItem, 1)); //MnuITM(sItem, 0));
       end;
     finally
       FreeAndNil(asItems);
@@ -928,48 +947,75 @@ begin
   if m_oApp.ADMIN_MODE then
   begin
 
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuGRP('Tables', 0));
+    if bTablesView then
+    begin
+
+      {
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuGRP('Tables', 0));
+      }
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuBTN(ccMnuBtnID_Tables_Back, 'Back'));
+
+    end
+    else
+    begin
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuBTN(ccMnuBtnID_Tables, 'Tables'));
+
+    end;
 
     {
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuSPC());
     }
 
-    lbObjects.Items.Add(MnuGRP('Queries', 0));
+    if not bTablesView then
+    begin
 
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|DUAL (in firebird RDB$DATABASE)|select current_timestamp from RDB$DATABASE', 0));
+      lbObjects.Items.Add(MnuGRP('Queries', 0));
+
+      lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|DUAL (in firebird RDB$DATABASE)|select current_timestamp from RDB$DATABASE', 1));
+
+    end;
 
   end;
 
   // NOTE: Increase Scroll Height...
   lbObjects.Items.Add(MnuSPC());
 
-  iIdx := -1;
-  DoRefreshMetaData_PRODUCT(iIdx);
-
-  if m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE then
+  if not bTablesView then
   begin
 
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuGRP('Database Administration Mode', 0));
+    iIdx := -1;
+    DoRefreshMetaData_PRODUCT(iIdx);
 
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'DB INFO' + '|' +
-                                 'SELECT *' +
-                                 ' FROM ' + csDB_TBL_ADM_DBINF, 0));
+    if m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE then
+    begin
 
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'USERS' + '|' +
-                                 'SELECT *' +
-                                 ' FROM ' + csDB_TBL_ADM_USERS +
-                                 ' ORDER BY ' + csDB_FLD_ADM_X_ID, 0));
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuGRP('Database Administration Mode', 0));
 
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'TABLES' + '|' +
-                                 'SELECT *' +
-                                 ' FROM ' + csDB_TBL_ADM_TABLES +
-                                 ' ORDER BY ' + csDB_FLD_ADM_X_ID, 0));
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'DB INFO' + '|' +
+                                   'SELECT *' +
+                                   ' FROM ' + csDB_TBL_ADM_DBINF, 1));
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'USERS' + '|' +
+                                   'SELECT *' +
+                                   ' FROM ' + csDB_TBL_ADM_USERS +
+                                   ' ORDER BY ' + csDB_FLD_ADM_X_ID, 1));
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'TABLES' + '|' +
+                                   'SELECT *' +
+                                   ' FROM ' + csDB_TBL_ADM_TABLES +
+                                   ' ORDER BY ' + csDB_FLD_ADM_X_ID, 1));
+
+    end;
 
   end;
 
@@ -995,7 +1041,7 @@ begin
                        ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
                        ' LEFT JOIN ' + csDB_TBL_USR_ITEMTYPE + ' B' +
                        '   ON (B.' + csDB_FLD_ADM_X_ID + ' = A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ')' +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
     }
 
     // BUG: Unable to Edit!
@@ -1008,7 +1054,7 @@ begin
                                ' WHERE ' + 'B.' + csDB_FLD_ADM_X_ID + ' = ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
                                ') ' + csDB_FLD_USR_ITEMTYPE_NAME +
                        ' FROM ' + csDB_TBL_USR_ITEM +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
     }
 
     // BUG: Unable to Edit!
@@ -1020,7 +1066,7 @@ begin
                        ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
                            ', ' + csDB_TBL_USR_ITEMTYPE + ' B' +
                        ' WHERE ' + 'A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ' = ' + 'B.' + csDB_FLD_ADM_X_ID +
-                       ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 0));
+                       ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 1));
     }
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
@@ -1029,19 +1075,19 @@ begin
                                       ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
                                       ', ' + csDB_FLD_USR_ITEM_AMO +
                                  ' FROM ' + csDB_TBL_USR_ITEM +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View)' + '|' +
                                  'SELECT *' +
                                  ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|' +
                                  'SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
                                  ' FROM ' + csDB_TBL_USR_ITEMTYPE +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + '|' +
@@ -1049,7 +1095,7 @@ begin
                                       ', ' + csDB_FLD_USR_ITEMGROUP_LEVEL +
                                       ', ' + csDB_FLD_USR_ITEMGROUP_PATH +
                                  ' FROM ' + csDB_TBL_USR_ITEMGROUP +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE, 0));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE, 1));
   end;
 
 end;
@@ -1238,7 +1284,7 @@ begin
         Rect.Top    := Rect.Top    + 3;
         Rect.Bottom := Rect.Bottom - 2;
 
-        if m_bTasksMouseDown and (odSelected in State) then
+        if (m_bTasks_MouseDown or m_bObjects_MouseDown) and (odSelected in State) then
           DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH or DFCS_PUSHED )
         else
           DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH );
@@ -1368,29 +1414,19 @@ begin
   end;
 end;
 
-procedure TFrmMain.lbObjectsClick(Sender: TObject);
+procedure TFrmMain.lbObjectsMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
 begin
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick BEGIN');
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsMouseDown BEGIN');
 
-  DoObjectClick();
+  m_bObjects_MouseDown := True;
+  lbObjects.Repaint;
 
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick END');
-end;
+  {
+  DoObjectsClick();
+  }
 
-procedure TFrmMain.lbObjectsDblClick(Sender: TObject);
-var
-  cID_Object: char;
-  sCaption_Object: string;
-  asParts: TStringList;
-begin
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick BEGIN');
-
-  if lbObjects.ItemIndex < 0 then Exit;
-  Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
-
-  DoTaskOpenClick(cID_Object, sCaption_Object);
-
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsMouseDown END');
 end;
 
 procedure TFrmMain.lbTasksMouseDown(Sender: TObject; Button: TMouseButton;
@@ -1398,7 +1434,7 @@ procedure TFrmMain.lbTasksMouseDown(Sender: TObject; Button: TMouseButton;
 begin
   m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseDown BEGIN');
 
-  m_bTasksMouseDown := True;
+  m_bTasks_MouseDown := True;
   lbTasks.Repaint;
 
   {
@@ -1408,17 +1444,51 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseDown END');
 end;
 
+procedure TFrmMain.lbObjectsMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsMouseUp BEGIN');
+
+  m_bObjects_MouseDown := False;
+  lbObjects.Repaint;
+
+  DoObjectsClick();
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsMouseUp END');
+
+end;
+
 procedure TFrmMain.lbTasksMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseUp BEGIN');
 
-  m_bTasksMouseDown := False;
+  m_bTasks_MouseDown := False;
   lbTasks.Repaint;
 
   DoTasksClick();
 
   m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseUp END');
+end;
+
+procedure TFrmMain.lbObjectsKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyDown BEGIN');
+
+  if Key = VK_SPACE then
+  begin
+
+    m_bObjects_MouseDown := True;
+    lbObjects.Repaint;
+
+    {
+    DoObjectsClick();
+    }
+
+  end;
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyDown END');
 end;
 
 procedure TFrmMain.lbTasksKeyDown(Sender: TObject; var Key: Word;
@@ -1429,7 +1499,7 @@ begin
   if Key = VK_SPACE then
   begin
 
-    m_bTasksMouseDown := True;
+    m_bTasks_MouseDown := True;
     lbTasks.Repaint;
 
     {
@@ -1439,6 +1509,20 @@ begin
   end;
 
   m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyDown END');
+end;
+
+procedure TFrmMain.lbObjectsKeyPress(Sender: TObject; var Key: Char);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyPress BEGIN');
+
+  {
+  if Key = ' ' then //VK_SPACE then
+  begin
+    DoObjectsClick();
+  end;
+  }
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyPress END');
 end;
 
 procedure TFrmMain.lbTasksKeyPress(Sender: TObject; var Key: Char);
@@ -1455,6 +1539,24 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyPress END');
 end;
 
+procedure TFrmMain.lbObjectsKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyUp BEGIN');
+
+  if Key = VK_SPACE then
+  begin
+
+    m_bObjects_MouseDown := False;
+    lbObjects.Repaint;
+
+    DoObjectsClick();
+
+  end;
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsKeyUp END');
+end;
+
 procedure TFrmMain.lbTasksKeyUp(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
@@ -1463,7 +1565,7 @@ begin
   if Key = VK_SPACE then
   begin
 
-    m_bTasksMouseDown := False;
+    m_bTasks_MouseDown := False;
     lbTasks.Repaint;
 
     DoTasksClick();
@@ -1471,6 +1573,33 @@ begin
   end;
 
   m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyUp END');
+end;
+
+procedure TFrmMain.lbObjectsClick(Sender: TObject);
+begin
+  {
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick BEGIN');
+
+  DoObjectClick();
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick END');
+  }
+end;
+
+procedure TFrmMain.lbObjectsDblClick(Sender: TObject);
+var
+  cID_Object: char;
+  sCaption_Object: string;
+  asParts: TStringList;
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick BEGIN');
+
+  if lbObjects.ItemIndex < 0 then Exit;
+  Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
+
+  DoTaskOpenClick(cID_Object, sCaption_Object);
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
 end;
 
 procedure TFrmMain.lbTasksClick(Sender: TObject);
@@ -1726,7 +1855,7 @@ begin
   end;
 end;
 
-procedure TFrmMain.DoObjectClick();
+procedure TFrmMain.DoObjectsClick();
 var
   cID: char;
   sCaption: string;
@@ -1750,6 +1879,20 @@ begin
     Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'               );
 
     case cID of
+
+      ccMnuBtnID_Tables: begin
+
+        m_bTablesView := True;
+        DoRefreshMetaData(m_bTablesView);
+
+      end;
+
+      ccMnuBtnID_Tables_Back: begin
+
+        m_bTablesView := False;
+        DoRefreshMetaData(m_bTablesView);
+
+      end;
 
       ccMnuGrpID_Database: begin
 
@@ -1868,7 +2011,7 @@ begin
       { Common }
 
       ccMnuBtnID_Refresh : begin
-        DoRefreshMetaData();
+        DoRefreshMetaData(m_bTablesView);
       end;
 
       ccMnuBtnID_Details : begin
@@ -1941,10 +2084,10 @@ begin
         Split('|', sCaption_Object, asParts);
 
         asCols := TStringList.Create();
-        asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE); //  + ' ' + csDB_TREE_NODE);
-        //asCols.Add(csDB_TREE_PARENT);
-        asCols.Add(csDB_FLD_USR_ITEMGROUP_PATH); //  + ' ' + csDB_TREE_PATH);
-        asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL); // + ' ' + csDB_TREE_LEVEL);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE  + ' ' + csDB_TREE_NODE);
+        asCols.Add(csDB_TREE_PARENT);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_PATH  + ' ' + csDB_TREE_PATH);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL + ' ' + csDB_TREE_LEVEL);
 
         DoImportTable(asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
 
@@ -2005,9 +2148,14 @@ begin
   rsCaption := sItem.Substring(ciMnuCch);
 end;
 
+function TFrmMain.MnuBTN(cID: char; sCaption: string) : string;
+begin
+  Result := ccMnuBtn + cID + '0' + '0' + sCaption;
+end;
+
 procedure TFrmMain.Menu_AddTask_Button(cID: char; sCaption: string);
 begin
-  lbTasks.Items.Add(ccMnuBtn + cID + '0' + '0' + sCaption);
+  lbTasks.Items.Add(MnuBTN(cID, sCaption));
 end;
 
 procedure TFrmMain.Menu_AddTask_Group(sCaption: string; iIndent: integer);
