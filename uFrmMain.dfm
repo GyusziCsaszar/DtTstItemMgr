@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.00'
+  Caption = 'Dt Test Item Manager v1.01'
   ClientHeight = 577
   ClientWidth = 643
   Color = clBtnFace
@@ -91,8 +91,8 @@ object FrmMain: TFrmMain
       
         'Database=localhost:C:\Program Files (x86)\Firebird\Firebird_2_5\' +
         'DB\FIRSTDB.FDB'
-      'User_Name=sysdba'
-      'Password=mrk'
+      'User_Name='
+      'Password='
       'Role=RoleName'
       'MaxBlobSize=-1'
       'LocaleCode=0000'

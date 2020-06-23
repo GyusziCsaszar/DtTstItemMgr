@@ -26,6 +26,7 @@ type
     procedure btnConnectClick(Sender: TObject);
   private
     { Private declarations }
+    procedure LoadDbConnectPropsFromIni();
     procedure AddLogLine(sLogLine: string);
     function DateTimeToStrHu(dt: TDatetime): string;
   public
@@ -39,24 +40,72 @@ implementation
 
 {$R *.dfm}
 
+uses
+  IniFiles;
+
 procedure TFrmMain.btnConnectClick(Sender: TObject);
 begin
 
-  btnConnect.Enabled := False;
+  try
 
-  AddLogLine('Button Connect is Pressed!');
+    AddLogLine('Executable Path: ' + Application.ExeName);
 
-  con_SalesCatalog.Connected := True;
+    LoadDbConnectPropsFromIni();
 
-  AddLogLine('SQL Connection is Connected!');
+    AddLogLine('Button Connect is Pressed!');
 
-  qry_SalesCatalog.Active := True;
+    con_SalesCatalog.Connected := True;
 
-  AddLogLine('SQL Query is Active!');
+    AddLogLine('SQL Connection is Connected!');
 
-  cds_SalesCatalog.Active := True;
+    qry_SalesCatalog.Active := True;
 
-  AddLogLine('Client DataSet is Active!');
+    AddLogLine('SQL Query is Active!');
+
+    cds_SalesCatalog.Active := True;
+
+    AddLogLine('Client DataSet is Active!');
+
+    btnConnect.Enabled := False;
+
+  except
+    on exc : Exception do
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+  end;
+
+end;
+
+procedure TFrmMain.LoadDbConnectPropsFromIni();
+var
+  sIniPath: string;
+  fIni: TIniFile;
+begin
+  sIniPath := Application.ExeName.Substring(0, Application.ExeName.Length - 4) + '.INI';
+
+  AddLogLine('INI Path: ' + sIniPath);
+
+  if FileExists(sIniPath) then
+  begin
+    try
+      fIni := TIniFile.Create(sIniPath);
+
+      if not fIni.SectionExists('DB Connection') then
+      begin
+        raise Exception.Create('No INI Section "DB Connection"! INI Path: ' + sIniPath);
+      end;
+
+      con_SalesCatalog.Params.Values['User_Name'] := fIni.ReadString('DB Connection', 'User', '');
+      con_SalesCatalog.Params.Values['Password'] := fIni.ReadString('DB Connection', 'Password', '');
+
+      if (con_SalesCatalog.Params.Values['User_Name'].Length > 0) and (con_SalesCatalog.Params.Values['Password'].Length > 0) then
+      begin
+        con_SalesCatalog.LoginPrompt := False;
+      end;
+
+    finally
+      fIni.Free();
+    end;
+  end;
 
 end;
 
