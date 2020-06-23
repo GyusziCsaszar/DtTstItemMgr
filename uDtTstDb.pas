@@ -470,7 +470,6 @@ function TDtTstDb.TableExists(sTable: string) : Boolean;
 var
   asNA: TStringList;
 begin
-  Result := False;
 
   asNA := TStringList.Create();
   try
@@ -489,7 +488,6 @@ function TDtTstDb.GetTableCount() : integer;
 var
   asNA: TStringList;
 begin
-  Result := 0;
 
   asNA := TStringList.Create();
   try
@@ -517,8 +515,6 @@ procedure TDtTstDb.Select_Generators(asResult: TStringList);
 var
   sSql: string;
   oQry: TSQLQuery;
-  oTD: TTransactionDesc;
-  sTriggerInfo: string;
 begin
 
   asResult.Clear();
@@ -562,7 +558,6 @@ function TDtTstDb.Select_Triggers(asResult: TStringList; sTable: string; bDetail
 var
   sSql: string;
   oQry: TSQLQuery;
-  oTD: TTransactionDesc;
   sTriggerInfo: string;
 begin
   Result := False;

@@ -26,6 +26,7 @@ implementation
 uses
   { DtTst Units: } uDtTstUtils,
   Vcl.Dialogs, Vcl.Controls,
+  System.UITypes,
   System.SysUtils, System.Win.Registry,
   Winapi.Windows;
 

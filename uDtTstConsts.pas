@@ -9,17 +9,32 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 122;
-  csVERSION_TITLE       = 'v1.22';
+  ciVERSION             = 123;
+  csVERSION_TITLE       = 'v1.23';
 
   { App - Menu }
-  ccBtn                     = '0';
-  ccGrp                     = '1';
-  // -----------------------------
-  ccBtnID_RefreshMetadata   = '0';
-  ccBtnID_DropTable         = '1';
-  ccBtnID_DropColumn        = '2';
-  ccBtnID_ImportTable       = '3';
+  ccMnuBtn                     = '0';
+  ccMnuGrp                     = '1';
+  ccMnuItm                     = '2';
+  ccMnuCap                     = '3';
+  // --------------------------------
+  ciMnuIdx_Ctrl                = 1;
+  ciMnuIdx_ID                  = 2;
+  ciMnuCch                     = 4;
+  // --------------------------------
+  ciMnuGrpItmLeftMargin        = 8; //13;
+  // --------------------------------
+  ccMnuGrpID_Database          = '1';
+  // --------------------------------
+  ccMnuItmID_Table             = '2';
+  ccMnuItmID_Table_Column      = '3';
+  ccMnuItmID_Query             = '4';
+  // --------------------------------
+  ccMnuBtnID_Refresh           = '1';
+  ccMnuBtnID_Open              = '2';
+  ccMnuBtnID_Import_Table      = '3';
+  ccMnuBtnID_Drop_Table        = '4';
+  ccMnuBtnID_Drop_Column       = '5';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';

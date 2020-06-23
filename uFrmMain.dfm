@@ -85,8 +85,8 @@ object FrmMain: TFrmMain
     Height = 509
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akBottom]
-    ItemHeight = 13
     TabOrder = 2
+    OnClick = lbObjectsClick
     OnDblClick = lbObjectsDblClick
     OnDrawItem = lbObjectsDrawItem
     OnMeasureItem = lbObjectsMeasureItem
@@ -100,7 +100,6 @@ object FrmMain: TFrmMain
     Caption = 'Refresh'
     TabOrder = 3
     OnClick = btnRsRefreshClick
-    ExplicitLeft = 848
   end
   object btnRsInsert: TButton
     Left = 790
@@ -111,7 +110,6 @@ object FrmMain: TFrmMain
     Caption = 'Insert'
     TabOrder = 4
     OnClick = btnRsInsertClick
-    ExplicitLeft = 791
   end
   object btnRsDelete: TButton
     Left = 727
@@ -122,7 +120,6 @@ object FrmMain: TFrmMain
     Caption = 'Delete'
     TabOrder = 5
     OnClick = btnRsDeleteClick
-    ExplicitLeft = 728
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 131
@@ -152,7 +149,6 @@ object FrmMain: TFrmMain
     ParentBackground = False
     ParentFont = False
     TabOrder = 7
-    ExplicitWidth = 919
   end
   object panAdminMode: TPanel
     Left = 300
@@ -202,7 +198,6 @@ object FrmMain: TFrmMain
       'Simple DataSet')
     TabIndex = 0
     OnChange = tsViewsChange
-    ExplicitWidth = 381
   end
   object lbLog: TListBox
     Left = 528
@@ -212,9 +207,8 @@ object FrmMain: TFrmMain
     Anchors = [akLeft, akRight, akBottom]
     ItemHeight = 13
     TabOrder = 12
-    ExplicitWidth = 381
   end
-  object lbOptions: TListBox
+  object lbTasks: TListBox
     Left = 287
     Top = 71
     Width = 218
@@ -222,10 +216,10 @@ object FrmMain: TFrmMain
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akBottom]
     TabOrder = 13
-    OnClick = lbOptionsClick
-    OnDblClick = lbOptionsDblClick
-    OnDrawItem = lbOptionsDrawItem
-    OnMeasureItem = lbOptionsMeasureItem
+    OnClick = lbTasksClick
+    OnDblClick = lbTasksDblClick
+    OnDrawItem = lbTasksDrawItem
+    OnMeasureItem = lbTasksMeasureItem
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'

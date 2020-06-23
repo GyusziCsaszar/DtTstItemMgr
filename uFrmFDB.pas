@@ -171,8 +171,6 @@ begin
 end;
 
 procedure TFrmFDB.btnCrePrdTblsClick(Sender: TObject);
-var
-  sDbInfo: string;
 begin
   m_oApp.LOG.LogUI('TFrmFDB.btnCrePrdTblsClick BEGIN');
 
@@ -607,14 +605,19 @@ begin
     btnCreTblSample     .Enabled := True;
     btnSqlOpen          .Enabled := True;
 
+    // FIX...
+    {
     if panAdminMode.Visible then
     begin
+    }
       btnLogin.Enabled := False;
+    {
     end
     else
     begin
       ModalResult := mrOk;
     end;
+    }
 
   except
     on exc : Exception do
@@ -630,8 +633,6 @@ function TFrmFDB.ShowModal(oConAnsi, oConUtf8: TSQLConnection) : integer;
 var
   lbLog_Old: TListBox;
 begin
-  Result     := mrCancel;
-
   m_oConAnsi := oConAnsi;
   m_oConUtf8 := oConUtf8;
 
