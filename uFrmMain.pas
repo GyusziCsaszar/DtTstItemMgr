@@ -9,12 +9,10 @@ uses
   { ATTN: for DBExpress: } midaslib,
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
-  Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls;
+  Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Tabs;
 
 type
   TFrmMain = class(TForm)
-    lblLog: TLabel;
-    lbLog: TListBox;
     con_Firebird_ANSI: TSQLConnection;
     btnConnect: TButton;
     qry_Top: TSQLQuery;
@@ -48,6 +46,14 @@ type
     chbDoDbUpdate: TCheckBox;
     btnIsql: TButton;
     chbIsqlVisible: TCheckBox;
+    tsDev: TTabSet;
+    lbLog: TListBox;
+    btnSqlOpen: TButton;
+    moSql: TMemo;
+    btnSqlOpenSample: TButton;
+    btnIsqlExec: TButton;
+    btnIsqlExecSample: TButton;
+    edTerm: TEdit;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -65,6 +71,13 @@ type
     procedure btnDrpTblClick(Sender: TObject);
     procedure btnInitDtTstDbClick(Sender: TObject);
     procedure btnIsqlClick(Sender: TObject);
+    procedure tsDevChange(Sender: TObject; NewTab: Integer;
+      var AllowChange: Boolean);
+    procedure btnSqlOpenClick(Sender: TObject);
+    procedure lbLogDblClick(Sender: TObject);
+    procedure btnSqlOpenSampleClick(Sender: TObject);
+    procedure btnIsqlExecClick(Sender: TObject);
+    procedure btnIsqlExecSampleClick(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -74,6 +87,9 @@ type
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
+
+    procedure OpenSql(sTable, sSql: string);
+    procedure IsqlOpen(sStatements, sTerm: string);
 
     procedure AttachDbItemManager();
   end;
@@ -86,8 +102,8 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstWin, uDtTstFirebird, uDtTstDbItemMgr,
-  System.IOUtils;
+  { DtTst Units: } uDtTstWin, uDtTstFirebird, uDtTstDbItemMgr, uFrmProgress,
+  System.IOUtils, Vcl.Clipbrd;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
@@ -163,22 +179,17 @@ begin
 
   btnCreTblSample.Caption := btnCreTblSample.Caption + ' "' + csDB_TBL_SAMPLE + '"';
 
+  // ATTN: Force event handler...
+  tsDev.TabIndex := 1; tsDev.TabIndex := 0;
+
   m_oLog.LogUI('TFrmMain.FormShow END');
 end;
 
 procedure TFrmMain.btnIsqlClick(Sender: TObject);
 var
-  sTerm, sStatements, sOutput: string;
+  sStatements, sTerm: string;
 begin
   m_oLog.LogUI('TFrmMain.btnIsql BEGIN');
-
-  if m_oDb.IsqlPath.IsEmpty() then
-  begin
-    ErrorMsgDlg('No isql Path is specified!');
-    exit;
-  end;
-
-  try
 
     sTerm := '';
     sStatements := '';
@@ -195,16 +206,51 @@ begin
                    ' END ' + sTerm;
     }
 
-    sOutput := IsqlExec(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                        m_oDb.IsqlPath,
-                        cbbDb.Text,
-                        m_oDb.ConnectUser, m_oDb.ConnectPassword,
-                        True {bGetOutput},
-                        chbIsqlVisible.Checked {bVisible},
-                        sStatements,
-                        sTerm);
+  IsqlOpen(sStatements, sTerm);
 
-    InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
+  m_oLog.LogUI('TFrmMain.btnIsql END');
+end;
+
+procedure TFrmMain.IsqlOpen(sStatements, sTerm: string);
+var
+  sOutput: string;
+  frmPrs: TFrmProgress;
+begin
+
+  if m_oDb.IsqlPath.IsEmpty() then
+  begin
+    ErrorMsgDlg('No isql Path is specified!');
+    exit;
+  end;
+
+  try
+
+    frmPrs := TFrmProgress.Create(self);
+    try
+
+      frmPrs.Show();
+      frmPrs.Init('Calling Firebird Isql tool');
+      frmPrs.SetProgressToMax();
+
+      frmPrs.AddStep('Starting Firebird Isql tool');
+
+      sOutput := IsqlExec(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                          m_oDb.IsqlPath,
+                          cbbDb.Text,
+                          m_oDb.ConnectUser, m_oDb.ConnectPassword,
+                          True {bGetOutput},
+                          chbIsqlVisible.Checked {bVisible},
+                          sStatements,
+                          sTerm);
+
+      frmPrs.AddStepEnd('Done!');
+
+      InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
+
+    finally
+      frmPrs.Close();
+      FreeAndNil(frmPrs);
+    end;
 
   except
     on exc : Exception do
@@ -213,8 +259,6 @@ begin
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
-
-  m_oLog.LogUI('TFrmMain.btnIsql END');
 end;
 
 procedure TFrmMain.btnCreTblSampleClick(Sender: TObject);
@@ -444,7 +488,7 @@ end;
 
 procedure TFrmMain.lbResultDblClick(Sender: TObject);
 var
-  sTable, sSQL: string;
+  sTable, sSql: string;
   bDUAL: Boolean;
 begin
   m_oLog.LogUI('TFrmMain.lbResultDblClick BEGIN');
@@ -477,14 +521,21 @@ begin
       sTable := 'N/A';
     end;
 
-    sSQL   := 'select current_timestamp from RDB$DATABASE;'
+    sSql   := 'select current_timestamp from RDB$DATABASE;'
   end
   else
   begin
     sTable := lbResult.Items[lbResult.ItemIndex];
-    sSQL   := 'select * from ' + m_oDb.FIXOBJNAME(sTable) + ';'
+    sSql   := 'select * from ' + m_oDb.FIXOBJNAME(sTable) + ';'
   end;
 
+  OpenSql(sTable, sSql);
+
+  m_oLog.LogUI('TFrmMain.lbResultDblClick END');
+end;
+
+procedure TFrmMain.OpenSql(sTable, sSql: string);
+begin
   try
     lblTop.Caption := 'N/A (Query, Provider and Client DataSet):';
     cds_Top.Active := False;
@@ -527,8 +578,6 @@ begin
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
-
-  m_oLog.LogUI('TFrmMain.lbResultDblClick END');
 end;
 
 procedure TFrmMain.chbMetadataTablesOnlyClick(Sender: TObject);
@@ -619,6 +668,33 @@ begin
 
     FreeAndNil(asItems);
 
+    // Table Triggers
+    asItems := TStringList.Create();
+    try
+
+      m_oDb.DB_SelectTriggers(asItems, sTable {sTable}, True {bDetails});
+
+      iIdx := iIdx + 1;
+      lbResult.Items.Insert(iIdx, '  [Triggers]');
+
+      for sItem in asItems do
+      begin
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + sItem);
+      end;
+
+    except
+      on exc : Exception do
+      begin
+        m_oLog.LogERROR(exc);
+
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + '<ERROR RETRIVING...>');
+      end;
+    end;
+
+    FreeAndNil(asItems);
+
   end;
 
   lbResult.Items.Insert(0, '[Properties]');
@@ -629,9 +705,29 @@ begin
 
   lbResult.Items.Insert(3, '  Driver Func: ' + con_Firebird.GetDriverFunc);
 
-  lbResult.Items.Insert(4, '[Tables]');
+  iIdx := 3;
 
-  lbResult.Items.Insert(5, 'DUAL (in firebird RDB$DATABASE)');
+  iIdx := iIdx + 1;
+  lbResult.Items.Insert(iIdx, '[Generators]');
+  asItems := TStringList.Create();
+  try
+
+    m_oDb.DB_SelectGenerators(asItems);
+
+    for sItem in asItems do
+    begin
+      iIdx := iIdx + 1;
+      lbResult.Items.Insert(iIdx, '  ' + sItem);
+    end;
+  finally
+    FreeAndNil(asItems);
+  end;
+
+  iIdx := iIdx + 1;
+  lbResult.Items.Insert(iIdx, '[Tables]');
+
+  iIdx := iIdx + 1;
+  lbResult.Items.Insert(iIdx, 'DUAL (in firebird RDB$DATABASE)');
 
   m_oLog.LogUI('TFrmMain.btnGetMetadataClick END');
 end;
@@ -755,6 +851,8 @@ begin
     btnCreTblSample.Enabled := True;
     btnDrpTbl      .Enabled := True;
 
+    btnSqlOpen     .Enabled := True;
+
     btnGetMetadata.Click();
 
   except
@@ -772,6 +870,7 @@ procedure TFrmMain.AttachDbItemManager();
 var
   oDbItemMgr: TDtTstDbItemMgr;
   sDbInfo: string;
+  frmPrs: TFrmProgress;
 begin
 
   // ATTN: In case of (one-and-only) Known DB...
@@ -785,15 +884,28 @@ begin
 
     if chbDoDbUpdate.Checked then
     begin
-      while True do
-      begin
 
-        if oDbItemMgr.ADM_DoDbUpdates() then
+      frmPrs := TFrmProgress.Create(self);
+      try
+
+        while True do
         begin
-          Break; // Database is Up-To-Date!!!
+
+            if oDbItemMgr.ADM_DoDbUpdates(frmPrs) then
+            begin
+              Break; // Database is Up-To-Date!!!
+            end;
+
         end;
 
+        frmPrs.Done();
+        while frmPrs.Visible do Application.ProcessMessages;
+
+      finally
+        frmPrs.Close();
+        FreeAndNil(frmPrs);
       end;
+
     end;
 
     sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
@@ -805,6 +917,74 @@ begin
 
   end;
 
+end;
+
+procedure TFrmMain.tsDevChange(Sender: TObject; NewTab: Integer;
+  var AllowChange: Boolean);
+begin
+
+  lbLog.Visible := (NewTab = 0);
+
+  btnSqlOpen        .Visible := (NewTab = 1);
+  btnSqlOpenSample  .Visible := (NewTab = 1);
+  btnIsqlExec       .Visible := (NewTab = 1);
+  btnIsqlExecSample .Visible := (NewTab = 1);
+  edTerm            .Visible := (NewTab = 1);
+  moSql             .Visible := (NewTab = 1);
+
+end;
+
+procedure TFrmMain.lbLogDblClick(Sender: TObject);
+begin
+  if lbLog.ItemIndex >= 0 then
+  begin
+    Clipboard.AsText := lbLog.Items[lbLog.ItemIndex];
+  end;
+end;
+
+procedure TFrmMain.btnSqlOpenClick(Sender: TObject);
+begin
+  if not moSql.Lines.Text.IsEmpty() then
+  begin
+    OpenSql('SQL Editor', moSql.Lines.Text);
+  end;
+end;
+
+procedure TFrmMain.btnSqlOpenSampleClick(Sender: TObject);
+begin
+  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE';
+  if btnSqlOpen.Enabled then btnSqlOpen.Click();
+end;
+
+procedure TFrmMain.btnIsqlExecClick(Sender: TObject);
+begin
+  if not moSql.Lines.Text.IsEmpty() then
+  begin
+
+    if edTerm.Text = '' then edTerm.Text := ';';
+
+    if edTerm.Text <> ';' then
+    begin
+      if not QuestionMsgDlg('The default Isql TERM ";" has changed to "' + edTerm.Text + '"!' + CHR(13) + CHR(10) +
+                            CHR(13) + CHR(10) + 'Do you want to conitune?') then
+      begin
+        Exit;
+      end;
+    end;
+
+    IsqlOpen(moSql.Lines.Text, edTerm.Text);
+  end;
+end;
+
+procedure TFrmMain.btnIsqlExecSampleClick(Sender: TObject);
+begin
+  edTerm.Text := '!!';
+  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE!!';
+
+  if btnIsqlExec.Enabled then btnIsqlExec.Click();
+
+  edTerm.Text := ';';
+  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE;';
 end;
 
 end.

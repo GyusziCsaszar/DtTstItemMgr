@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 113;
-  csVERSION_TITLE       = 'v1.13';
+  ciVERSION             = 114;
+  csVERSION_TITLE       = 'v1.14';
   ciDB_VERSION          = 101;
 
   { LOG levels }
@@ -59,6 +59,7 @@ const
   { Firebird }
   csISQL_FILE_IN              = '_Isql_IN.sql';
   csISQL_FILE_OUT             = '_Isql_OUT.txt';
+  csISQL_SUCCESS              = 'ISQL_OK';
 
 implementation
 

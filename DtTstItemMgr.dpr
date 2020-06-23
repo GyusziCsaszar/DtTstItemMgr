@@ -9,7 +9,8 @@ uses
   uDtTstConsts in 'uDtTstConsts.pas',
   uDtTstWin in 'uDtTstWin.pas',
   uDtTstDbItemMgr in 'uDtTstDbItemMgr.pas',
-  uDtTstFirebird in 'uDtTstFirebird.pas';
+  uDtTstFirebird in 'uDtTstFirebird.pas',
+  uFrmProgress in 'uFrmProgress.pas' {FrmProgress};
 
 {$R *.res}
 
@@ -17,5 +18,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TFrmMain, FrmMain);
+  Application.CreateForm(TFrmProgress, FrmProgress);
   Application.Run;
 end.

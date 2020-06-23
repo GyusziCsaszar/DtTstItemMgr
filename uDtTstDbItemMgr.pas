@@ -3,7 +3,7 @@ unit uDtTstDbItemMgr;
 interface
 
 uses
-  { DtTst Units: } uDtTstLog, uDtTstDb,
+  { DtTst Units: } uDtTstLog, uDtTstDb, uFrmProgress,
   Data.Db, Data.SqlExpr,
   DbxCommon, DbxMetaDataProvider,
   DbxDataExpressMetaDataProvider,
@@ -20,12 +20,12 @@ type
     function ADM_GetUserID(): integer;
     property ADM_UserID: integer read ADM_GetUserID;
 
-    function ADM_DoDbUpdates() : Boolean; override;
+    function ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean; override;
 
-    function ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection) : Boolean;
-    function ADM_Insert_LoginUser(oCon: TSQLConnection) : Boolean;
+    procedure ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
+    procedure ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
 
-    procedure ADM_CreateTable_USERS();
+    procedure ADM_CreateTable_USERS(frmPrs: TFrmProgress);
 
     procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); override;
   end;
@@ -34,7 +34,7 @@ implementation
 
 uses
   { DtTst Units: } uDtTstConsts, uDtTstFirebird,
-  System.Classes, SysUtils, System.IOUtils, Vcl.Forms;
+  System.Classes, SysUtils, StrUtils, System.IOUtils, Vcl.Forms;
 
 constructor TDtTstDbItemMgr.Create(oLog: TDtTstLog; oDbToClone: TDtTstDb);
 begin
@@ -71,11 +71,17 @@ begin
   Result := m_iADM_UserID;
 end;
 
-function TDtTstDbItemMgr.ADM_DoDbUpdates() : Boolean;
+function TDtTstDbItemMgr.ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean;
 begin
   Result := False; // Indicated that there are more Database Updates pending...
 
-  if not inherited ADM_DoDbUpdates() then
+  if ADM_DbInfVersion = ciDB_VERSION then
+  begin
+    Result := True; // Indicates that Database is Up-To-Date!!!
+    Exit;
+  end;
+
+  if not inherited ADM_DoDbUpdates(frmPrs) then
   begin
     Exit; // There are more Database Updates pending...
   end;
@@ -87,10 +93,39 @@ begin
                IntToStr(ciDB_VERSION) + ')!');
   end;
 
-  if ADM_DbInfVersion < ciDB_VERSION then
+  if Assigned(frmPrs) and (not frmPrs.Visible) then
   begin
 
-    ADM_CreateTable_USERS();
+    frmPrs.Show();
+    frmPrs.Init('Database Update...');
+    frmPrs.SetProgressMinMax(ADM_DbInfVersion, ciDB_VERSION);
+
+    Application.ProcessMessages;
+
+  end;
+
+  //if ADM_DbInfVersion < ciDB_VERSION then
+  begin
+
+    case ADM_DbInfVersion of
+
+      100: begin
+
+        if Assigned(frmPrs) then frmPrs.AddStepHeader('Updating to version v1.01');
+
+        ADM_CreateTable_USERS(frmPrs);
+
+        if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion);
+        if Assigned(frmPrs) then Application.ProcessMessages;
+
+      end;
+
+    end;
+
+    if ADM_DbInfVersion < ciDB_VERSION then
+    begin
+      Exit; // There are more Database Updates pending...
+    end;
 
   end;
 
@@ -100,13 +135,12 @@ begin
   Result := True; // Indicates that Database is Up-To-Date!!!
 end;
 
-function TDtTstDbItemMgr.ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection) : Boolean;
+procedure TDtTstDbItemMgr.ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
 var
   sSql: string;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
 begin
-  Result := false;
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
@@ -159,7 +193,11 @@ begin
                  ' MATCHING (' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) + ')' +
                  ' RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID);
 
-    oQry.SQLConnection := m_oCon;
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
     oQry.ParamCheck := True;
     // oQry.PrepareStatement;
     oQry.SQL.Add(m_oLog.LogSQL(sSql));
@@ -188,14 +226,12 @@ begin
       if not Assigned(oCon) then
         m_oCon.Commit(oTD);
 
-      Result := True;
-
     except
 
-      if Assigned(oCon) then
-        oCon.Rollback(oTD)
-      else
+      if not Assigned(oCon) then
         m_oCon.Rollback(oTD);
+
+      raise;
 
     end;
 
@@ -205,13 +241,12 @@ begin
   end;
 end;
 
-function TDtTstDbItemMgr.ADM_Insert_LoginUser(oCon: TSQLConnection) : Boolean;
+procedure TDtTstDbItemMgr.ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
 var
   sSql: string;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
 begin
-  Result := false;
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
@@ -243,7 +278,11 @@ begin
                  ', '} + ':USR' +
                  ', (SELECT current_timestamp FROM RDB$DATABASE))';
 
-    oQry.SQLConnection := m_oCon;
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
     oQry.ParamCheck := True;
     // oQry.PrepareStatement;
     oQry.SQL.Add(m_oLog.LogSQL(sSQL));
@@ -269,14 +308,12 @@ begin
       if not Assigned(oCon) then
         m_oCon.Commit(oTD);
 
-      Result := True;
-
     except
 
-      if Assigned(oCon) then
-        oCon.Rollback(oTD)
-      else
+      if not Assigned(oCon) then
         m_oCon.Rollback(oTD);
+
+      raise;
 
     end;
 
@@ -286,7 +323,7 @@ begin
   end;
 end;
 
-procedure TDtTstDbItemMgr.ADM_CreateTable_USERS();
+procedure TDtTstDbItemMgr.ADM_CreateTable_USERS(frmPrs: TFrmProgress);
 var
   oProvider: TDBXDataExpressMetaDataProvider;
   oTable: TDBXMetaDataTable;
@@ -302,6 +339,9 @@ begin
 
       { Table }
 
+      if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_USERS);
+      if Assigned(frmPrs) then Application.ProcessMessages;
+
       oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_USERS);
 
       META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_TSPCRE         , False {bNullable});
@@ -314,7 +354,13 @@ begin
 
       oProvider.CreateTable(oTable);
 
+      if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+      if Assigned(frmPrs) then Application.ProcessMessages;
+
       { Generator }
+
+      if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_ADM_USERS +  '_' + csDB_FLD_ADM_USERS_ID);
+      if Assigned(frmPrs) then Application.ProcessMessages;
 
       oProvider.Execute(m_oLog.LogSQL('CREATE GENERATOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
         '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ';'));
@@ -322,7 +368,13 @@ begin
       oProvider.Execute(m_oLog.LogSQL('SET GENERATOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
         '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ' TO 0;'));
 
+      if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+      if Assigned(frmPrs) then Application.ProcessMessages;
+
       { Trigger }
+
+      if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_ADM_USERS + '_BI');
+      if Assigned(frmPrs) then Application.ProcessMessages;
 
       // BUG: Failed!
       {
@@ -390,11 +442,14 @@ begin
                                       ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_TSPCRE) + ' = (SELECT current_timestamp FROM RDB$DATABASE);' + CHR(13) + CHR(10) +
                                       ' END!!',
                                       '!!');
-      if not sOutput.IsEmpty() then
+
+      if not ContainsText(sOutput, csISQL_SUCCESS) then
       begin
         raise Exception.Create('Isql returned error: "' + sOutput + '"!');
       end;
 
+      if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+      if Assigned(frmPrs) then Application.ProcessMessages;
 
     finally
       FreeAndNil(oTable);
@@ -407,16 +462,13 @@ begin
 
       { Current User }
 
-      if ADM_Insert_LoginUser(m_oCon {nil = DO Transaction} ) then
-      begin
+      ADM_Insert_LoginUser(m_oCon {nil = DO Transaction} );
 
-        { DB Version Increment }
+      { DB Version Increment }
 
-        ADM_Increment_DBINFO_VER();
+      ADM_Increment_DBINFO_VER(m_oCon {nil = DO Transaction} );
 
-        m_oCon.Commit(oTD);
-
-      end;
+      m_oCon.Commit(oTD);
 
     except
       m_oCon.Rollback(oTD);
@@ -443,7 +495,7 @@ begin
       '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ';'));
 
     // NOTE: admUsers table added in v101!
-    ADM_Update_DBINFO_VER(100);
+    ADM_Update_DBINFO_VER(nil {nil = DO Transaction}, 100);
 
   end;
 

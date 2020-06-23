@@ -3,7 +3,7 @@ unit uDtTstDb;
 interface
 
 uses
-  { DtTst Units: } uDtTstLog,
+  { DtTst Units: } uDtTstLog, uFrmProgress,
   System.Classes, System.IOUtils, Vcl.StdCtrls,
   Data.Db, Data.SqlExpr,
   DbxCommon, DbxMetaDataProvider,
@@ -65,10 +65,13 @@ type
 
     function FIXOBJNAME(sTable: string) : string;
 
-    function ADM_DoDbUpdates() : Boolean; virtual;
+    procedure DB_SelectGenerators(asResult: TStringList);
+    procedure DB_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
 
-    procedure ADM_Increment_DBINFO_VER();
-    procedure ADM_Update_DBINFO_VER(iVersion: integer);
+    function ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean; virtual;
+
+    procedure ADM_Increment_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction});
+    procedure ADM_Update_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
     procedure ADM_CreateTable_DBINFO();
 
     procedure META_AddColumn_TimeStamp(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
@@ -378,27 +381,186 @@ begin
 
 end;
 
-function TDtTstDb.ADM_DoDbUpdates() : Boolean;
+procedure TDtTstDb.DB_SelectGenerators(asResult: TStringList);
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+  sTriggerInfo: string;
+begin
+
+  asResult.Clear();
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // SRC: https://stackoverflow.com/questions/21165393/get-list-of-all-sequences-and-its-values-in-firebird-sql/21171176
+    sSql := 'select rdb$generator_name as gen_name from rdb$generators where rdb$system_flag is distinct from 1';
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        asResult.Add(TRIM(oQry.FieldByName('gen_name').AsString));
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.DB_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+  sTriggerInfo: string;
+begin
+
+  asResult.Clear();
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // SRC: https://stackoverflow.com/questions/26578880/how-to-print-firebird-triggers
+    sSql := 'SELECT RDB$TRIGGER_NAME AS trigger_name,';
+
+    if sTable.IsEmpty() and bDetails then
+    begin
+      sSql := sSql + ' RDB$RELATION_NAME AS table_name,';
+    end;
+
+    {
+            ' RDB$TRIGGER_SOURCE AS trigger_body,' +
+    }
+
+    if bDetails then
+    begin
+      sSql := sSql + '  CASE RDB$TRIGGER_TYPE' +
+              '   WHEN 1 THEN ''BEFORE''' +
+              '   WHEN 2 THEN ''AFTER''' +
+              '   WHEN 3 THEN ''BEFORE''' +
+              '   WHEN 4 THEN ''AFTER''' +
+              '   WHEN 5 THEN ''BEFORE''' +
+              '   WHEN 6 THEN ''AFTER''' +
+              '  END AS trigger_type,' +
+              '  CASE RDB$TRIGGER_TYPE' +
+              '   WHEN 1 THEN ''INSERT''' +
+              '   WHEN 2 THEN ''INSERT''' +
+              '   WHEN 3 THEN ''UPDATE''' +
+              '   WHEN 4 THEN ''UPDATE''' +
+              '   WHEN 5 THEN ''DELETE''' +
+              '   WHEN 6 THEN ''DELETE''' +
+              '  END AS trigger_event,' +
+              '  CASE RDB$TRIGGER_INACTIVE' +
+              '   WHEN 1 THEN ''Disabled'' ELSE ''Enabled''' +
+              '  END AS trigger_enabled'; //',' +
+              //'  RDB$DESCRIPTION AS trigger_comment';
+    end;
+
+    sSql := sSql + ' FROM RDB$TRIGGERS';
+
+    if not sTable.IsEmpty() then
+    begin
+      sSql := sSql + ' WHERE RDB$RELATION_NAME = ' + '''' + FIXOBJNAME(sTable) + '''';
+    end;
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        sTriggerInfo := TRIM(oQry.FieldByName('trigger_name').AsString);
+
+        if bDetails then
+        begin
+
+          sTriggerInfo := sTriggerInfo + ' ( ';
+
+          if sTable.IsEmpty() then
+          begin
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('table_name').AsString) + ', ';
+          end;
+
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_type').AsString) + ', ';
+
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_event').AsString) + ', ';
+
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_enabled').AsString); // + ', ';
+
+          //sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_comment').AsString) + ', ';
+
+          sTriggerInfo := sTriggerInfo + ' ) ';
+
+        end;
+
+        asResult.Add(sTriggerInfo);
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+function TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean;
 begin
   Result := True; // Indicates that Database is Up-To-Date!!!
 end;
 
-procedure TDtTstDb.ADM_Increment_DBINFO_VER();
+procedure TDtTstDb.ADM_Increment_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction});
 begin
-  ADM_Update_DBINFO_VER( m_iADM_DbInfVersion + 1);
+  ADM_Update_DBINFO_VER( oCon {nil = DO Transaction}, m_iADM_DbInfVersion + 1);
   m_iADM_DbInfVersion := m_iADM_DbInfVersion + 1;
 end;
 
-procedure TDtTstDb.ADM_Update_DBINFO_VER(iVersion: integer);
+procedure TDtTstDb.ADM_Update_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
 var
   oQry: TSQLQuery;
+  oTD: TTransactionDesc;
 begin
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
   try
 
-    oQry.SQLConnection := m_oCon;
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
     oQry.ParamCheck := True;
     // oQry.PrepareStatement;
     oQry.SQL.Add(m_oLog.LogSQL('UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
@@ -410,7 +572,24 @@ begin
 
     //oQry.Prepared := True;
 
-    oQry.ExecSQL(False);
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      oQry.ExecSQL(False);
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
+
+      raise;
+
+    end;
 
   finally
     oQry.Close();

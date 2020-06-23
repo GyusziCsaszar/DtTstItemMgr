@@ -53,6 +53,7 @@ begin
 
     if sStatements.IsEmpty() then
     begin
+
       // NOTE: Below statement fails WITHOUT CONNECTION!!!
       sIn := sIn + 'select current_timestamp from RDB$DATABASE' + ';' + CHR(13) + CHR(10);
     end
@@ -71,6 +72,9 @@ begin
         sIn := sIn + 'SET TERM ' + ';' + ' ' + sTerm  + CHR(13) + CHR(10);
       end;
 
+      // ATTN: To have an indicator of success to check for!
+      sIn := sIn + 'select ''' + csISQL_SUCCESS + ''' from RDB$DATABASE' + ';' + CHR(13) + CHR(10);
+
     end;
 
     if bVisible then
@@ -84,7 +88,7 @@ begin
     if not sIn.IsEmpty() then
     begin
       if not sPars.IsEmpty() then sPars := sPars + ' ';
-      sPars := sPars + '-input ' + oLog.LogSQL(sInPath);
+      sPars := sPars + '-input ' + '"' + oLog.LogSQL(sInPath) + '"';
 
       oLog.LogSQL(sIn);
     end;
@@ -107,7 +111,7 @@ begin
     if bGetOutput then
     begin
       if not sPars.IsEmpty() then sPars := sPars + ' ';
-      sPars := sPars + '-output ' + sOutPath;
+      sPars := sPars + '-output ' + '"' + sOutPath + '"';
     end;
 
     if not sUser.IsEmpty() then
