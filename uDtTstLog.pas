@@ -22,7 +22,6 @@ type
     function LogSQL(sSql: string) : string;
     procedure LogINFO(sLogLine: string);
     procedure LogLINE(iLogLevel: integer; sLogLine: string);
-  private
   end;
 
 implementation

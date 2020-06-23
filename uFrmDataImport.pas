@@ -5,24 +5,39 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
-  { DtTst Units: } uDtTstLog, Vcl.Grids;
+  { DtTst Units: } uDtTstApp,
+  Vcl.Grids, Vcl.ExtCtrls;
 
 type
   TFrmDataImport = class(TForm)
+    panLower: TPanel;
+    lblCaption: TLabel;
+    grpTbl: TGroupBox;
     grpCsv: TGroupBox;
     lblCsvPath: TLabel;
+    lblCsvDelim: TLabel;
+    lblCsvRowCnt: TLabel;
+    lblCsvErrMark: TLabel;
     edCsvPath: TEdit;
     btnCsvOpen: TButton;
     btnCsvPreview: TButton;
     sgrd: TStringGrid;
-    lblCsvDelim: TLabel;
     edCsvDelim: TEdit;
     chbFstRowIsHeader: TCheckBox;
-    lblCsvRowCnt: TLabel;
     edCsvRowCnt: TEdit;
     chbTrimCells: TCheckBox;
-    lblCsvErrMark: TLabel;
     edCsvErrMark: TEdit;
+    lblTblNm: TLabel;
+    edTblNm: TEdit;
+    lblTblCol: TLabel;
+    cbbTblCol: TComboBox;
+    lblTblCsvCol: TLabel;
+    cbbTblCsvCol: TComboBox;
+    btnImport: TButton;
+    btnPreCheck: TButton;
+    btnClose: TButton;
+    btnTblColAdd: TButton;
+    sgrdDef: TStringGrid;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -32,15 +47,40 @@ type
     procedure edCsvRowCntChange(Sender: TObject);
     procedure chbTrimCellsClick(Sender: TObject);
     procedure edCsvErrMarkChange(Sender: TObject);
+    procedure btnCloseClick(Sender: TObject);
+    procedure btnTblColAddClick(Sender: TObject);
+    procedure btnPreCheckClick(Sender: TObject);
+    procedure btnImportClick(Sender: TObject);
   private
     { Private declarations }
-    m_oLog: TDtTstLog;
-  public
-    { Public declarations }
-    constructor Create(AOwner: TComponent; oLog: TDtTstLog); reintroduce;
-    destructor Destroy(); override;
+    m_oApp: TDtTstApp;
+
+    m_oStreamCSV: TStreamReader;
+    m_cDelimCSV: char;
+    m_asRowCSV: TStringList;
+    m_iCsvColCount: integer;
+    m_iCsvDataRow: integer;
+    m_iCsvFileRow: integer;
+    m_bAsked_MoreRowCols, m_bAsked_FewerRowCols: Boolean;
 
     procedure ClearPreview();
+
+    function OpenCSV() : Boolean;
+    function ReadCSVLine() : Boolean;
+    procedure CloseCSV();
+
+    function LoadCSVHeader() : Boolean;
+    function LoadNextCSVRow() : Boolean;
+
+    procedure ProcessCSV(bChkOnly: Boolean);
+
+  public
+    { Public declarations }
+    constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
+    destructor Destroy(); override;
+
+    procedure Init(sTable: string; asCols: TStringList);
+
   end;
 
 var
@@ -51,30 +91,58 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstConsts,
+  { DtTst Units: } uDtTstConsts, uDtTstUtils, uDtTstWin, uFrmProgress,
   System.IOUtils, StrUtils, System.Math;
 
-constructor TFrmDataImport.Create(AOwner: TComponent; oLog: TDtTstLog);
+constructor TFrmDataImport.Create(AOwner: TComponent; oApp: TDtTstApp);
 begin
 
-  m_oLog := oLog;
+  m_oApp := oApp;
+
+  m_cDelimCSV := ';';
 
   inherited Create(AOwner);
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
 
-  m_oLog.LogLIFE('TFrmProgress.Create');
+  m_oApp.LOG.LogLIFE('TFrmProgress.Create');
 end;
 
 destructor TFrmDataImport.Destroy();
 begin
-  m_oLog.LogLIFE('TFrmProgress.Destroy');
+  m_oApp.LOG.LogLIFE('TFrmProgress.Destroy');
 
   SaveFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
 
-  m_oLog := nil; // ATTN: Do not Free here!
+  CloseCSV();
+
+  m_oApp := nil; // ATTN: Do not Free here!
 
   inherited Destroy();
+end;
+
+procedure TFrmDataImport.FormShow(Sender: TObject);
+begin
+
+  self.Caption := Application.Title;
+
+  edCsvDelim.Text := m_cDelimCSV;
+
+  ClearPreview();
+
+  edCsvPath.Text := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', 'CSVPath', '');
+
+end;
+
+procedure TFrmDataImport.Init(sTable: string; asCols: TStringList);
+begin
+
+  lblCaption.Caption := 'Importing from CSV File into table ' + sTable;
+
+  edTblNm.Text := sTable;
+
+  cbbTblCol.Items.AddStrings(asCols);
+
 end;
 
 procedure TFrmDataImport.ClearPreview();
@@ -84,16 +152,17 @@ begin
   sgrd.ColCount := 1;
   sgrd.Cells[0, 0] := 'N/A';
 
-end;
+  grpTbl.Visible := False;
 
-procedure TFrmDataImport.FormShow(Sender: TObject);
-begin
+  cbbTblCol   .ItemIndex := -1;
+  cbbTblCsvCol.Items.Clear();
 
-  self.Caption := Application.Title;
+  sgrdDef.RowCount := 1;
+  sgrdDef.ColCount := 1;
+  sgrdDef.Cells[0, 0] := 'N/A';
 
-  ClearPreview();
-
-  edCsvPath.Text := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', 'CSVPath', '');
+  btnPreCheck.Enabled := False;
+  btnImport  .Enabled := False;
 
 end;
 
@@ -125,6 +194,11 @@ end;
 procedure TFrmDataImport.chbTrimCellsClick(Sender: TObject);
 begin
   ClearPreview();
+end;
+
+procedure TFrmDataImport.btnCloseClick(Sender: TObject);
+begin
+  Close();
 end;
 
 procedure TFrmDataImport.btnCsvOpenClick(Sender: TObject);
@@ -163,19 +237,49 @@ begin
   end;
 end;
 
-procedure TFrmDataImport.btnCsvPreviewClick(Sender: TObject);
-var
-  iPreviewRowCount: integer;
-  asCols: TStringList;
-  strmCsv: TStreamReader;
-  cDelim: char;
-  sLn: string;
-  iCsvColCount, iCol, iRow, iCsvRow, iLastCol, iExCol, iExRow: integer;
-  sCol, sCell: string;
-  bBreak, bAsked: Boolean;
+procedure TFrmDataImport.btnTblColAddClick(Sender: TObject);
 begin
 
-  ClearPreview();
+  if TComboBox_Text(cbbTblCol).IsEmpty() then
+  begin
+    WarningMsgDlg('Select Table Column!');
+    Exit;
+  end;
+
+  if TComboBox_Text(cbbTblCsvCol).IsEmpty() then
+  begin
+    WarningMsgDlg('Select CSV Column!');
+    Exit;
+  end;
+
+  if sgrdDef.ColCount = 1 then
+  begin
+    sgrdDef.ColCount := 2;
+    sgrdDef.RowCount := 1;
+
+    sgrdDef.Cells[0, 0] := 'Table Column';
+    sgrdDef.ColWidths[0] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[0, 0]).cx + 10 {)};
+
+    sgrdDef.Cells[1, 0] := 'CSV Column';
+    sgrdDef.ColWidths[1] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[1, 0]).cx + 10 {)};
+
+    btnPreCheck.Enabled := True;
+    btnImport  .Enabled := True;
+  end;
+
+  sgrdDef.RowCount := sgrdDef.RowCount + 1;
+
+  sgrdDef.Cells[0, sgrdDef.RowCount - 1] := cbbTblCol.Text;
+  sgrdDef.ColWidths[0] := Max(sgrd.ColWidths[0], Canvas.TextExtent(sgrdDef.Cells[0, sgrdDef.RowCount - 1]).cx + 10 );
+
+  sgrdDef.Cells[1, sgrdDef.RowCount - 1] := cbbTblCsvCol.Text;
+  sgrdDef.ColWidths[1] := Max(sgrd.ColWidths[1], Canvas.TextExtent(sgrdDef.Cells[1, sgrdDef.RowCount - 1]).cx + 10 );
+
+end;
+
+function TFrmDataImport.OpenCSV() : Boolean;
+begin
+  Result := False;
 
   if TEdit_Text(edCsvPath).IsEmpty() then
   begin
@@ -197,144 +301,341 @@ begin
 
   SaveStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', 'CSVPath', edCsvPath.Text);
 
-  asCols  := TStringList.Create();
-  strmCsv := TFile.OpenText(edCsvPath.Text);
+  if TEdit_Text(edCsvDelim).IsEmpty() then edCsvDelim.Text := ';';
+  m_cDelimCSV := TEdit_Text(edCsvDelim)[1];
+
   try
 
-    cDelim := ';';
-    if TEdit_Text(edCsvDelim).IsEmpty() then
-      edCsvDelim.Text := cDelim
-    else
-      cDelim := TEdit_Text(edCsvDelim)[1];
+    m_oStreamCSV := TFile.OpenText(edCsvPath.Text);
 
-    iPreviewRowCount := StrToInt(edCsvRowCnt.Text);
-
-    sLn := strmCsv.ReadLine();
-    Split(cDelim, sLn, asCols);
-
-    iCsvColCount  := asCols.Count;
-
-    sgrd.ColCount := asCols.Count;
-  //sgrd.RowCount := sgrd.RowCount + 1;
-
-  //sgrd.Rows[0] := asCols;
-
-    iCol := -1;
-    for sCol in asCols do
+    if m_oStreamCSV.EndOfStream then
     begin
-      iCol := iCol + 1;
-
-      if chbFstRowIsHeader.Checked then
-        sCell := sCol
-      else
-        sCell := 'Column #' + IntToStr(iCol + 1);
-
-      sgrd.ColWidths[iCol] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sCell).cx + 10 {)};
-
-      sgrd.Cells[iCol, 0] := sCell;
+      ErrorMsgDlg('File "' + edCsvPath.Text + '" is empty!');
+      CloseCSV();
+      Exit;
     end;
 
-    if chbFstRowIsHeader.Checked then
-      iCsvRow := 0
-    else
-      iCsvRow := 1;
+    m_asRowCSV := TStringList.Create();
 
-    bBreak := False;
-    for iRow := 1 to iPreviewRowCount do
+    Result := True;
+
+  except
+    on exc : Exception do
     begin
-
-      if (chbFstRowIsHeader.Checked) or (iRow > 1) then
-      begin
-        sLn := strmCsv.ReadLine();
-        Split(cDelim, sLn, asCols);
-
-        iCsvRow := iCsvRow + 1;
-      end;
-
-      sgrd.RowCount := sgrd.RowCount + 1;
-
-      bAsked := False;
-
-      iCol := -1;
-      for sCol in asCols do
-      begin
-        iCol := iCol + 1;
-
-        // CSV ERROR
-        if iCol > iCsvColCount - 1 {sgrd.ColCount - 1} then
-        begin
-
-          if (not bAsked) and (not QuestionMsgDlg('CSV Data Row #' + IntToStr(iCsvRow) + ' has MORE (' + IntToStr(asCols.Count) +
-                              ') cells than expected (' + IntToStr(iCsvColCount) + ')!' + CHR(10) + CHR(10) +
-                              'Do you want to continue?')) then
-          begin
-            bBreak := True;
-          //Break;
-          end;
-
-          bAsked := True;
-
-          iLastCol := sgrd.ColCount;
-          sgrd.ColCount := Max(sgrd.ColCount, asCols.Count);
-
-          for iExCol := iLastCol to asCols.Count - 1 do
-          begin
-
-            sCell := 'Column #' + IntToStr(iExCol + 1);
-
-            sgrd.ColWidths[iExCol] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sCell).cx + 10 {)};
-
-            sgrd.Cells[iExCol, 0] := sCell;
-
-            for iExRow := 1 to (sgrd.RowCount - 1) - 1 do
-            begin
-              // ATTN: Left old data will appear!!!
-              sgrd.Cells[iExCol, iExRow] := edCsvErrMark.Text;
-            end;
-          end;
-        end;
-
-        if chbTrimCells.Checked then
-          sCell := TRIM(sCol)
-        else
-          sCell := sCol;
-
-        sgrd.ColWidths[iCol] := Max(sgrd.ColWidths[iCol], Canvas.TextExtent(sCell).cx + 10);
-
-        sgrd.Cells[iCol, sgrd.RowCount - 1] := sCell;
-      end;
-
-      // ATTN: Left old data will appear!!!
-      for iExCol := asCols.Count to sgrd.ColCount - 1 do
-      begin
-        sgrd.Cells[iExCol, sgrd.RowCount - 1] := edCsvErrMark.Text;
-      end;
-
-      // CSV ERROR
-      if asCols.Count < iCsvColCount {sgrd.ColCount} then
-      begin
-
-        if not QuestionMsgDlg('ERROR: CSV Data Row #' + IntToStr(iCsvRow) + ' has FEWER (' + IntToStr(asCols.Count) +
-                            ') cells than expected (' + IntToStr(iCsvColCount) + ')!' + CHR(10) + CHR(10) +
-                            'Do you want to continue?') then
-        begin
-          Break;
-        end;
-      end;
-
-      // CSV ERROR
-      if bBreak then Break;
-
-      if strmCsv.EndOfStream then Break;
+      m_oApp.LOG.LogERROR(exc);
+      ErrorMsgDlg('Unable to open file "' + edCsvPath.Text + '"!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
-
-  finally
-    strmCsv.Close();
-    FreeAndNil(strmCsv);
-
-    FreeAndNil(asCols);
   end;
 
+end;
+
+function TFrmDataImport.ReadCSVLine() : Boolean;
+begin
+  Result := False;
+
+  try
+
+    Split(m_cDelimCsv, m_oStreamCSV.ReadLine(), m_asRowCSV);
+
+    Result := True;
+
+  except
+    on exc : Exception do
+    begin
+      m_oApp.LOG.LogERROR(exc);
+      ErrorMsgDlg('Unable to read file "' + edCsvPath.Text + '"!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
+procedure TFrmDataImport.CloseCSV();
+begin
+
+  try
+
+    if Assigned(m_oStreamCSV) then m_oStreamCSV.Close();
+
+  finally
+
+    FreeAndNil(m_asRowCSV);
+    FreeAndNil(m_oStreamCSV);
+
+  end;
+end;
+
+function TFrmDataImport.LoadCSVHeader() : Boolean;
+var
+  iCol: integer;
+  sCol, sColTitle: string;
+begin
+  Result := False;
+
+  if not ReadCSVLine() then Exit;
+
+  m_iCsvColCount  := m_asRowCSV.Count;
+
+  sgrd.ColCount := m_asRowCSV.Count;
+//sgrd.RowCount := sgrd.RowCount + 1;
+
+//sgrd.Rows[0] := asCols;
+
+  iCol := -1;
+  for sCol in m_asRowCSV do
+  begin
+    iCol := iCol + 1;
+
+    if chbFstRowIsHeader.Checked then
+      sColTitle := sCol
+    else
+      sColTitle := 'Column #' + IntToStr(iCol + 1);
+
+    sgrd.ColWidths[iCol] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sColTitle).cx + 10 {)};
+
+    sgrd.Cells[iCol, 0] := sColTitle;
+
+    cbbTblCsvCol.Items.Add(sColTitle);
+  end;
+
+  if chbFstRowIsHeader.Checked then
+  begin
+    m_iCsvDataRow := 0;
+
+    if m_oStreamCSV.EndOfStream then
+    begin
+      ErrorMsgDlg('File "' + edCsvPath.Text + '" has Header Row but NO DATA ROW!!');
+      CloseCSV();
+      Exit;
+    end;
+  end
+  else
+  begin
+    m_iCsvDataRow := 1
+  end;
+
+  Result := True;
+end;
+
+function TFrmDataImport.LoadNextCSVRow() : Boolean;
+var
+  iCol, iLastCol, iExCol, iExRow: integer;
+  sCol, sCell: string;
+  bBreak: Boolean;
+begin
+  Result := False;
+
+  if (chbFstRowIsHeader.Checked) or (m_iCsvFileRow > 1) then
+  begin
+
+    if not ReadCSVLine() then Exit;
+
+    m_iCsvDataRow := m_iCsvDataRow + 1;
+  end;
+
+  sgrd.RowCount := sgrd.RowCount + 1;
+
+  bBreak := False;
+
+  iCol := -1;
+  for sCol in m_asRowCSV do
+  begin
+    iCol := iCol + 1;
+
+    // CSV ERROR
+    if iCol > m_iCsvColCount - 1 {sgrd.ColCount - 1} then
+    begin
+
+      if (not m_bAsked_MoreRowCols) and (not QuestionMsgDlg('CSV Data Row #' + IntToStr(m_iCsvDataRow) + ' has MORE (' + IntToStr(m_asRowCSV.Count) +
+                          ') cells than expected (' + IntToStr(m_iCsvColCount) + ')!' + CHR(10) + CHR(10) +
+                          'Do you want to continue?')) then
+      begin
+        bBreak := True;
+      //Break;
+      end;
+
+      m_bAsked_MoreRowCols := True;
+
+      iLastCol := sgrd.ColCount;
+      sgrd.ColCount := Max(sgrd.ColCount, m_asRowCSV.Count);
+
+      for iExCol := iLastCol to m_asRowCSV.Count - 1 do
+      begin
+
+        sCell := 'Column #' + IntToStr(iExCol + 1);
+
+        sgrd.ColWidths[iExCol] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sCell).cx + 10 {)};
+
+        sgrd.Cells[iExCol, 0] := sCell;
+
+        for iExRow := 1 to (sgrd.RowCount - 1) - 1 do
+        begin
+          // ATTN: Left old data will appear!!!
+          sgrd.Cells[iExCol, iExRow] := edCsvErrMark.Text;
+        end;
+      end;
+    end;
+
+    if chbTrimCells.Checked then
+      sCell := TRIM(sCol)
+    else
+      sCell := sCol;
+
+    sgrd.ColWidths[iCol] := Max(sgrd.ColWidths[iCol], Canvas.TextExtent(sCell).cx + 10);
+
+    sgrd.Cells[iCol, sgrd.RowCount - 1] := sCell;
+  end;
+
+  // ATTN: Left old data will appear!!!
+  for iExCol := m_asRowCSV.Count to sgrd.ColCount - 1 do
+  begin
+    sgrd.Cells[iExCol, sgrd.RowCount - 1] := edCsvErrMark.Text;
+  end;
+
+  // CSV ERROR
+  if m_asRowCSV.Count < m_iCsvColCount {sgrd.ColCount} then
+  begin
+
+    if (not m_bAsked_FewerRowCols) and (not QuestionMsgDlg('ERROR: CSV Data Row #' + IntToStr(m_iCsvDataRow) + ' has FEWER (' + IntToStr(m_asRowCSV.Count) +
+                        ') cells than expected (' + IntToStr(m_iCsvColCount) + ')!' + CHR(10) + CHR(10) +
+                        'Do you want to continue?')) then
+    begin
+      Exit;
+    end;
+
+    m_bAsked_FewerRowCols := True;
+  end;
+
+  Result := (not bBreak); // CSV ERROR
+end;
+
+procedure TFrmDataImport.btnCsvPreviewClick(Sender: TObject);
+var
+  iPreviewRowCount, iRow: integer;
+  bError: Boolean;
+begin
+
+  ClearPreview();
+
+  m_bAsked_MoreRowCols  := False;
+  m_bAsked_FewerRowCols := False;
+
+  if not OpenCSV() then Exit;
+
+
+  iPreviewRowCount := StrToInt(edCsvRowCnt.Text);
+
+  if not LoadCSVHeader() then Exit;
+
+  bError := False;
+  for iRow := 1 to iPreviewRowCount do
+  begin
+
+    if not LoadNextCSVRow() then
+    begin
+
+      // CSV ERROR
+      bError := True;
+      Break;
+    end;
+
+    if m_oStreamCSV.EndOfStream then Break;
+  end;
+
+  grpTbl.Visible := (not bError);
+
+  CloseCSV();
+
+end;
+
+procedure TFrmDataImport.ProcessCSV(bChkOnly: Boolean);
+var
+  frmPrs: TFrmProgress;
+begin
+
+  frmPrs := TFrmProgress.Create(self, m_oApp);
+  try
+
+    frmPrs.Show();
+    if bChkOnly then
+      frmPrs.Init('Checking CSV File')
+    else
+      frmPrs.Init('Importing CSV File');
+    frmPrs.SetProgressToMax();
+    frmPrs.AddStepHeader('CSV file "' + edCsvPath.Text + '"');
+    Application.ProcessMessages;
+
+    //ClearPreview();
+
+    //m_bAsked_MoreRowCols  := False;
+    //m_bAsked_FewerRowCols := False;
+
+    frmPrs.AddStep('Opening file');
+    Application.ProcessMessages;
+
+    if not OpenCSV() then Exit;
+
+    frmPrs.AddStepEnd('Done!');
+    Application.ProcessMessages;
+
+    frmPrs.AddStep('Loading CSV Header');
+    Application.ProcessMessages;
+
+    if not LoadCSVHeader() then Exit;
+
+    frmPrs.AddStepEnd('Done!');
+    Application.ProcessMessages;
+
+    frmPrs.AddStep('Loading CSV Data');
+    Application.ProcessMessages;
+
+    while True do
+    begin
+
+      if sgrd.RowCount > 1 then
+      begin
+        sgrd.RowCount := 1;
+      end;
+
+      if not LoadNextCSVRow() then
+      begin
+
+        // CSV ERROR
+        Break;
+      end;
+
+      Application.ProcessMessages;
+
+      if m_oStreamCSV.EndOfStream then Break;
+    end;
+
+    CloseCSV();
+
+    frmPrs.AddStepEnd('Done!');
+    Application.ProcessMessages;
+
+    frmPrs.Done();
+    while frmPrs.Visible do Application.ProcessMessages;
+
+  finally
+
+    sgrd.RowCount := 1;
+    sgrd.ColCount := 1;
+    sgrd.Cells[0, 0] := 'N/A';
+
+    frmPrs.Close();
+    FreeAndNil(frmPrs);
+  end;
+
+end;
+
+procedure TFrmDataImport.btnPreCheckClick(Sender: TObject);
+begin
+  ProcessCSV(True {bChkOnly});
+end;
+
+procedure TFrmDataImport.btnImportClick(Sender: TObject);
+begin
+  ProcessCSV(False {bChkOnly});
 end;
 
 end.

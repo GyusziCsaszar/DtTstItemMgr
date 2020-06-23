@@ -11,7 +11,9 @@ uses
   uDtTstDbItemMgr in 'uDtTstDbItemMgr.pas',
   uDtTstFirebird in 'uDtTstFirebird.pas',
   uFrmProgress in 'uFrmProgress.pas' {FrmProgress},
-  uFrmDataImport in 'uFrmDataImport.pas' {FrmDataImport};
+  uFrmDataImport in 'uFrmDataImport.pas' {FrmDataImport},
+  uDtTstApp in 'uDtTstApp.pas',
+  uDtTstAppDb in 'uDtTstAppDb.pas';
 
 {$R *.res}
 

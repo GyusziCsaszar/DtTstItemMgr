@@ -387,7 +387,7 @@ object FrmMain: TFrmMain
   end
   object btnImpTbl: TButton
     Left = 8
-    Top = 523
+    Top = 524
     Width = 137
     Height = 25
     Anchors = [akLeft, akBottom]

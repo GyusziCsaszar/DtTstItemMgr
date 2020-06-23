@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls,
-  { DtTst Units: } uDtTstLog,
+  { DtTst Units: } uDtTstApp,
   Vcl.ExtCtrls;
 
 type
@@ -20,13 +20,14 @@ type
     procedure btnCloseClick(Sender: TObject);
   private
     { Private declarations }
-    m_oLog: TDtTstLog;
+    m_oApp: TDtTstApp;
   public
     { Public declarations }
-    constructor Create(AOwner: TComponent; oLog: TDtTstLog); reintroduce;
+    constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
     procedure Init(sTitle: string);
+
     procedure SetProgressToMax();
     procedure SetProgressMinMax(iMin, iMax: integer);
     procedure SetProgressPos(iPos: integer);
@@ -44,23 +45,28 @@ implementation
 {$R *.dfm}
 
 uses
+  { DtTst Units: } uDtTstConsts, uDtTstWin,
   System.Math;
 
-constructor TFrmProgress.Create(AOwner: TComponent; oLog: TDtTstLog);
+constructor TFrmProgress.Create(AOwner: TComponent; oApp: TDtTstApp);
 begin
 
-  m_oLog := oLog;
+  m_oApp := oApp;
 
   inherited Create(AOwner);
 
-  m_oLog.LogLIFE('TFrmProgress.Create');
+  LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmProgress');
+
+  m_oApp.LOG.LogLIFE('TFrmProgress.Create');
 end;
 
 destructor TFrmProgress.Destroy();
 begin
-  m_oLog.LogLIFE('TFrmProgress.Destroy');
+  m_oApp.LOG.LogLIFE('TFrmProgress.Destroy');
 
-  m_oLog := nil; // ATTN: Do not Free here!
+  SaveFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmProgress');
+
+  m_oApp := nil; // ATTN: Do not Free here!
 
   inherited Destroy();
 end;
@@ -131,6 +137,12 @@ end;
 
 procedure TFrmProgress.Done();
 begin
+
+  lbHistory.Items.Add('');
+
+  // NOTE: Scroll into view...
+  lbHistory.ItemIndex := lbHistory.Items.Count - 1;
+
   btnClose.Enabled := true;
 end;
 
