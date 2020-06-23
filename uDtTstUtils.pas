@@ -16,7 +16,7 @@ var
     sMs: string;
 begin
     //Spit out most of the result: '20160802 11:34:36.'
-    Result := FormatDateTime('yyyy. mm. dd. hh":"nn":"ss"."', dt);
+    Result := FormatDateTime('yyyy.mm.dd. hh":"nn":"ss"."', dt);
 
     //extract the number of microseconds
     dt := Frac(dt); //fractional part of day

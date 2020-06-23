@@ -58,8 +58,7 @@ type
   private
     { Private declarations }
     m_oLog: TDtTstLog;
-    m_sDbUser: string;
-    m_sDbPassword: string;
+    m_oDb: TDtTstDb;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -74,22 +73,36 @@ implementation
 {$R *.dfm}
 
 uses
-  IniFiles;
+  System.IOUtils;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
-  m_oLog := TDtTstLog.Create(Application.ExeName + '.LOG');
+
+  m_oLog := TDtTstLog.Create(TPath.ChangeExtension(Application.ExeName, csLOG_EXT),
+                             TPath.ChangeExtension(Application.ExeName, csINI_EXT));
 
   inherited Create(AOwner);
 
   m_oLog.m_lbLogView := lbLog;
 
-  m_oLog.LogINFO('TFrmMain.Create');
+  m_oLog.LogLIFE('TFrmMain.Create');
+
+  try
+    m_oDb := TDtTstDb.Create(m_oLog, TPath.ChangeExtension(Application.ExeName, csINI_EXT));
+  except
+    on exc : Exception do
+    begin
+      m_oLog.LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
 end;
 
 destructor TFrmMain.Destroy();
 begin
-  m_oLog.LogINFO('TFrmMain.Destroy');
+  m_oLog.LogLIFE('TFrmMain.Destroy');
+
+  FreeAndNil(m_oDb);
 
   inherited Destroy();
 
@@ -97,11 +110,6 @@ begin
 end;
 
 procedure TFrmMain.FormShow(Sender: TObject);
-var
-  sIniPath: string;
-  fIni: TIniFile;
-  iDbCnt, iDbDef, iDb: Integer;
-  sDb: string;
 begin
   // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
 
@@ -111,77 +119,41 @@ begin
   // First LogINFO...
   m_oLog.LogINFO('Executable Path: ' + Application.ExeName);
 
-  // Member initialization...
-  m_sDbUser := '';
-  m_sDbPassword := '';
+  // DB Info from INI file...
+  cbbDb.Text := '';
+  cbbDb.Items.Clear();
 
-  // Loading INI file...
-  sIniPath := Application.ExeName.Substring(0, Application.ExeName.Length - 4) + '.INI';
-  if FileExists(sIniPath) then
+  if not Assigned(m_oDb) then
   begin
-    try
-      m_oLog.LogINFO('INI Path: ' + sIniPath);
-
-      fIni := TIniFile.Create(sIniPath);
-
-      if not fIni.SectionExists(sINI_SEC_DBCON) then
-      begin
-        raise m_oLog.LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
-      end;
-
-      iDbCnt := fIni.ReadInteger(sINI_SEC_DBCON, sINI_VAL_DBCON_DB_CNT, 0);
-      iDbDef := fIni.ReadInteger(sINI_SEC_DBCON, sINI_VAL_DBCON_DB_DEF, 0);
-
-      if iDbCnt < 1 then
-      begin
-        raise m_oLog.LogERROR(Exception.Create('No valid "' + sINI_VAL_DBCON_DB_CNT + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
-      end;
-
-      if (iDbDef < 1) or (iDbDef > iDbCnt) then iDbDef := 1;
-
-      cbbDb.Text := '';
-      cbbDb.Items.Clear();
-
-      for iDb := 1 to iDbCnt do
-      begin
-        sDb := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB + IntToStr(iDb), '');
-        if sDb.Length = 0 then
-        begin
-          raise m_oLog.LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + IntToStr(iDb) + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
-        end;
-
-        cbbDb.Items.Add(sDb);
-
-        if iDb = iDbDef then
-        begin
-          cbbDb.Text := sDb;
-        end;
-      end;
-
-      m_sDbUser := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
-      m_sDbPassword := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
-
-    finally
-      FreeAndNil(fIni);
-    end;
+    Close();
+    Exit();
   end;
 
+  m_oDb.GetConnectStrings(cbbDb);
 end;
 
 procedure TFrmMain.btnCreTblClick(Sender: TObject);
 var
   oDb: TDtTstDb;
 begin
+
+  // try SRC: https://stackoverflow.com/questions/6601147/how-to-correctly-write-try-finally-except-statements
   try
-    oDb := TDtTstDb.Create(m_oLog);
+    try
+      oDb := TDtTstDb.Create(m_oLog, '');
 
-    if oDb.CreateTable(con_Firebird.DBXConnection) then
-    begin
-      ShowMessage('You have created a DelphiExperts Table! Good job!');
+      oDb.CreateTable(con_Firebird.DBXConnection);
+
+      ShowMessage('You have created table DELPHIEXPERTS!');
+    finally
+      FreeAndNil(oDb);
     end;
-
-  finally
-    FreeAndNil(oDb);
+  except
+    on exc : Exception do
+    begin
+      m_oLog.LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
   end;
 
   if btnGetMetadata.Enabled then btnGetMetadata.Click;
@@ -192,20 +164,25 @@ procedure TFrmMain.btnDrpTblClick(Sender: TObject);
 var
   oDb: TDtTstDb;
 begin
+
+  // try SRC: https://stackoverflow.com/questions/6601147/how-to-correctly-write-try-finally-except-statements
   try
-    oDb := TDtTstDb.Create(m_oLog);
+    try
+      oDb := TDtTstDb.Create(m_oLog, '');
 
-    if oDb.DropTable(con_Firebird.DBXConnection) then
-    begin
-      ShowMessage('You have dropped the DelphiExperts Table! Good job!');
-    end
-    else
-    begin
-      ShowMessage('ERROR: Unable to drop the DelphiExperts Table!');
+      oDb.DropTable(con_Firebird.DBXConnection);
+
+      ShowMessage('You have dropped table DELPHIEXPERTS!');
+
+    finally
+      FreeAndNil(oDb);
     end;
-
-  finally
-    FreeAndNil(oDb);
+  except
+    on exc : Exception do
+    begin
+      m_oLog.LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
   end;
 
   if btnGetMetadata.Enabled then btnGetMetadata.Click;
@@ -476,13 +453,13 @@ begin
   try
 
     con_Firebird.Params.Values['Database'] := cbbDb.Text;
-    if con_Firebird.Params.Values['Database'].Length = 0 then
+    if con_Firebird.Params.Values['Database'].IsEmpty() then
     begin
       raise Exception.Create('No Database specified!');
     end;
 
-    con_Firebird.Params.Values['User_Name'] := m_sDbUser;
-    con_Firebird.Params.Values['Password' ] := m_sDbPassword;
+    con_Firebird.Params.Values['User_Name'] := m_oDb.ConnectUser;
+    con_Firebird.Params.Values['Password' ] := m_oDb.ConnectPassword;
 
     if (con_Firebird.Params.Values['User_Name'].Length > 0) and (con_Firebird.Params.Values['Password'].Length > 0) then
     begin
