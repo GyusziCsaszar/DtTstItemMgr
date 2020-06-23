@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 130;
-  csVERSION_TITLE       = 'v1.30';
+  ciVERSION             = 131;
+  csVERSION_TITLE       = 'v1.31';
 
   { App - Strings }
   csITEM                = 'ITEM';
@@ -131,10 +131,11 @@ const
 
   { Database - Tree }
 
-  csDB_TREE_NODE    = '(TREE NODE)';
-  csDB_TREE_PARENT  = '(TREE PARENT NODE)';
-  csDB_TREE_PATH    = '(TREE PATH)';
-  csDB_TREE_LEVEL   = '(TREE LEVEL)';
+  csDB_TREE_NODE      = '(TREE NODE)';
+  csDB_TREE_PARENT    = '(TREE PARENT NODE)';
+  csDB_TREE_PATH      = '(TREE PATH)';
+  csDB_TREE_LEVEL     = '(TREE LEVEL)';
+  csDB_TREE_Delimiter = CHR(10);
 
   { Database - Product ItemMgr }
   ciDB_VERSION_PRD_NONE       =   0;

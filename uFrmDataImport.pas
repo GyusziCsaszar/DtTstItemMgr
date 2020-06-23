@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
   { DtTst Units: } uDtTstApp,
-  Vcl.Grids, Vcl.ExtCtrls;
+  Vcl.Grids, Vcl.ExtCtrls, Vcl.ComCtrls;
 
 type
   TFrmDataImport = class(TForm)
@@ -44,6 +44,7 @@ type
     btnRememberDef: TButton;
     chbShowTreeDetails: TCheckBox;
     btnSortTree: TButton;
+    tvTree: TTreeView;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -85,6 +86,9 @@ type
     m_iCol_DB_TREE_PATH   : integer;
     m_iCol_DB_TREE_LEVEL  : integer;
 
+    m_iTvTree_WidthEx: integer;
+    m_iLbTree_HeightEx: integer;
+
     procedure ClearPreview();
     procedure ClearPreview_DEF();
     procedure ClearPreview_DB_TREE();
@@ -100,6 +104,7 @@ type
 
     procedure ProcessCSV(bChkOnly: Boolean);
 
+    procedure DB_TREE_Fill();
     procedure DB_TREE_Add(asTblCols, asCsvVals, asCsvCols: TStringList);
     function DB_TREE_AddKey(sKey: string) : string;
 
@@ -148,6 +153,9 @@ begin
   m_iCol_DB_TREE_PATH   := -1;
   m_iCol_DB_TREE_LEVEL  := -1;
 
+  m_iTvTree_WidthEx  := 0;
+  m_iLbTree_HeightEx := 0;
+
   inherited Create(AOwner);
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
@@ -176,6 +184,17 @@ begin
   self.Caption := Application.Title;
 
   edCsvDelim.Text := m_cDelimCSV;
+
+  m_iTvTree_WidthEx  := (tvTree.Left + tvTree.Width) - (grpTbl.Left + grpTbl.Width);
+  tvTree.Visible     := False;
+  grpTbl.Width       := grpTbl.Width + m_iTvTree_WidthEx;
+  lbTree.Visible     := False;
+  grpCsv.Width       := grpCsv.Width + m_iTvTree_WidthEx;
+
+  m_iLbTree_HeightEx := (tvTree.Top - lbTree.Top);
+  lbTree.Visible     := False;
+  tvTree.Top         := tvTree.Top    - m_iLbTree_HeightEx;
+  tvTree.Height      := tvTree.Height + m_iLbTree_HeightEx;
 
   ClearPreview();
 
@@ -260,7 +279,11 @@ begin
   lbTree.Items.Clear();
   lbTree.Sorted := False;
 
-  chbShowTreeDetails.Visible := False;
+  tvTree.Items.Clear();
+
+  //chbShowTreeDetails.Visible := True; // MUST NOT!!!
+  chbShowTreeDetails.Enabled := True;
+
   btnSortTree       .Visible := False;
 
   m_bDB_TREE := False;
@@ -275,8 +298,31 @@ end;
 procedure TFrmDataImport.ShowTreeCtrls;
 begin
 
-  chbShowTreeDetails.Visible := True;
-  btnSortTree       .Visible := True;
+  chbShowTreeDetails.Visible := m_oApp.ADMIN_MODE;
+  chbShowTreeDetails.Enabled := False;
+
+  btnSortTree       .Visible := chbShowTreeDetails.Checked;
+
+  if not tvTree.Visible then
+  begin
+    grpCsv.Width   := grpCsv.Width - m_iTvTree_WidthEx;
+    grpTbl.Width   := grpTbl.Width - m_iTvTree_WidthEx;
+    tvTree.Visible := True;
+  end;
+
+  if (chbShowTreeDetails.Checked) and (not lbTree.Visible) then
+  begin
+    tvTree.Height  := tvTree.Height - m_iLbTree_HeightEx;
+    tvTree.Top     := tvTree.Top    + m_iLbTree_HeightEx;
+    lbTree.Visible := True;
+  end;
+
+  if (not chbShowTreeDetails.Checked) and (lbTree.Visible) then
+  begin
+    lbTree.Visible := False;
+    tvTree.Top     := tvTree.Top    - m_iLbTree_HeightEx;
+    tvTree.Height  := tvTree.Height + m_iLbTree_HeightEx;
+  end;
 
 end;
 
@@ -898,11 +944,11 @@ procedure TFrmDataImport.ProcessCSV(bChkOnly: Boolean);
 var
   frmPrs: TFrmProgress;
   dbSql: TDtTstDbSql;
-  asTblCols_NOT_NULL, asTblCols, asDbTypes, asDbLens, asCsvCols: TStringList;
+  asTblCols_NOT_NULL, asTblCols, asDbTypes, asDbLens, asCsvCols, asTreePath: TStringList;
   aiCsvColIndices: TArray<Integer>;
   asCsvVals: TStringList;
   iRow, iCol, iDbLen, iValLen, iTmp: integer;
-  sTblCol_NOT_NULL, sTblCol, sCsvVal, sMsg, sTmp: string;
+  sTblCol_NOT_NULL, sTblCol, sCsvVal, sMsg, sTmp, sTreePath: string;
   //ayVal: TBytes;
   bBreak, bHit, bEmptyValueRequested: Boolean;
   iErrCnt: integer;
@@ -916,6 +962,7 @@ begin
   aiCsvColIndices     := nil;
   asCsvCols           := nil;
   asCsvVals           := nil;
+  asTreePath          := nil;
 
   bBreak  := False;
   iErrCnt := 0;
@@ -1401,6 +1448,57 @@ begin
 
     CloseCSV();
 
+    if m_bDB_TREE then
+    begin
+
+      DB_TREE_Fill();
+
+      if not bChkOnly then
+      begin
+
+        asTreePath := TStringList.Create();
+
+        for sTreePath in lbTree.Items do
+        begin
+
+          try
+
+              Split(sTreePath[1], sTreePath.Substring(2, sTreePath.Length - 4), asTreePath);
+
+              asCsvVals[m_iCol_DB_TREE_NODE]   := asTreePath[asTreePath.Count - 1];
+              asCsvVals[m_iCol_DB_TREE_PARENT] := ''; // ATTN: Not stored!
+              asCsvVals[m_iCol_DB_TREE_PATH]   := sTreePath.Replace(sTreePath[1], csDB_TREE_Delimiter);
+              asCsvVals[m_iCol_DB_TREE_LEVEL]  := IntToStr(asTreePath.Count);
+
+              dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+
+          except
+            on exc : Exception do
+            begin
+              m_oApp.LOG.LogERROR(exc);
+
+              sMsg := 'ERROR: Inserting DB TREE Rows!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+              frmPrs.AddStep(sMsg);
+              Application.ProcessMessages;
+
+              sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+              iErrCnt := iErrCnt + 1;
+              if not ErrorQuestionMsgDlg(sMsg) then
+              begin
+                bBreak := True;
+                Break;
+              end;
+            end;
+          end;
+
+        end;
+
+      end;
+
+    end;
+
     if bBreak then
     begin
       frmPrs.AddStep('ERROR! User cancelled opertation!');
@@ -1439,8 +1537,84 @@ begin
 
     FreeAndNil(asCsvVals);
 
+    FreeAndNil(asTreePath);
+
     FreeAndNil(dbSql);
   end;
+
+end;
+
+procedure TFrmDataImport.DB_TREE_Fill();
+var
+  sKey, sNode: string;
+  asTreePath: TStringList;
+  tn, tnTmp: TTreeNode;
+  i: Integer;
+begin
+
+  tvTree.Items.Clear();
+
+  asTreePath := TStringList.Create();
+  try
+
+    for sKey in lbTree.Items do
+    begin
+
+      Split(sKey[1], sKey.Substring(2, sKey.Length - 4), asTreePath);
+
+      tn := nil;
+      for sNode in asTreePath do
+      begin
+
+        if tn = nil then
+        begin
+
+          for i := 0 to tvTree.Items.Count - 1 do
+          begin
+            if tvTree.Items[i].Text = sNode then
+            begin
+              tn := tvTree.Items[i];
+            end;
+          end;
+
+          if tn = nil then
+          begin
+            tn := tvTree.Items.AddChild(nil, sNode);
+          end;
+
+        end
+        else
+        begin
+
+          tnTmp := tn.getFirstChild();
+          while tnTmp <> nil do
+          begin
+
+            if tnTmp.Text = sNode then
+            begin
+              tn := tnTmp;
+              Break;
+            end;
+
+            tnTmp := tn.GetNextChild(tnTmp);
+          end;
+
+          if tnTmp = nil then
+          begin
+            tn.Expanded := True;
+            tn := tvTree.Items.AddChild(tn, sNode);
+          end;
+
+        end;
+
+      end;
+
+    end;
+
+  finally
+    FreeAndNil(asTreePath);
+  end;
+
 
 end;
 

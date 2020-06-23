@@ -46,14 +46,14 @@ object FrmDataImport: TFrmDataImport
     object grpTbl: TGroupBox
       Left = 12
       Top = 183
-      Width = 485
+      Width = 518
       Height = 203
-      Anchors = [akLeft, akBottom]
+      Anchors = [akLeft, akRight, akBottom]
       Caption = 'Database Table'
       TabOrder = 0
       Visible = False
       DesignSize = (
-        485
+        518
         203)
       object lblTblCol: TLabel
         Left = 16
@@ -97,7 +97,7 @@ object FrmDataImport: TFrmDataImport
       object sgrdDef: TStringGrid
         Left = 16
         Top = 72
-        Width = 453
+        Width = 486
         Height = 117
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
@@ -105,6 +105,7 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
+        ExplicitWidth = 453
         ColWidths = (
           64)
         RowHeights = (
@@ -141,7 +142,7 @@ object FrmDataImport: TFrmDataImport
     object grpCsv: TGroupBox
       Left = 12
       Top = 13
-      Width = 733
+      Width = 517
       Height = 164
       Anchors = [akLeft, akTop, akRight, akBottom]
       Caption = 'CSV file:'
@@ -149,10 +150,10 @@ object FrmDataImport: TFrmDataImport
       ParentColor = False
       TabOrder = 1
       DesignSize = (
-        733
+        517
         164)
       object lblCsvPath: TLabel
-        Left = 376
+        Left = 340
         Top = 24
         Width = 26
         Height = 13
@@ -166,17 +167,17 @@ object FrmDataImport: TFrmDataImport
         Caption = 'Delim.:'
       end
       object lblCsvRowCnt: TLabel
-        Left = 176
-        Top = 19
-        Width = 65
-        Height = 30
+        Left = 167
+        Top = 9
+        Width = 49
+        Height = 43
         AutoSize = False
         Caption = 'Preview Row Count:'
         WordWrap = True
       end
       object lblCsvErrMark: TLabel
-        Left = 296
-        Top = 19
+        Left = 264
+        Top = 18
         Width = 41
         Height = 25
         AutoSize = False
@@ -184,38 +185,41 @@ object FrmDataImport: TFrmDataImport
         WordWrap = True
       end
       object edCsvPath: TEdit
-        Left = 408
+        Left = 372
         Top = 21
-        Width = 178
+        Width = 33
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         TabOrder = 0
         OnChange = edCsvPathChange
+        ExplicitWidth = 249
       end
       object btnCsvOpen: TButton
-        Left = 592
+        Left = 411
         Top = 19
-        Width = 34
+        Width = 25
         Height = 25
         Anchors = [akTop, akRight]
         Caption = '...'
         TabOrder = 1
         OnClick = btnCsvOpenClick
+        ExplicitLeft = 627
       end
       object btnCsvPreview: TButton
-        Left = 642
+        Left = 442
         Top = 19
-        Width = 75
+        Width = 59
         Height = 25
         Anchors = [akTop, akRight]
         Caption = 'Preview'
         TabOrder = 2
         OnClick = btnCsvPreviewClick
+        ExplicitLeft = 658
       end
       object sgrd: TStringGrid
         Left = 16
         Top = 55
-        Width = 701
+        Width = 485
         Height = 92
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
@@ -223,6 +227,7 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
+        ExplicitWidth = 701
         ColWidths = (
           64)
         RowHeights = (
@@ -251,7 +256,7 @@ object FrmDataImport: TFrmDataImport
         OnClick = chbFstRowIsHeaderClick
       end
       object edCsvRowCnt: TEdit
-        Left = 247
+        Left = 215
         Top = 21
         Width = 33
         Height = 21
@@ -270,7 +275,7 @@ object FrmDataImport: TFrmDataImport
         OnClick = chbTrimCellsClick
       end
       object edCsvErrMark: TEdit
-        Left = 332
+        Left = 300
         Top = 21
         Width = 29
         Height = 21
@@ -312,20 +317,20 @@ object FrmDataImport: TFrmDataImport
       OnClick = btnCloseClick
     end
     object lbTree: TListBox
-      Left = 506
-      Top = 189
-      Width = 239
-      Height = 197
-      Anchors = [akLeft, akRight, akBottom]
+      Left = 536
+      Top = 13
+      Width = 209
+      Height = 164
+      Anchors = [akTop, akRight]
       ItemHeight = 13
       TabOrder = 5
     end
     object btnRememberDef: TButton
-      Left = 352
+      Left = 511
       Top = 392
       Width = 145
       Height = 25
-      Anchors = [akLeft, akBottom]
+      Anchors = [akRight, akBottom]
       Caption = 'Remember this Definition'
       TabOrder = 6
       OnClick = btnRememberDefClick
@@ -337,7 +342,6 @@ object FrmDataImport: TFrmDataImport
       Height = 17
       Anchors = [akLeft, akBottom]
       Caption = 'Tree Details'
-      Checked = True
       Color = clWindow
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
@@ -346,8 +350,8 @@ object FrmDataImport: TFrmDataImport
       Font.Style = []
       ParentColor = False
       ParentFont = False
-      State = cbChecked
       TabOrder = 7
+      Visible = False
     end
     object btnSortTree: TButton
       Left = 288
@@ -358,6 +362,15 @@ object FrmDataImport: TFrmDataImport
       Caption = 'Sort Tree'
       TabOrder = 8
       OnClick = btnSortTreeClick
+    end
+    object tvTree: TTreeView
+      Left = 536
+      Top = 189
+      Width = 209
+      Height = 197
+      Anchors = [akTop, akRight, akBottom]
+      Indent = 19
+      TabOrder = 9
     end
   end
   object tmrStart: TTimer
