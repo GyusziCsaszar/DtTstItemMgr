@@ -15,6 +15,7 @@ type
   protected
     m_oLog: TDtTstLog;
   protected
+
     { ATTN: Copy BELOW members in descendants!!! }
     m_sIsqlPathPRI, m_sIsqlPathSEC: string;
     m_iIsqlOptions: integer;
@@ -28,7 +29,12 @@ type
     m_sADM_DbInfProduct: string;
     m_iADM_UserID: integer;
     m_iADM_DbInfVersion_PRD: integer;
+  public
+    m_asRel_Fields  : TStringList;
+    m_asRel_Defaults: TStringList;
+    m_asRel_SQLs    : TStringList;
     { ATTN: Copy ABOVE members in descendants!!! }
+
   public
     constructor Create(oLog: TDtTstLog; sIniPath: string);
     destructor Destroy(); override;
@@ -68,6 +74,9 @@ type
     function GetLoginUser() : string;
     property LoginUser: string read GetLoginUser;
 
+    function GetINIRelCount() : integer;
+    function GetINIRel(iRel: integer; var rsField: string; var rsDefault: string; var rsSql: string) : Boolean;
+
     function ADM_GetDbInfVersion_PRD() : integer;
     property ADM_DbInfVersion_PRD: integer read ADM_GetDbInfVersion_PRD;
     function ADM_GetUserID() : integer;
@@ -92,7 +101,7 @@ type
     procedure ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
     procedure ADM_DoDbUpdates(frmPrs: TFrmProgress; ADMIN_MODE: Boolean);
-    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean; virtual;
+    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; var rbDoAll_Asked: Boolean; var rbDoAll: Boolean; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean; virtual;
 
     procedure ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
     procedure ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
@@ -143,14 +152,15 @@ type
 implementation
 
 uses
-  { DtTst Units: } uDtTstConsts, uDtTstWin, uDtTstFirebird,
+  { DtTst Units: } uDtTstConsts, uDtTstUtils, uDtTstWin, uDtTstFirebird,
   SysUtils, StrUtils, IniFiles, Vcl.Forms;
 
 constructor TDtTstDb.Create(oLog: TDtTstLog; sIniPath: string);
 var
   fIni: TIniFile;
-  iDbCnt, iDbDef, iDb, iVal: Integer;
-  sDb: string;
+  iDbCnt, iDbDef, iDb, iVal, iRelCnt, iRel: Integer;
+  sDb, sRel: string;
+  asRel: TStringList;
 begin
   m_oLog := oLog;
 
@@ -168,6 +178,10 @@ begin
   m_sADM_DbInfProduct       := '';
   m_iADM_UserID             := 0;
   m_iADM_DbInfVersion_PRD   := ciDB_VERSION_PRD_NONE;
+
+  m_asRel_Fields   := TStringList.Create();
+  m_asRel_Defaults := TStringList.Create();
+  m_asRel_SQLs     := TStringList.Create();
   { ATTN: Copy ABOVE members in descendants!!! }
 
   inherited Create();
@@ -224,6 +238,30 @@ begin
         m_sIsqlPathSEC := fIni.ReadString( csINI_SEC_DB, csINI_VAL_DB_ISQLPATH_ALT, '');
         m_iIsqlOptions := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_ISQLOPTS,     -1);
 
+        asRel := TStringList.Create();
+        try
+
+          iRelCnt := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_REL_CNT, 0);
+
+          for iRel := 1 to iRelCnt do
+          begin
+            sRel := fIni.ReadString(csINI_SEC_DB, csINI_VAL_REL + IntToStr(iRel), '');
+            if not sRel.IsEmpty() then
+            begin
+              Split('|', sRel, asRel);
+              if asRel.Count = 3 then
+              begin
+                m_asRel_Fields  .Add(asRel[0]);
+                m_asRel_Defaults.Add(asRel[1]);
+                m_asRel_SQLs    .Add(asRel[2]);
+              end;
+            end;
+          end;
+
+        finally
+          FreeAndNil(asRel);
+        end;
+
       finally
         FreeAndNil(fIni);
       end;
@@ -238,6 +276,10 @@ begin
   m_oLog := nil; // ATTN: Do not Free here!
 
   FreeAndNil(m_asConnectStrings);
+
+  FreeAndNil(m_asRel_Fields);
+  FreeAndNil(m_asRel_Defaults);
+  FreeAndNil(m_asRel_SQLs);
 
   m_oCon := nil; // ATTN: Do not Free here!
 
@@ -456,6 +498,25 @@ begin
   end;
 end;
 
+function TDtTstDb.GetINIRelCount() : integer;
+begin
+  Result := m_asRel_Fields.Count;
+end;
+
+function TDtTstDb.GetINIRel(iRel: integer; var rsField: string; var rsDefault: string; var rsSql: string) : Boolean;
+begin
+  Result := False;
+
+  if iRel < m_asRel_Fields.Count then
+  begin
+    Result := True;
+
+    rsField   := m_asRel_Fields  [iRel];
+    rsDefault := m_asRel_Defaults[iRel];
+    rsSql     := m_asRel_SQLs    [iRel];
+  end;
+end;
+
 function TDtTstDb.ADM_GetDbInfVersion_PRD() : integer;
 begin
   Result := m_iADM_DbInfVersion_PRD;
@@ -634,7 +695,8 @@ begin
     begin
       sSql := sSql + ', ';
       sSql := sSql + ' s.RDB$FIELD_NAME AS field_name' +
-                    ', i.RDB$DESCRIPTION AS description';
+                    ', i.RDB$DESCRIPTION AS description' +
+                    ', rc.RDB$DEFERRABLE AS is_deferrable';
 
                     {
                     rc.RDB$DEFERRABLE AS is_deferrable,
@@ -715,6 +777,10 @@ begin
           if not sConstraintInfo.IsEmpty() then sConstraintInfo := sConstraintInfo + '|';
           if bDecorate then sConstraintInfo := sConstraintInfo + 'Description: ';
           sConstraintInfo := sConstraintInfo + TRIM(oQry.FieldByName('description').AsString);
+
+          if not sConstraintInfo.IsEmpty() then sConstraintInfo := sConstraintInfo + '|';
+          if bDecorate then sConstraintInfo := sConstraintInfo + 'Is Deferrable: ';
+          sConstraintInfo := sConstraintInfo + TRIM(oQry.FieldByName('is_deferrable').AsString);
 
           asInfos.Add(sConstraintInfo);
 
@@ -1096,15 +1162,19 @@ end;
 procedure TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress; ADMIN_MODE: Boolean);
 var
   oProvider: TDBXDataExpressMetaDataProvider;
+  bDoAll_Asked, bDoAll: Boolean;
 begin
 
   oProvider := META_GetProvider(m_oCon.DBXConnection);
   try
 
+    bDoAll_Asked := False;
+    bDoAll       := False;
+
     while True do
     begin
 
-        if ADM_DoDbUpdates_internal(oProvider, frmPrs, ADMIN_MODE) then
+        if ADM_DoDbUpdates_internal(oProvider, bDoAll_Asked, bDoAll, frmPrs, ADMIN_MODE) then
         begin
           Break; // Database is Up-To-Date!!!
         end;
@@ -1117,7 +1187,7 @@ begin
 
 end;
 
-function TDtTstDb.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean;
+function TDtTstDb.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; var rbDoAll_Asked: Boolean; var rbDoAll: Boolean; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean;
 begin
   Result := False; // Indicated that there are more Database Updates pending...
 
@@ -1132,6 +1202,7 @@ begin
     end;
 
     //if ADM_DbInfVersion_ADM < ciDB_VERSION_ADM then
+    if not rbDoAll then
     begin
       if (not ADMIN_MODE) or (not QuestionMsgDlg('Database PRD Version (' + IntToStr(ADM_DbInfVersion_ADM) +
                    ') is OLDER than the Application''s supported Database PRD Version (' +
@@ -1144,6 +1215,16 @@ begin
                    IntToStr(ciDB_VERSION_ADM) + ')!' + CHR(10) + CHR(10) +
                    'Database UPDATE is required!' + CHR(10) + CHR(10) +
                    'Please contact the Database Administrator!');
+      end;
+
+      if not rbDoAll_Asked then
+      begin
+        rbDoAll_Asked := True;
+
+        if QuestionMsgDlg('Do you want to do all Database UPDATE Steps without confirmation each?') then
+        begin
+          rbDoAll := True;
+        end;
       end;
     end;
 

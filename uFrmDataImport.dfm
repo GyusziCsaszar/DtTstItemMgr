@@ -105,7 +105,6 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
-        ExplicitWidth = 453
         ColWidths = (
           64)
         RowHeights = (
@@ -192,7 +191,6 @@ object FrmDataImport: TFrmDataImport
         Anchors = [akLeft, akTop, akRight]
         TabOrder = 0
         OnChange = edCsvPathChange
-        ExplicitWidth = 249
       end
       object btnCsvOpen: TButton
         Left = 411
@@ -203,7 +201,6 @@ object FrmDataImport: TFrmDataImport
         Caption = '...'
         TabOrder = 1
         OnClick = btnCsvOpenClick
-        ExplicitLeft = 627
       end
       object btnCsvPreview: TButton
         Left = 442
@@ -214,7 +211,6 @@ object FrmDataImport: TFrmDataImport
         Caption = 'Preview'
         TabOrder = 2
         OnClick = btnCsvPreviewClick
-        ExplicitLeft = 658
       end
       object sgrd: TStringGrid
         Left = 16
@@ -227,7 +223,6 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
-        ExplicitWidth = 701
         ColWidths = (
           64)
         RowHeights = (

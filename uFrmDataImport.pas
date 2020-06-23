@@ -86,6 +86,8 @@ type
     m_iCol_DB_TREE_PATH   : integer;
     m_iCol_DB_TREE_LEVEL  : integer;
 
+    m_asTree: TStringList;
+
     m_iTvTree_WidthEx: integer;
     m_iLbTree_HeightEx: integer;
 
@@ -104,9 +106,9 @@ type
 
     procedure ProcessCSV(bChkOnly: Boolean);
 
-    procedure DB_TREE_Fill();
-    procedure DB_TREE_Add(asTblCols, asCsvVals, asCsvCols: TStringList);
-    function DB_TREE_AddKey(sKey: string) : string;
+    procedure DB_TREE_Fill(asTree: TStrings);
+    procedure DB_TREE_Add(asTree: TStrings; asTblCols, asCsvVals, asCsvCols: TStringList);
+    function DB_TREE_AddKey(asTree: TStrings; sKey: string) : string;
 
   public
     { Public declarations }
@@ -146,12 +148,13 @@ begin
 
   m_asColInfos := TStringList.Create();
 
-  //lbTree.Items.Clear();
   m_bDB_TREE := False;
   m_iCol_DB_TREE_NODE   := -1;
   m_iCol_DB_TREE_PARENT := -1;
   m_iCol_DB_TREE_PATH   := -1;
   m_iCol_DB_TREE_LEVEL  := -1;
+
+  m_asTree := TStringList.Create();
 
   m_iTvTree_WidthEx  := 0;
   m_iLbTree_HeightEx := 0;
@@ -174,6 +177,8 @@ begin
   m_oApp := nil; // ATTN: Do not Free here!
 
   FreeAndNil(m_asColInfos);
+
+  FreeAndNil(m_asTree);
 
   inherited Destroy();
 end;
@@ -278,6 +283,8 @@ begin
 
   lbTree.Items.Clear();
   lbTree.Sorted := False;
+
+  m_asTree.Clear();
 
   tvTree.Items.Clear();
 
@@ -952,6 +959,7 @@ var
   //ayVal: TBytes;
   bBreak, bHit, bEmptyValueRequested: Boolean;
   iErrCnt: integer;
+  asTree: TStrings;
 begin
 
   dbSql               := nil;
@@ -963,6 +971,7 @@ begin
   asCsvCols           := nil;
   asCsvVals           := nil;
   asTreePath          := nil;
+  asTree              := nil;
 
   bBreak  := False;
   iErrCnt := 0;
@@ -1050,6 +1059,12 @@ begin
       { DB TREE }
 
       ClearPreview_DB_TREE();
+
+      // ATTN!!!
+      if chbShowTreeDetails.Checked then
+        asTree := lbTree.Items
+      else
+        asTree := m_asTree;
 
       for iRow := 1 to sgrdDef.RowCount - 1 do
       begin
@@ -1382,7 +1397,7 @@ begin
 
             try
 
-              DB_TREE_Add(asTblCols, asCsvVals, asCsvCols);
+              DB_TREE_Add(asTree, asTblCols, asCsvVals, asCsvCols);
 
             except
               on exc : Exception do
@@ -1451,14 +1466,14 @@ begin
     if m_bDB_TREE then
     begin
 
-      DB_TREE_Fill();
+      DB_TREE_Fill(asTree);
 
       if not bChkOnly then
       begin
 
         asTreePath := TStringList.Create();
 
-        for sTreePath in lbTree.Items do
+        for sTreePath in asTree do
         begin
 
           try
@@ -1539,12 +1554,14 @@ begin
 
     FreeAndNil(asTreePath);
 
+    //FreeAndNil(asTree); //MUST NOT!!!
+
     FreeAndNil(dbSql);
   end;
 
 end;
 
-procedure TFrmDataImport.DB_TREE_Fill();
+procedure TFrmDataImport.DB_TREE_Fill(asTree: TStrings);
 var
   sKey, sNode: string;
   asTreePath: TStringList;
@@ -1557,7 +1574,7 @@ begin
   asTreePath := TStringList.Create();
   try
 
-    for sKey in lbTree.Items do
+    for sKey in asTree do
     begin
 
       Split(sKey[1], sKey.Substring(2, sKey.Length - 4), asTreePath);
@@ -1618,7 +1635,7 @@ begin
 
 end;
 
-procedure TFrmDataImport.DB_TREE_Add(asTblCols, asCsvVals, asCsvCols: TStringList);
+procedure TFrmDataImport.DB_TREE_Add(asTree: TStrings; asTblCols, asCsvVals, asCsvCols: TStringList);
 var
   cKeyDelim: char;
   sDblKeyDelim: string;
@@ -1639,16 +1656,16 @@ begin
 
   if sParent.IsEmpty() then
   begin
-    DB_TREE_AddKey (sDblKeyDelim + sNode + sDblKeyDelim);
+    DB_TREE_AddKey (asTree, sDblKeyDelim + sNode + sDblKeyDelim);
   end
   else
   begin
-    sKeyStart := DB_TREE_AddKey (sDblKeyDelim + sParent + sDblKeyDelim);
-    DB_TREE_AddKey ({sDblKeyDelim + sParent + cKeyDelim} sKeyStart + sNode + sDblKeyDelim);
+    sKeyStart := DB_TREE_AddKey (asTree, sDblKeyDelim + sParent + sDblKeyDelim);
+    DB_TREE_AddKey (asTree, {sDblKeyDelim + sParent + cKeyDelim} sKeyStart + sNode + sDblKeyDelim);
   end;
 
   // DEBUG...
-  //lbTree.Items.Add(sParent + '|' + sNode)
+  //asTree.Add(sParent + '|' + sNode)
 
   {
   m_iCol_DB_TREE_NODE   := -1;
@@ -1659,7 +1676,7 @@ begin
 
 end;
 
-function TFrmDataImport.DB_TREE_AddKey(sKey: string) : string;
+function TFrmDataImport.DB_TREE_AddKey(asTree: TStrings; sKey: string) : string;
 var
   sKeyEnd, sKeyStart, sNewKeyStart: string;
   iIdx, iCmp, iIdxSub, iPos, iIdxSubSub, iCmpSubSub, iIdxMoveTo: integer;
@@ -1676,11 +1693,11 @@ begin
   begin
     iIdx := iIdx + 1;
 
-    if iIdx >= lbTree.Items.Count then Break;
+    if iIdx >= asTree.Count then Break;
 
-    if ContainsText(lbTree.Items[iIdx], sKeyEnd) then
+    if ContainsText(asTree[iIdx], sKeyEnd) then
     begin
-      Result := lbTree.Items[iIdx].Substring(0, lbTree.Items[iIdx].Length - 1); // - sKeyEnd.Length);
+      Result := asTree[iIdx].Substring(0, asTree[iIdx].Length - 1); // - sKeyEnd.Length);
 
       Exit;
     end;
@@ -1694,9 +1711,9 @@ begin
   begin
     iIdx := iIdx + 1;
 
-    if iIdx >= lbTree.Items.Count then Break;
+    if iIdx >= asTree.Count then Break;
 
-    iCmp := CompareText(sKey, lbTree.Items[iIdx]);
+    iCmp := CompareText(sKey, asTree[iIdx]);
 
     if iCmp = 0 then
       Exit; // Exists!
@@ -1705,10 +1722,10 @@ begin
       Break; // Sorted!
   end;
 
-  if iIdx >= lbTree.Items.Count then
-    lbTree.Items.Add(sKey)
+  if iIdx >= asTree.Count then
+    asTree.Add(sKey)
   else
-    lbTree.Items.Insert(iIdx, sKey);
+    asTree.Insert(iIdx, sKey);
 
   // DEBUG...
   //Exit;
@@ -1729,14 +1746,14 @@ begin
     begin
       iIdxSub := iIdxSub + 1;
 
-      if iIdxSub >= lbTree.Items.Count then Break;
+      if iIdxSub >= asTree.Count then Break;
 
       if iIdxSub <> iIdx then
       begin
 
-        iCmp := CompareText(sKeyStart, lbTree.Items[iIdxSub].Substring(0, sKeyStart.Length));
+        iCmp := CompareText(sKeyStart, asTree[iIdxSub].Substring(0, sKeyStart.Length));
 
-        if StartsText(sKeyStart, lbTree.Items[iIdxSub]) then
+        if StartsText(sKeyStart, asTree[iIdxSub]) then
         begin
 
           bExists := False;
@@ -1748,9 +1765,9 @@ begin
             begin
               iIdxSubSub := iIdxSubSub + 1;
 
-              if iIdxSubSub >= lbTree.Items.Count then Break;
+              if iIdxSubSub >= asTree.Count then Break;
 
-              iCmpSubSub := CompareText(sKeyStart + sKeyStart[2], lbTree.Items[iIdxSubSub]);
+              iCmpSubSub := CompareText(sKeyStart + sKeyStart[2], asTree[iIdxSubSub]);
 
               if iCmpSubSub = 0 then
               begin
@@ -1766,7 +1783,7 @@ begin
           begin
             iIdxMoveTo := iIdx + 1; // ATTN: Each further keys here are Children of this!!!
 
-            lbTree.Items.Delete(iIdxSub);
+            asTree.Delete(iIdxSub);
             iIdxSub := iIdxSub - 1;
 
           end
@@ -1775,14 +1792,14 @@ begin
             if iIdxMoveTo >= 0 then
             begin
 
-              lbTree.Items.Insert(iIdxMoveTo, sNewKeyStart + lbTree.Items[iIdxSub].Substring(sKeyStart.Length));
+              asTree.Insert(iIdxMoveTo, sNewKeyStart + asTree[iIdxSub].Substring(sKeyStart.Length));
 
               if iIdxMoveTo <= iIdxSub then
                 iIdxSub := iIdxSub + 1;
 
               iIdxMoveTo := iIdxMoveTo + 1;
 
-              lbTree.Items.Delete(iIdxSub);
+              asTree.Delete(iIdxSub);
               iIdxSub := iIdxSub - 1;
 
               if iIdxMoveTo > iIdxSub then
@@ -1790,7 +1807,7 @@ begin
             end
             else
             begin
-              lbTree.Items[iIdxSub] := sNewKeyStart + lbTree.Items[iIdxSub].Substring(sKeyStart.Length);
+              asTree[iIdxSub] := sNewKeyStart + asTree[iIdxSub].Substring(sKeyStart.Length);
             end;
           end;
 

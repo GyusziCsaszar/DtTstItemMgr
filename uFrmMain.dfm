@@ -84,7 +84,7 @@ object FrmMain: TFrmMain
     Anchors = [akLeft, akTop, akBottom]
     Color = clWindow
     ParentBackground = False
-    TabOrder = 6
+    TabOrder = 4
     object chbAutoLogin: TCheckBox
       Left = 8
       Top = 5
@@ -177,26 +177,6 @@ object FrmMain: TFrmMain
     OnMouseDown = lbObjectsMouseDown
     OnMouseUp = lbObjectsMouseUp
   end
-  object btnRsInsert: TButton
-    Left = 790
-    Top = 8
-    Width = 51
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Insert'
-    TabOrder = 3
-    OnClick = btnRsInsertClick
-  end
-  object btnRsDelete: TButton
-    Left = 851
-    Top = 8
-    Width = 57
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Delete'
-    TabOrder = 4
-    OnClick = btnRsDeleteClick
-  end
   object panDbInfo: TPanel
     Left = 0
     Top = 586
@@ -215,7 +195,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 5
+    TabOrder = 3
   end
   object panAdminMode: TPanel
     Left = 300
@@ -234,7 +214,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 7
+    TabOrder = 5
   end
   object lbLog: TListBox
     Left = 539
@@ -250,7 +230,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ItemHeight = 13
     ParentFont = False
-    TabOrder = 8
+    TabOrder = 6
     OnDblClick = lbLogDblClick
   end
   object lbTasks: TListBox
@@ -260,7 +240,7 @@ object FrmMain: TFrmMain
     Height = 509
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akBottom]
-    TabOrder = 9
+    TabOrder = 7
     OnClick = lbTasksClick
     OnDrawItem = lbTasksDrawItem
     OnKeyDown = lbTasksKeyDown

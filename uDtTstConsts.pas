@@ -9,13 +9,14 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 131;
-  csVERSION_TITLE       = 'v1.31';
+  ciVERSION             = 132;
+  csVERSION_TITLE       = 'v1.32';
 
   { App - Strings }
   csITEM                = 'ITEM';
   csITEM_TYPE           = 'ITEM TYPE';
   csITEM_GROUP          = 'ITEM GROUP';
+  csITEM_ITEMGROUP      = 'ITEM -> ITEM GROUP';
 
   { App - Menu }
   ccMnuBtn                     = '0';
@@ -51,10 +52,12 @@ const
   ccMnuBtnID_Drop_View         = 'H';
   //
   ccMnuBtnID_GrdRefresh        = 'I';
+  ccMnuBtnID_GrdDelete         = 'J';
+  ccMnuBtnID_GrdInsert         = 'K';
   // { Product }
-  ccMnuBtnID_Import_Item_Type  = 'J';
-  ccMnuBtnID_Import_Item       = 'K';
-  ccMnuBtnID_Import_Item_Group = 'L';
+  ccMnuBtnID_Import_Item_Type  = 'L';
+  ccMnuBtnID_Import_Item       = 'M';
+  ccMnuBtnID_Import_Item_Group = 'N';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -81,6 +84,8 @@ const
     csINI_VAL_DB_CONSTR_CNT   = 'ConnectStringCOUNT';
     csINI_VAL_DB_CONSTR_DEF   = 'ConnectStringDEFAULT';
     csINI_VAL_DB_CONSTR       = 'ConnectString';
+    csINI_VAL_REL_CNT         = 'RelationCOUNT';
+    csINI_VAL_REL             = 'Relation';
     csINI_VAL_DB_USR          = 'User';
     csINI_VAL_DB_PW           = 'Password';
   csINI_SEC_APP               = 'Database'; // BUG: Not worked with any other value!!!
@@ -142,7 +147,8 @@ const
 //ciDB_VERSION_PRD            = 100;
 //ciDB_VERSION_PRD            = 101; // CRE ItemType
 //ciDB_VERSION_PRD            = 102; // CRE Item
-  ciDB_VERSION_PRD            = 103; // CRE ItemGroup
+//ciDB_VERSION_PRD            = 103; // CRE ItemGroup
+  ciDB_VERSION_PRD            = 104; // CRE Item_ItemGroup
   // ------------------------------------
   csDB_TBL_USR_ITEMTYPE               = 'ItemType';
   ciDB_FLD_USR_ITEMTYPE_NAME_Length   = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
@@ -162,6 +168,10 @@ const
   csDB_FLD_USR_ITEMGROUP_LEVEL        = 'ItemGroup_Level'; // ATTN: Keep UNIQUE NAME
   ciDB_FLD_USR_ITEMGROUP_PATH_Length  = ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEMGROUP_PATH         = 'ItemGroup_Path';  // ATTN: Keep UNIQUE NAME
+  // ------------------------------------
+  csDB_TBL_USR_ITEM_ITEMGROUP               = 'Item_ItemGroup';
+  csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID       = 'Item_ID';
+  csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID  = 'ItemGroup_ID';
 
 implementation
 

@@ -24,8 +24,6 @@ type
     ds_sds_Bottom: TDataSource;
     db_grid_Bottom: TDBGrid;
     lbObjects: TListBox;
-    btnRsInsert: TButton;
-    btnRsDelete: TButton;
     con_Firebird_UTF8: TSQLConnection;
     panDbInfo: TPanel;
     lblCaption: TLabel;
@@ -42,8 +40,6 @@ type
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
-    procedure btnRsInsertClick(Sender: TObject);
-    procedure btnRsDeleteClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure lbTasksClick(Sender: TObject);
     procedure lbTasksDrawItem(Control: TWinControl; Index: Integer;
@@ -85,12 +81,15 @@ type
     m_bTasks_MouseDown: Boolean;
     m_bObjects_MouseDown: Boolean;
     m_bTablesView: Boolean;
+
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
 
     procedure DoGrid_Refresh();
+    procedure DoGrid_Insert();
+    procedure DoGrid_Delete();
 
     procedure OpenSql(sTable, sSql: string);
 
@@ -117,7 +116,7 @@ type
     procedure DoTasksClick();
 
     procedure DoLbMeasuerItem(Control: TWinControl; Index: Integer; var Height: Integer);
-    procedure DoLbDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
+    procedure DoLbDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState; bMouseDown: Boolean);
 
     function MnuGRP_Selectable(cID: char; sCaption: string; iIndent: integer) : string;
     function MnuGRP(sCaption: string; iIndent: integer) : string;
@@ -272,86 +271,49 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.sds_BottomAfterPost END');
 end;
 
-procedure TFrmMain.btnRsDeleteClick(Sender: TObject);
+procedure TFrmMain.DoGrid_Delete();
 begin
-  m_oApp.LOG.LogUI('TFrmMain.btnRsDeleteClick BEGIN');
 
-  if db_grid_Top.Visible then
+  if cds_Top.Active then
   begin
 
-    if not cds_Top.Active then exit;
+    if QuestionMsgDlg('Do you want to Delete the selected row?') then
+    begin
 
-    try
-      cds_Top.Delete();
-      cds_Top.ApplyUpdates(0);
-    except
-      on exc : Exception do
-      begin
-        m_oApp.LOG.LogERROR(exc);
-        ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      try
+        cds_Top.Delete();
+        cds_Top.ApplyUpdates(0);
+      except
+        on exc : Exception do
+        begin
+          m_oApp.LOG.LogERROR(exc);
+          ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+        end;
       end;
     end;
-
-  end
-  else // if db_grid_Bottom.Visible then
-  begin
-
-    if not sds_Bottom.Active then exit;
-
-    try
-      sds_Bottom.Delete();
-      sds_Bottom.ApplyUpdates(0);
-    except
-      on exc : Exception do
-      begin
-        m_oApp.LOG.LogERROR(exc);
-        ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-      end;
-    end;
-
   end;
-
-  m_oApp.LOG.LogUI('TFrmMain.btnRsDeleteClick END');
 end;
 
-procedure TFrmMain.btnRsInsertClick(Sender: TObject);
+procedure TFrmMain.DoGrid_Insert();
 begin
-  m_oApp.LOG.LogUI('TFrmMain.btnRsInsertClick BEGIN');
 
-  if db_grid_Top.Visible then
+  if cds_Top.Active then
   begin
 
-    if not cds_Top.Active then exit;
+    if QuestionMsgDlg('Do you want to Insert a New row?') then
+    begin
 
-    try
-      cds_Top.Insert();
-    except
-      on exc : Exception do
-      begin
-        m_oApp.LOG.LogERROR(exc);
-        ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      try
+        cds_Top.Insert();
+      except
+        on exc : Exception do
+        begin
+          m_oApp.LOG.LogERROR(exc);
+          ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+        end;
       end;
     end;
-
-  end
-  else // if db_grid_Bottom.Visible then
-  begin
-
-    if not sds_Bottom.Active then exit;
-
-    try
-      sds_Bottom.Insert();
-    except
-      on exc : Exception do
-      begin
-        m_oApp.LOG.LogERROR(exc);
-        ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-      end;
-    end;
-
   end;
-
-  m_oApp.LOG.LogUI('TFrmMain.btnRsInsertClick END');
 end;
 
 procedure TFrmMain.DoGrid_Refresh();
@@ -396,7 +358,6 @@ begin
         ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
       end;
     end;
-
   end;
 end;
 
@@ -461,7 +422,8 @@ end;
 
 procedure TFrmMain.ds_cds_TopDataChange(Sender: TObject; Field: TField);
 var
-  sID, sName: string;
+  iRelCnt, iRel: integer;
+  sField, sDefault, sSql, sID: string;
 begin
 
   // NOTE:
@@ -480,39 +442,35 @@ begin
   //if sds_Bottom.Active then
   begin
 
-    if ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMTYPE_ID) <> nil then
+    iRelCnt := m_oApp.DB.GetINIRelCount();
+    for iRel := 0 to iRelCnt - 1 do
     begin
+      if m_oApp.DB.GetINIRel(iRel, sField, sDefault, sSql) then
+      begin
 
-      sID := ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMTYPE_ID).AsString;
+        if ds_cds_Top.DataSet.FindField(sField) <> nil then
+        begin
 
-      // NULL value...
-      if sID.IsEmpty() then sID := '0';
+          sID := ds_cds_Top.DataSet.FieldByName(sField).AsString;
 
-      sds_Bottom.Active := False;
+          if sID.IsEmpty() then
+            sID := sDefault;
 
-      sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL('select ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                                      ' from ' + csDB_TBL_USR_ITEMTYPE +
-                                      ' WHERE ' + csDB_FLD_ADM_X_ID + ' = ' + sID);
+          sds_Bottom.Active := False;
 
-      sds_Bottom.Active := True;
+          if sDefault.IsEmpty() then // Char!!!
+            sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', '''' + sID + '''')
+          else
+            sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', sID);
 
-      lblBottom.Caption := csITEM_TYPE + ' of ' + lblTop.Caption;
+          sds_Bottom.Active := True;
 
-    end
-    else if ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEMTYPE_NAME) <> nil then
-    begin
+          lblBottom.Caption := 'Details' + ' for ' + lblTop.Caption;
 
-      sName := ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString;
+          Break;
+        end;
 
-      sds_Bottom.Active := False;
-
-      sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL('select * ' +
-                                      ' from V_' + csDB_TBL_USR_ITEM +
-                                      ' WHERE ' + csDB_FLD_USR_ITEMTYPE_NAME + ' = ' + '''' + sName + '''');
-
-      sds_Bottom.Active := True;
-
-      lblBottom.Caption := csITEM + ' of ' + lblTop.Caption;
+      end;
     end;
   end;
 end;
@@ -768,8 +726,10 @@ begin
 
       Menu_ExtractItem(lbObjects.Items[iIdx], cID, sTable);
 
-      // Table Fields
       asItems := TStringList.Create();
+
+      // Table Fields
+      asItems.Clear();
       try
 
         con_Firebird.GetFieldNames(sTable, asItems);
@@ -793,10 +753,8 @@ begin
         end;
       end;
 
-      FreeAndNil(asItems);
-
       // Table Indices
-      asItems := TStringList.Create();
+      asItems.Clear();
       try
 
         con_Firebird.GetIndexNames(sTable, asItems);
@@ -820,16 +778,14 @@ begin
         end;
       end;
 
-      FreeAndNil(asItems);
-
       // Table Triggers
-      asItems := TStringList.Create();
+      asItems.Clear();
       try
-
-        m_oApp.DB.Select_Triggers(asItems, nil {asInfos}, sTable, '' {sTriggerName}, False {bDecorate}, False {bFull});
 
         iIdx := iIdx + 1;
         lbObjects.Items.Insert(iIdx, MnuGRP('Triggers', 2));
+
+        m_oApp.DB.Select_Triggers(asItems, nil {asInfos}, sTable, '' {sTriggerName}, False {bDecorate}, False {bFull});
 
         for sItem in asItems do
         begin
@@ -847,16 +803,14 @@ begin
         end;
       end;
 
-      FreeAndNil(asItems);
-
       // Table Constraints
-      asItems := TStringList.Create();
+      asItems.Clear();
       try
-
-        m_oApp.DB.Select_Constraints(False {bFKeysOnly}, asItems, nil {asInfos}, sTable, '' {sConstraintName}, False {bDecorate});
 
         iIdx := iIdx + 1;
         lbObjects.Items.Insert(iIdx, MnuGRP('Constraints', 2));
+
+        m_oApp.DB.Select_Constraints(False {bFKeysOnly}, asItems, nil {asInfos}, sTable, '' {sConstraintName}, False {bDecorate});
 
         for sItem in asItems do
         begin
@@ -963,7 +917,7 @@ begin
     begin
 
       iIdx := iIdx + 1;
-      lbObjects.Items.Insert(iIdx, MnuBTN(ccMnuBtnID_Tables, 'Tables'));
+      lbObjects.Items.Insert(iIdx, MnuBTN(ccMnuBtnID_Tables, 'Tables and Views'));
 
     end;
 
@@ -994,6 +948,73 @@ begin
 
     if m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE then
     begin
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuGRP(csPRODUCT_TITLE + ' (HIDDEN)', 0));
+
+      // BUG: Unable to Edit!
+      {
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+                         'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME +
+                         ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
+                         ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
+                         ' LEFT JOIN ' + csDB_TBL_USR_ITEMTYPE + ' B' +
+                         '   ON (B.' + csDB_FLD_ADM_X_ID + ' = A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ')' +
+                         ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
+      }
+
+      // BUG: Unable to Edit!
+      {
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+                         'SELECT ' + csDB_FLD_USR_ITEM_NAME +
+                         ', ' + '(SELECT ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
+                                 ' FROM ' + csDB_TBL_USR_ITEMTYPE + ' B' +
+                                 ' WHERE ' + 'B.' + csDB_FLD_ADM_X_ID + ' = ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
+                                 ') ' + csDB_FLD_USR_ITEMTYPE_NAME +
+                         ' FROM ' + csDB_TBL_USR_ITEM +
+                         ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
+      }
+
+      // BUG: Unable to Edit!
+      {
+      // SRC: https://forums.devart.com/viewtopic.php?t=22628
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+                         'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME + ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
+                         ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
+                             ', ' + csDB_TBL_USR_ITEMTYPE + ' B' +
+                         ' WHERE ' + 'A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ' = ' + 'B.' + csDB_FLD_ADM_X_ID +
+                         ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 1));
+      }
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (Table)' + '|' +
+                                   'SELECT ' + csDB_FLD_ADM_X_ID +
+                                        ', ' + csDB_FLD_USR_ITEM_ITEMNR +
+                                        ', ' + csDB_FLD_USR_ITEM_NAME +
+                                        ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
+                                        ', ' + csDB_FLD_USR_ITEM_AMO +
+                                   ' FROM ' + csDB_TBL_USR_ITEM +
+                                   ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME,
+                                    1));
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View #1)' + '|' +
+                                   'SELECT *' +
+                                   ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
+                                   ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME,
+                                    1));
+
+      iIdx := iIdx + 1;
+      lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + ' (Table)' + '|' +
+                                   'SELECT ' + csDB_FLD_ADM_X_ID +
+                                        ', ' + csDB_FLD_USR_ITEMGROUP_NODE +
+                                        ', ' + csDB_FLD_USR_ITEMGROUP_LEVEL +
+                                        ', ' + csDB_FLD_USR_ITEMGROUP_PATH +
+                                   ' FROM ' + csDB_TBL_USR_ITEMGROUP +
+                                   ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE,
+                                    1));
 
       iIdx := iIdx + 1;
       lbObjects.Items.Insert(iIdx, MnuGRP('Database Administration Mode', 0));
@@ -1030,64 +1051,21 @@ begin
   begin
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuGRP({csCOMPANY + ' ' +} csPRODUCT_TITLE, 0));
-
-    // BUG: Unable to Edit!
-    {
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                       'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME +
-                       ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
-                       ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
-                       ' LEFT JOIN ' + csDB_TBL_USR_ITEMTYPE + ' B' +
-                       '   ON (B.' + csDB_FLD_ADM_X_ID + ' = A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ')' +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
-    }
-
-    // BUG: Unable to Edit!
-    {
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                       'SELECT ' + csDB_FLD_USR_ITEM_NAME +
-                       ', ' + '(SELECT ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
-                               ' FROM ' + csDB_TBL_USR_ITEMTYPE + ' B' +
-                               ' WHERE ' + 'B.' + csDB_FLD_ADM_X_ID + ' = ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
-                               ') ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                       ' FROM ' + csDB_TBL_USR_ITEM +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
-    }
-
-    // BUG: Unable to Edit!
-    {
-    // SRC: https://forums.devart.com/viewtopic.php?t=22628
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                       'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME + ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
-                       ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
-                           ', ' + csDB_TBL_USR_ITEMTYPE + ' B' +
-                       ' WHERE ' + 'A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ' = ' + 'B.' + csDB_FLD_ADM_X_ID +
-                       ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 1));
-    }
-    iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                                 'SELECT ' + csDB_FLD_USR_ITEM_ITEMNR +
-                                      ', ' + csDB_FLD_USR_ITEM_NAME +
-                                      ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
-                                      ', ' + csDB_FLD_USR_ITEM_AMO +
-                                 ' FROM ' + csDB_TBL_USR_ITEM +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
+    lbObjects.Items.Insert(iIdx, MnuGRP(csPRODUCT_TITLE, 0));
 
     iIdx := iIdx + 1;
-    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View)' + '|' +
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
                                  'SELECT *' +
-                                 ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 1));
+                                 ' FROM ' + 'V_' + csDB_TBL_USR_ITEM + '_EX' +
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME,
+                                  1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|' +
                                  'SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
                                  ' FROM ' + csDB_TBL_USR_ITEMTYPE +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 1));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME,
+                                  1));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + '|' +
@@ -1095,7 +1073,18 @@ begin
                                       ', ' + csDB_FLD_USR_ITEMGROUP_LEVEL +
                                       ', ' + csDB_FLD_USR_ITEMGROUP_PATH +
                                  ' FROM ' + csDB_TBL_USR_ITEMGROUP +
-                                 ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE, 1));
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE,
+                                  1));
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_ITEMGROUP + '|' +
+                                 'SELECT ' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
+                                      ', ' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID +
+                                 ' FROM ' + csDB_TBL_USR_ITEM_ITEMGROUP +
+                                 ' ORDER BY ' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
+                                         ', ' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID,
+                                  1));
+
   end;
 
 end;
@@ -1227,15 +1216,15 @@ end;
 
 procedure TFrmMain.lbObjectsDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
 begin
-  DoLbDrawItem(Control, Index, Rect, State);
+  DoLbDrawItem(Control, Index, Rect, State, m_bObjects_MouseDown);
 end;
 
 procedure TFrmMain.lbTasksDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
 begin
-  DoLbDrawItem(Control, Index, Rect, State);
+  DoLbDrawItem(Control, Index, Rect, State, m_bTasks_MouseDown);
 end;
 
-procedure TFrmMain.DoLbDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
+procedure TFrmMain.DoLbDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState; bMouseDown: Boolean);
 // SRC: https://stackoverflow.com/questions/8563508/how-do-i-draw-the-selected-list-box-item-in-a-different-color
 var
   sItem, sTitle: string;
@@ -1284,7 +1273,7 @@ begin
         Rect.Top    := Rect.Top    + 3;
         Rect.Bottom := Rect.Bottom - 2;
 
-        if (m_bTasks_MouseDown or m_bObjects_MouseDown) and (odSelected in State) then
+        if bMouseDown and (odSelected in State) then
           DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH or DFCS_PUSHED )
         else
           DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH );
@@ -1833,7 +1822,7 @@ procedure TFrmMain.DoTaskOpenClick(cID_Object: char; sCaption_Object: string);
 var
   asParts: TStringList;
 begin
-  if cID_Object = ccMnuItmID_Table then
+  if (cID_Object = ccMnuItmID_Table) or (cID_Object = ccMnuItmID_View) then
   begin
 
     OpenSql(sCaption_Object, 'select * from ' + sCaption_Object);
@@ -1875,8 +1864,16 @@ begin
 
     bKnown := True;
 
-    Menu_AddTask_Group(                               'View'                , 0 );
+    Menu_AddTask_Group(                               'DB Grid'             , 0 );
+
+    if (cID = ccMnuItmID_Table) or (cID = ccMnuItmID_View) or (cID = ccMnuItmID_Query)  then
+      Menu_AddTask_Button(ccMnuBtnID_Open             , 'Open'                  );
+
     Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'               );
+
+    Menu_AddTask_Group(                               'DB Grid (Edit)'      , 0 );
+    Menu_AddTask_Button(ccMnuBtnID_GrdInsert          , 'Insert'                );
+    Menu_AddTask_Button(ccMnuBtnID_GrdDelete          , 'Delete'                );
 
     case cID of
 
@@ -1896,7 +1893,7 @@ begin
 
       ccMnuGrpID_Database: begin
 
-        Menu_AddTask_Group(                               'Data'                , 0 );
+        Menu_AddTask_Group(                               'View'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Refresh            , 'Refresh Metadata'      );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
@@ -1911,8 +1908,6 @@ begin
 
       ccMnuItmID_Table: begin
 
-        Menu_AddTask_Group(                               'Data'                , 0 );
-        Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
         Menu_AddTask_Group(                               'Import'              , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Import_Table       , 'Import (CSV)'          );
         Menu_AddTask_Group(                               'Caution!!!'          , 1 );
@@ -1923,7 +1918,7 @@ begin
 
       ccMnuItmID_Table_Column: begin
 
-        Menu_AddTask_Group(                               'Data'                , 0 );
+        Menu_AddTask_Group(                               'View'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
         Menu_AddTask_Group(                               'Caution!!!'          , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Column        , 'DROP Column'           );
@@ -1932,22 +1927,19 @@ begin
 
       ccMnuItmID_Table_Trigger: begin
 
-        Menu_AddTask_Group(                               'Data'                , 0 );
+        Menu_AddTask_Group(                               'View'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
       end;
 
       ccMnuItmID_Table_Constraint: begin
 
-        Menu_AddTask_Group(                               'Data'                , 0 );
+        Menu_AddTask_Group(                               'View'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
       end;
 
       ccMnuItmID_Query: begin
-
-        Menu_AddTask_Group(                               'Data'                , 0 );
-        Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
 
         if asParts[1] = csITEM_TYPE then
         begin
@@ -2044,6 +2036,14 @@ begin
 
       ccMnuBtnID_GrdRefresh : begin
         DoGrid_Refresh();
+      end;
+
+      ccMnuBtnID_GrdDelete : begin
+        DoGrid_Delete();
+      end;
+
+      ccMnuBtnID_GrdInsert : begin
+        DoGrid_Insert();
       end;
 
       { Product }
