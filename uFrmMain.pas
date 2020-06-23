@@ -17,7 +17,6 @@ type
     con_SalesCatalog: TSQLConnection;
     btnConnect: TButton;
     qry_SalesCatalog: TSQLQuery;
-    ds_qry_SalesCatalog_NOK: TDataSource;
     db_grid_SalesCatalog: TDBGrid;
     lblSalesCatalog: TLabel;
     dsp_SalesCatalog: TDataSetProvider;
@@ -27,7 +26,9 @@ type
   private
     { Private declarations }
     procedure LoadDbConnectPropsFromIni();
-    procedure AddLogLine(sLogLine: string);
+    function LogERROR(exc: Exception) : Exception;
+    procedure LogINFO(sLogLine: string);
+    procedure LogLINE(sLogLine: string);
     function DateTimeToStrHu(dt: TDatetime): string;
   public
     { Public declarations }
@@ -43,28 +44,34 @@ implementation
 uses
   IniFiles;
 
+const
+  sINI_SEC_DBCON = 'DB Connection';
+  sINI_VAL_DBCON_DB = 'Database';
+  sINI_VAL_DBCON_USR = 'User';
+  sINI_VAL_DBCON_PW = 'Password';
+
 procedure TFrmMain.btnConnectClick(Sender: TObject);
 begin
 
   try
 
-    AddLogLine('Executable Path: ' + Application.ExeName);
+    LogINFO('Executable Path: ' + Application.ExeName);
 
     LoadDbConnectPropsFromIni();
 
-    AddLogLine('Button Connect is Pressed!');
+    LogINFO('Button Connect is Pressed!');
 
     con_SalesCatalog.Connected := True;
 
-    AddLogLine('SQL Connection is Connected!');
+    LogINFO('SQL Connection is Connected!');
 
     qry_SalesCatalog.Active := True;
 
-    AddLogLine('SQL Query is Active!');
+    LogINFO('SQL Query is Active!');
 
     cds_SalesCatalog.Active := True;
 
-    AddLogLine('Client DataSet is Active!');
+    LogINFO('Client DataSet is Active!');
 
     btnConnect.Enabled := False;
 
@@ -82,56 +89,63 @@ var
 begin
   sIniPath := Application.ExeName.Substring(0, Application.ExeName.Length - 4) + '.INI';
 
-  AddLogLine('INI Path: ' + sIniPath);
+  LogINFO('INI Path: ' + sIniPath);
 
-  if FileExists(sIniPath) then
+  if not FileExists(sIniPath) then
   begin
-    try
-      fIni := TIniFile.Create(sIniPath);
+    raise LogERROR(Exception.Create('INI File: "' + sIniPath + '" does not exist!'));
+  end;
 
-      if not fIni.SectionExists('DB Connection') then
-      begin
-        raise Exception.Create('No INI Section "DB Connection"! INI Path: ' + sIniPath);
-      end;
+  try
+    fIni := TIniFile.Create(sIniPath);
 
-      con_SalesCatalog.Params.Values['Database'] := fIni.ReadString('DB Connection', 'Database', '');
-
-      if con_SalesCatalog.Params.Values['Database'].Length = 0 then
-      begin
-        raise Exception.Create('No "Database" value in INI Section "DB Connection"! INI Path: ' + sIniPath);
-      end;
-
-      con_SalesCatalog.Params.Values['User_Name'] := fIni.ReadString('DB Connection', 'User', '');
-      con_SalesCatalog.Params.Values['Password'] := fIni.ReadString('DB Connection', 'Password', '');
-
-      if (con_SalesCatalog.Params.Values['User_Name'].Length > 0) and (con_SalesCatalog.Params.Values['Password'].Length > 0) then
-      begin
-        con_SalesCatalog.LoginPrompt := False;
-      end;
-
-    finally
-      fIni.Free();
+    if not fIni.SectionExists(sINI_SEC_DBCON) then
+    begin
+      raise LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
     end;
+
+    con_SalesCatalog.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
+
+    if con_SalesCatalog.Params.Values['Database'].Length = 0 then
+    begin
+      raise LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+    end;
+
+    con_SalesCatalog.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
+    con_SalesCatalog.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
+
+    if (con_SalesCatalog.Params.Values['User_Name'].Length > 0) and (con_SalesCatalog.Params.Values['Password'].Length > 0) then
+    begin
+      con_SalesCatalog.LoginPrompt := False;
+    end;
+
+  finally
+    fIni.Free();
   end;
 
 end;
 
-procedure TFrmMain.AddLogLine(sLogLine: string);
-var
-  sLog: string;
+function TFrmMain.LogERROR(exc: Exception) : Exception;
 begin
+  Result := exc;
+  LogLINE('-( E )- ERROR: (' + exc.ClassName + ') ' + exc.Message);
+end;
 
-  sLog := DateTimeToStrHu(Now) + ' - ' + sLogLine;
+procedure TFrmMain.LogINFO(sLogLine: string);
+begin
+  LogLINE('-( I )- ' + sLogLine);
+end;
 
-  lbLog.Items.Insert(0, sLog);
-
+procedure TFrmMain.LogLINE(sLogLine: string);
+begin
+  lbLog.Items.Insert(0, DateTimeToStrHu(Now) + ' ' + sLogLine);
 end;
 
 function TFrmMain.DateTimeToStrHu(dt: TDatetime): string;
 // SRC: https://stackoverflow.com/questions/35200000/how-to-convert-delphi-tdatetime-to-string-with-microsecond-precision
 //      Original Name = DateTimeToStrUs
 var
-    us: string;
+    sMs: string;
 begin
     //Spit out most of the result: '20160802 11:34:36.'
     Result := FormatDateTime('yyyy. mm. dd. hh":"nn":"ss"."', dt);
@@ -139,11 +153,11 @@ begin
     //extract the number of microseconds
     dt := Frac(dt); //fractional part of day
     dt := dt * 24*60*60; //number of seconds in that day
-    us := IntToStr(Round(Frac(dt)*1000000));
+    sMs := IntToStr(Round(Frac(dt)*1000000));
 
     //Add the us integer to the end:
     // '20160801 11:34:36.' + '00' + '123456'
-    Result := Result + StringOfChar('0', 6-Length(us)) + us;
+    Result := Result + StringOfChar('0', 6-Length(sMs)) + sMs;
 end;
 
 end.

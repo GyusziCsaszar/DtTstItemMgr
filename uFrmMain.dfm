@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.02'
+  Caption = 'Dt Test Item Manager v1.03'
   ClientHeight = 577
   ClientWidth = 643
   Color = clBtnFace
@@ -115,12 +115,6 @@ object FrmMain: TFrmMain
     SQLConnection = con_SalesCatalog
     Left = 120
     Top = 216
-  end
-  object ds_qry_SalesCatalog_NOK: TDataSource
-    DataSet = qry_SalesCatalog
-    Enabled = False
-    Left = 120
-    Top = 272
   end
   object dsp_SalesCatalog: TDataSetProvider
     DataSet = qry_SalesCatalog
