@@ -671,9 +671,12 @@ begin
 
             for i := 0 to tvTree.Items.Count - 1 do
             begin
+              tvTree.Items[i].Expanded := True;
+
               if tvTree.Items[i].Text = sNode then
               begin
                 tn := tvTree.Items[i];
+                tn.Expanded := True;
               end;
             end;
 
@@ -682,6 +685,7 @@ begin
               tn := tvTree.Items.AddChild(nil, sNode);
 
               tn.StateIndex := 1;
+              tn.Expanded := True;
             end;
 
           end
@@ -691,10 +695,13 @@ begin
             tnTmp := tn.getFirstChild();
             while tnTmp <> nil do
             begin
+              tnTmp.Expanded := True;
 
               if tnTmp.Text = sNode then
               begin
                 tn := tnTmp;
+                tn.Expanded := True;
+
                 Break;
               end;
 
@@ -712,10 +719,34 @@ begin
 
           if iItemCount = 0 then
           begin
+            tn.Expanded := True;
             //tn.StateIndex := 1;
+
+            tnTmp := tn.Parent;
+            while tnTmp <> nil do
+            begin
+
+              if tnTmp.StateIndex = 1 then
+              begin
+
+                //tnTmp.StateIndex := 3; //tn.StateIndex;
+
+              end;
+
+              tnTmp.Expanded := True;
+              tnTmp := tnTmp.Parent;
+            end;
+
+            if iLevel = (asNodes.Count - 1) then
+            begin
+              tn.Expanded := True;
+              //tn.StateIndex := 2;
+            end;
           end
           else
           begin
+
+            tn.Expanded := True;
 
             tnTmp := tn.Parent;
             while tnTmp <> nil do
@@ -728,11 +759,13 @@ begin
 
               end;
 
+              tnTmp.Expanded := True;
               tnTmp := tnTmp.Parent;
             end;
 
             if iLevel = (asNodes.Count - 1) then
             begin
+              tn.Expanded := True;
               tn.StateIndex := 2;
             end;
           end;

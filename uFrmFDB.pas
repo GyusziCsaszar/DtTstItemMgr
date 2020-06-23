@@ -784,6 +784,9 @@ begin
   btnIsqlExec           .Visible := m_oApp.ADMIN_MODE;
   btnIsqlExecSample     .Visible := m_oApp.ADMIN_MODE;
   edTerm                .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlCreateUser     .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlDropUser       .Visible := m_oApp.ADMIN_MODE;
+  edNewUser             .Visible := m_oApp.ADMIN_MODE;
 
   //if m_oApp.ADMIN_MODE then
   begin
