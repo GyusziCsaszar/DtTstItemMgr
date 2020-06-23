@@ -58,9 +58,9 @@ object FrmDataImport: TFrmDataImport
       object lblTblCol: TLabel
         Left = 16
         Top = 24
-        Width = 39
+        Width = 68
         Height = 13
-        Caption = 'Column:'
+        Caption = 'Table Column:'
       end
       object lblTblCsvCol: TLabel
         Left = 16
@@ -69,25 +69,32 @@ object FrmDataImport: TFrmDataImport
         Height = 13
         Caption = 'CSV Column:'
       end
+      object lblTblCsvColSep: TLabel
+        Left = 406
+        Top = 48
+        Width = 52
+        Height = 13
+        Caption = 'Separator:'
+      end
       object cbbTblCol: TComboBox
-        Left = 83
+        Left = 90
         Top = 18
-        Width = 190
+        Width = 183
         Height = 21
         Style = csDropDownList
         TabOrder = 0
       end
       object cbbTblCsvCol: TComboBox
-        Left = 83
+        Left = 90
         Top = 45
-        Width = 190
+        Width = 183
         Height = 21
         Style = csDropDownList
         TabOrder = 1
       end
       object btnTblColAdd: TButton
-        Left = 340
-        Top = 19
+        Left = 381
+        Top = 16
         Width = 55
         Height = 25
         Caption = 'Add'
@@ -111,8 +118,8 @@ object FrmDataImport: TFrmDataImport
           24)
       end
       object btnTblColReset: TButton
-        Left = 409
-        Top = 19
+        Left = 442
+        Top = 16
         Width = 59
         Height = 25
         Caption = 'Clear'
@@ -122,9 +129,9 @@ object FrmDataImport: TFrmDataImport
       object chbTblCsvTRIM: TCheckBox
         Left = 286
         Top = 23
-        Width = 48
+        Width = 67
         Height = 17
-        Caption = 'TRIM'
+        Caption = 'TRIM all'
         Checked = True
         State = cbChecked
         TabOrder = 5
@@ -136,6 +143,20 @@ object FrmDataImport: TFrmDataImport
         Height = 17
         Caption = 'EMPTY text value'
         TabOrder = 6
+      end
+      object edTblCsvColSep: TEdit
+        Left = 464
+        Top = 45
+        Width = 35
+        Height = 21
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        MaxLength = 1
+        ParentFont = False
+        TabOrder = 7
       end
     end
     object grpCsv: TGroupBox

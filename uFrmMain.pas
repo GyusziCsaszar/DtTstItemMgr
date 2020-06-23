@@ -39,6 +39,7 @@ type
     lblBottom: TLabel;
     tvTree: TTreeView;
     ilTree: TImageList;
+    tmrRefresh: TTimer;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
@@ -76,6 +77,7 @@ type
     procedure lbObjectsKeyPress(Sender: TObject; var Key: Char);
     procedure lbObjectsKeyUp(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure tmrRefreshTimer(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -112,8 +114,9 @@ type
     procedure DoRefreshMetaData(bTablesView: Boolean);
     procedure DoRefreshMetaData_PRODUCT(var iIdx: integer);
 
-    procedure DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
+    procedure DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
 
+    procedure DoObjectsDblClick();
     procedure DoDetailsClick(cID_Object: char; sCaption_Object: string);
 
     function IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string; bChkIsqlResult: Boolean) : Boolean;
@@ -151,7 +154,7 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbSql, uDtTstDbItemMgr,
+  { DtTst Units: } uDtTstConstsMenu, uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbSql, uDtTstDbItemMgr,
   { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB,
   System.IOUtils, StrUtils, Clipbrd;
 
@@ -267,6 +270,8 @@ begin
   db_grid_Bottom.Visible := False;
   tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
   tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+  lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
+  lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
 
   if not m_oApp.ADMIN_MODE then
   begin
@@ -279,6 +284,13 @@ begin
   tmrStart.Enabled := True;
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
+end;
+
+procedure TFrmMain.tmrRefreshTimer(Sender: TObject);
+begin
+  tmrRefresh.Enabled := False;
+
+  DoGrid_Refresh();
 end;
 
 procedure TFrmMain.tmrStartTimer(Sender: TObject);
@@ -431,6 +443,9 @@ begin
 
       lblTop.Caption := sTable;
 
+      // FIX: Force Refresh...
+      tmrRefresh.Enabled := True;
+
     end;
   except
     on exc : Exception do
@@ -446,6 +461,7 @@ begin
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
 
+    {
     if false then //m_oApp.ADMIN_MODE then
     begin
 
@@ -461,6 +477,8 @@ begin
       end;
 
     end;
+    }
+
   except
     on exc : Exception do
     begin
@@ -485,18 +503,23 @@ begin
       db_grid_Bottom.Visible := False;
       tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
       tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+      lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
+      lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
 
     lblBottom.Caption := csITEM_ITEMGROUP;
     UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString);
 
-  end
-  else
+  end;
+  //else
   begin
 
-    // TREE...
-    lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree ('');
+    if not ((m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMNR) <> nil)) then
+    begin
+      // TREE...
+      lblBottom.Caption := csITEM_ITEMGROUP;
+      UpdateTree ('');
+    end;
 
     bHasRel := False;
 
@@ -513,6 +536,8 @@ begin
 
           if not db_grid_Bottom.Visible then
           begin
+            lbLog.Height  := lbLog.Height  - m_iDbGrdBottom_HeightEx;
+            lbLog.Top     := lbLog.Top     + m_iDbGrdBottom_HeightEx;
             tvTree.Height := tvTree.Height - m_iDbGrdBottom_HeightEx;
             tvTree.Top    := tvTree.Top    + m_iDbGrdBottom_HeightEx;
             db_grid_Bottom.Visible := True;
@@ -547,6 +572,8 @@ begin
         db_grid_Bottom.Visible := False;
         tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
         tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+        lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
+        lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
       end;
     end;
 
@@ -563,7 +590,7 @@ var
   asNodes: TStringList;
   tn, tnTmp: TTreeNode;
   sNode: string;
-  i: integer;
+  i, iLevel: integer;
 begin
 
   asNodes := TStringList.Create();
@@ -593,7 +620,7 @@ begin
 
     oQry.ParamCheck := True;
     // oQry.PrepareStatement;
-    oQry.SQL.Add({m_oApp.LOG.LogSQL(}sSql); //);
+    oQry.SQL.Add(m_oApp.LOG.LogSQL(sSql));
 
     oQry.Open();
 
@@ -613,8 +640,10 @@ begin
         Split(csDB_TREE_Delimiter, sTreePath.Substring(2, sTreePath.Length - 4), asNodes);
 
         tn := nil;
-        for sNode in asNodes do
+        for iLevel := 0 to asNodes.Count - 1 do //sNode in asNodes do
         begin
+
+          sNode := asNodes[iLevel];
 
           if tn = nil then
           begin
@@ -630,6 +659,7 @@ begin
             if tn = nil then
             begin
               tn := tvTree.Items.AddChild(nil, sNode);
+
               tn.StateIndex := 1;
             end;
 
@@ -665,13 +695,24 @@ begin
           end
           else
           begin
-            tn.StateIndex := 2;
 
             tnTmp := tn.Parent;
             while tnTmp <> nil do
             begin
-              tnTmp.StateIndex := tn.StateIndex;
+
+              if tnTmp.StateIndex = 1 then
+              begin
+
+                tnTmp.StateIndex := 3; //tn.StateIndex;
+
+              end;
+
               tnTmp := tnTmp.Parent;
+            end;
+
+            if iLevel = (asNodes.Count - 1) then
+            begin
+              tn.StateIndex := 2;
             end;
           end;
 
@@ -1319,7 +1360,7 @@ begin
 
 end;
 
-procedure TFrmMain.DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
+procedure TFrmMain.DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
 var
   asCols, asCols_InUse, asInfos, asTmp: TStringList;
   sCol, sColReal: string;
@@ -1394,12 +1435,14 @@ begin
       asCols_InUse := asCols;
     end;
 
-    frmImp.Init(sCaption, sTable, asCols_InUse, asInfos);
+    frmImp.Init(iIniImportDefIndex, sCaption, sTable, asCols_InUse, asInfos);
 
     FreeAndNil(asCols);
     FreeAndNil(asInfos);
 
     frmImp.ShowModal();
+
+    DoObjectsDblClick();
 
   finally
     FreeAndNil(asCols);
@@ -1806,19 +1849,25 @@ begin
 end;
 
 procedure TFrmMain.lbObjectsDblClick(Sender: TObject);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick BEGIN');
+
+  DoObjectsDblClick();
+
+  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
+end;
+
+procedure TFrmMain.DoObjectsDblClick();
 var
   cID_Object: char;
   sCaption_Object: string;
   asParts: TStringList;
 begin
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick BEGIN');
 
   if lbObjects.ItemIndex < 0 then Exit;
   Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
 
   DoTaskOpenClick(cID_Object, sCaption_Object);
-
-  m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
 end;
 
 procedure TFrmMain.lbTasksClick(Sender: TObject);
@@ -2255,7 +2304,7 @@ begin
       end;
 
       ccMnuBtnID_Import_Table : begin
-        DoImportTable(sCaption_Object, sCaption_Object, nil);
+        DoImportTable(-1 {iIniImportDefIndex}, sCaption_Object, sCaption_Object, nil);
       end;
 
       ccMnuBtnID_Drop_View : begin
@@ -2297,7 +2346,7 @@ begin
         asCols := TStringList.Create();
         asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
 
-        DoImportTable(asParts[1], csDB_TBL_USR_ITEMTYPE, asCols);
+        DoImportTable(1 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMTYPE, asCols);
 
       end;
 
@@ -2313,7 +2362,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
 
-        DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
+        DoImportTable(2 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
 
       end;
 
@@ -2330,7 +2379,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
         asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE);
 
-        DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
+        DoImportTable(3 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;
@@ -2350,7 +2399,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEMGROUP_PATH  + ' ' + csDB_TREE_PATH);
         asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL + ' ' + csDB_TREE_LEVEL);
 
-        DoImportTable(asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
+        DoImportTable(0 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;

@@ -9,56 +9,14 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 133;
-  csVERSION_TITLE       = 'v1.33';
+  ciVERSION             = 134;
+  csVERSION_TITLE       = 'v1.34';
 
-  { App - Strings }
+  { App - Titles }
   csITEM                = 'ITEM';
   csITEM_TYPE           = 'ITEM TYPE';
   csITEM_GROUP          = 'ITEM GROUP';
   csITEM_ITEMGROUP      = 'ITEM -> ITEM GROUP';
-
-  { App - Menu }
-  ccMnuBtn                     = '0';
-  ccMnuGrp                     = '1';
-  ccMnuItm                     = '2';
-  ccMnuCap                     = '3';
-  // --------------------------------
-  ciMnuIdx_Ctrl                = 1;
-  ciMnuIdx_ID                  = 2;
-  ciMnuCch                     = 4;
-  // --------------------------------
-  ciMnuGrpItmLeftMargin        = 8; //13;
-  // --------------------------------
-  ccMnuGrpID_Database          = '1';
-  //
-  ccMnuItmID_View              = '2';
-  ccMnuItmID_Table             = '3';
-  ccMnuItmID_Table_Column      = '4';
-  ccMnuItmID_Table_Trigger     = '5';
-  ccMnuItmID_Table_Constraint  = '6';
-  ccMnuItmID_Query             = '7';
-  // --------------------------------
-  ccMnuBtnID_Tables            = '8';
-  ccMnuBtnID_Tables_Back       = '9';
-  //
-  ccMnuBtnID_Refresh           = 'A';
-  ccMnuBtnID_Details           = 'B';
-  ccMnuBtnID_Open              = 'C';
-  ccMnuBtnID_Import_Table      = 'D';
-  ccMnuBtnID_Delete_From_Table = 'E';
-  ccMnuBtnID_Drop_Table        = 'F';
-  ccMnuBtnID_Drop_Column       = 'G';
-  ccMnuBtnID_Drop_View         = 'H';
-  //
-  ccMnuBtnID_GrdRefresh        = 'I';
-  ccMnuBtnID_GrdDelete         = 'J';
-  ccMnuBtnID_GrdInsert         = 'K';
-  // { Product }
-  ccMnuBtnID_Import_Item_Type  = 'L';
-  ccMnuBtnID_Import_Item_v1    = 'M';
-  ccMnuBtnID_Import_Item       = 'N';
-  ccMnuBtnID_Import_Item_Group = 'O';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -85,6 +43,8 @@ const
     csINI_VAL_DB_CONSTR_CNT   = 'ConnectStringCOUNT';
     csINI_VAL_DB_CONSTR_DEF   = 'ConnectStringDEFAULT';
     csINI_VAL_DB_CONSTR       = 'ConnectString';
+    csINI_VAL_IMPDEF_CNT      = 'ImportDefCOUNT';
+    csINI_VAL_IMPDEF          = 'ImportDef';
     csINI_VAL_REL_CNT         = 'RelationCOUNT';
     csINI_VAL_REL             = 'Relation';
     csINI_VAL_DB_USR          = 'User';

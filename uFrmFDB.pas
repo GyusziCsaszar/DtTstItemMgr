@@ -610,7 +610,7 @@ end;
 
 procedure TFrmFDB.btnLoginClick(Sender: TObject);
 var
-  sDbInfo: string;
+  sDbInfo, sMsg: string;
 begin
 
   try
@@ -639,6 +639,20 @@ begin
     // ATTN: Do not force!!! Attach only known DB here!!!
     AttachDbItemManager(False {bForce});
 
+    if not m_oApp.ADMIN_MODE then
+    begin
+      if (m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct <> csPRODUCT_FULL then
+      begin
+        sMsg := 'The Database Product "' + (m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct +
+          '"' + CHR(10) + 'is other than expected "' + csPRODUCT_FULL + '"!' + CHR(10) + CHR(10) + 'Contact the Database Administrator!';
+
+        ErrorMsgDlg(sMsg);
+
+        //raise Exception.Create(sMsg);
+        Exit;
+      end;
+    end;
+
     // Connected...
     btnCrePrdTbls       .Enabled := ((m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct <> csPRODUCT_FULL);
     cbbDb               .Enabled := False;
@@ -666,6 +680,13 @@ begin
     if panAdminMode.Visible then
     begin
       if not m_bAutoLoginClick {chbAutoLogin.Checked} then InfoMsgDlg('To close this form press Close!');
+
+      if (m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct <> csPRODUCT_FULL then
+      begin
+        WarningMsgDlg('The Database Product "' + (m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct +
+          '"' + CHR(10) + 'is other than expected "' + csPRODUCT_FULL + '"!' + CHR(10) + CHR(10) +
+          'To create Product tables press CREATE PRODUCT TABLES!');
+      end;
     end
     else
     begin

@@ -33,6 +33,7 @@ type
     m_asRel_Fields  : TStringList;
     m_asRel_Defaults: TStringList;
     m_asRel_SQLs    : TStringList;
+    m_asImportDefs  : TStringList;
     { ATTN: Copy ABOVE members in descendants!!! }
 
   public
@@ -158,8 +159,8 @@ uses
 constructor TDtTstDb.Create(oLog: TDtTstLog; sIniPath: string);
 var
   fIni: TIniFile;
-  iDbCnt, iDbDef, iDb, iVal, iRelCnt, iRel: Integer;
-  sDb, sRel: string;
+  iDbCnt, iDbDef, iDb, iVal, iRelCnt, iRel, iImpDefCnt, iImpDef: Integer;
+  sDb, sRel, sImpDef: string;
   asRel: TStringList;
 begin
   m_oLog := oLog;
@@ -182,6 +183,7 @@ begin
   m_asRel_Fields   := TStringList.Create();
   m_asRel_Defaults := TStringList.Create();
   m_asRel_SQLs     := TStringList.Create();
+  m_asImportDefs   := TStringList.Create();
   { ATTN: Copy ABOVE members in descendants!!! }
 
   inherited Create();
@@ -260,6 +262,21 @@ begin
 
         finally
           FreeAndNil(asRel);
+        end;
+
+        m_asImportDefs.Clear();
+        iImpDefCnt := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_IMPDEF_CNT, 0);
+        for iImpDef := 1 to iImpDefCnt do
+        begin
+          sImpDef := fIni.ReadString(csINI_SEC_DB, csINI_VAL_IMPDEF + IntToStr(iImpDef), '');
+          if not sImpDef.IsEmpty() then
+          begin
+
+            // FIX: INI does not allowe ; as separator in value!!
+            sImpDef := sImpDef.Replace('%', ';', [rfReplaceAll]);
+
+            m_asImportDefs.Add(sImpDef);
+          end;
         end;
 
       finally

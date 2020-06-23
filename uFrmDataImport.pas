@@ -45,6 +45,8 @@ type
     chbShowTreeDetails: TCheckBox;
     btnSortTree: TButton;
     tvTree: TTreeView;
+    lblTblCsvColSep: TLabel;
+    edTblCsvColSep: TEdit;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -65,6 +67,8 @@ type
   private
     { Private declarations }
     m_oApp: TDtTstApp;
+
+    m_iIniImportDefIndex: integer;
 
     m_sTableOrView: string;
 
@@ -115,7 +119,7 @@ type
     constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
-    procedure Init(sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
+    procedure Init(iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 
   end;
 
@@ -136,6 +140,8 @@ const
   ciSGrdDef_ColIdx_DbType = 2;
   ciSGrdDef_ColIdx_DbLen  = 3;
   ciSGrdDef_ColIdx_DbNull = 4;
+  ciSGrdDef_ColIdx_FldSep = 5;
+  ciSGrdDef_COUNT         = 6;
 
 constructor TFrmDataImport.Create(AOwner: TComponent; oApp: TDtTstApp);
 begin
@@ -143,6 +149,8 @@ begin
   m_oApp := oApp;
 
   m_cDelimCSV := ';';
+
+  m_iIniImportDefIndex := -1;
 
   m_sTableOrView := '';
 
@@ -188,6 +196,8 @@ begin
 
   self.Caption := Application.Title;
 
+  btnRememberDef.Visible := (m_iIniImportDefIndex < 0);
+
   edCsvDelim.Text := m_cDelimCSV;
 
   m_iTvTree_WidthEx  := (tvTree.Left + tvTree.Width) - (grpTbl.Left + grpTbl.Width);
@@ -221,8 +231,10 @@ begin
   end;
 end;
 
-procedure TFrmDataImport.Init(sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
+procedure TFrmDataImport.Init(iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 begin
+
+  m_iIniImportDefIndex := iIniImportDefIndex;
 
   m_sTableOrView := sTableOrView;
 
@@ -272,6 +284,9 @@ begin
   btnRememberDef.Enabled := False;
 
   m_sDefAsString := '';
+
+  edTblCsvColSep.Text    := '';
+  edTblCsvColSep.Enabled := True;
 
   ClearPreview_DB_TREE();
 end;
@@ -529,7 +544,7 @@ begin
 
     if sgrdDef.ColCount = 1 then
     begin
-      sgrdDef.ColCount := 5;
+      sgrdDef.ColCount := ciSGrdDef_COUNT;
       sgrdDef.RowCount := 1;
 
       sgrdDef.Cells[0, 0] := 'Table Column';
@@ -550,6 +565,10 @@ begin
       sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, 0] := 'DB Nullable';
       sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull] := {Max(sgrdDef.ColWidths[iCol],}
           Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, 0]).cx + 10 {)};
+
+      sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, 0] := 'CSV Field Separator';
+      sgrdDef.ColWidths[ciSGrdDef_ColIdx_FldSep] := {Max(sgrdDef.ColWidths[iCol],}
+          Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, 0]).cx + 10 {)};
 
       btnPreCheck   .Enabled := True;
       btnImport     .Enabled := True;
@@ -578,14 +597,26 @@ begin
     sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull] := Max(sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull],
         Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, sgrdDef.RowCount - 1]).cx + 10 );
 
+    sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, sgrdDef.RowCount - 1] := TRIM(edTblCsvColSep.Text);
+    sgrdDef.ColWidths[ciSGrdDef_ColIdx_FldSep] := Max(sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull],
+        Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, sgrdDef.RowCount - 1]).cx + 10 );
+
     if     m_sDefAsString.IsEmpty() then m_sDefAsString := Boolean2String(chbTblCsvTrim.Checked);
     if not m_sDefAsString.IsEmpty() then m_sDefAsString := m_sDefAsString + ';';
-    m_sDefAsString := m_sDefAsString + cbbTblCol.Text + '|' + cbbTblCsvCol.Text + '|' + Boolean2String(chbTblCsvEmpty.Checked);
+    m_sDefAsString := m_sDefAsString + cbbTblCol.Text + '|' + cbbTblCsvCol.Text + '|' + Boolean2String(chbTblCsvEmpty.Checked) +
+                      '|' + edTblCsvColSep.Text;
 
     cbbTblCol   .ItemIndex := -1;
     cbbTblCsvCol.ItemIndex := -1;
 
     chbTblCsvEmpty.Checked := False;
+
+    if not TRIM(edTblCsvColSep.Text).IsEmpty() then
+    begin
+      edTblCsvColSep.Text    := '';
+      edTblCsvColSep.Enabled := False; // ATTN: Allowed ONCE per Def!
+    end;
+
 
   finally
     FreeAndNil(asParts);
@@ -880,8 +911,20 @@ begin
 
     grpTbl.Visible := (not bError);
 
-    //Registry
-    sDefsSaved := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', m_sTableOrView + '_Def', '');
+    sDefsSaved := '';
+    if m_iIniImportDefIndex >= 0 then
+    begin
+      if m_iIniImportDefIndex < (m_oApp as TDtTstAppDb).DB.m_asImportDefs.Count then
+      begin
+        sDefsSaved := (m_oApp as TDtTstAppDb).DB.m_asImportDefs[m_iIniImportDefIndex];
+      end;
+    end
+    else
+    begin
+      //Registry
+      sDefsSaved := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', m_sTableOrView + '_Def', '');
+    end;
+
     if not sDefsSaved.IsEmpty() then
     begin
 
@@ -906,7 +949,7 @@ begin
 
             Split('|', sDef, asDefItems);
 
-            if asDefItems.Count = 3 then
+            if (asDefItems.Count = 3) or (asDefItems.Count = 4) then
             begin
 
               iIdx := cbbTblCol.Items.IndexOf(asDefItems[0]);
@@ -921,6 +964,11 @@ begin
               end;
 
               chbTblCsvEmpty.Checked := String2Boolean(asDefItems[2]);
+
+              if asDefItems.Count = 4 then
+              begin
+                edTblCsvColSep.Text := asDefItems[3];
+              end;
 
               btnTblColAdd.Click();
 
@@ -960,6 +1008,13 @@ var
   bBreak, bHit, bEmptyValueRequested: Boolean;
   iErrCnt: integer;
   asTree: TStrings;
+
+  iCsvCol_FldSep: integer;
+  sCsvCol_FldSep: string;
+  iSubField: Integer;
+  asSubFieldVals: TStringList;
+  sSubFieldVals, sSubFieldVal: string;
+  iSubFieldVal: integer;
 begin
 
   dbSql               := nil;
@@ -991,6 +1046,9 @@ begin
     frmPrs.AddStep('Checking Import definition');
     Application.ProcessMessages;
 
+    iCsvCol_FldSep := -1;
+    sCsvCol_FldSep := '';
+
     if not bChkOnly then
     begin
       dbSql := TDtTstDbSql.Create(m_oApp as TDtTstAppDb);
@@ -1019,6 +1077,13 @@ begin
         asDbTypes.Add(sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, iRow]);
 
         asDbLens .Add(sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, iRow]);
+
+        if not sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, iRow].IsEmpty() then
+        begin
+          iCsvCol_FldSep := iRow - 1;
+          sCsvCol_FldSep := sgrdDef.Cells[ciSGrdDef_ColIdx_FldSep, iRow];
+        end;
+
       end;
 
       // ATTN: NOT NULL Columns have to get CSV Value!
@@ -1356,7 +1421,8 @@ begin
             end;
             }
 
-            if iValLen > iDbLen then
+            if (iValLen > iDbLen) and
+               {ATTN: Multi-value CSV Cell!!!} (iCol <> iCsvCol_FldSep) then
             begin
 
               sMsg := 'ERROR: Length (' + IntToStr(iValLen) + ') of CSV Column "' + asCsvCols[iCol] +
@@ -1397,6 +1463,11 @@ begin
 
             try
 
+              if iCsvCol_FldSep >= 0 then
+              begin
+                raise Exception.Create('CSV Field Separator is not supported in TREE!');
+              end;
+
               DB_TREE_Add(asTree, asTblCols, asCsvVals, asCsvCols);
 
             except
@@ -1426,29 +1497,92 @@ begin
           if not bChkOnly then
           begin
 
-            try
+            if iCsvCol_FldSep >= 0 then
+            begin
 
-              dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+              asSubFieldVals := TStringList.Create();
+              try
 
-            except
-              on exc : Exception do
-              begin
-                m_oApp.LOG.LogERROR(exc);
+                sSubFieldVals := asCsvVals[iCsvCol_FldSep];
 
-                sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+                Split(sCsvCol_FldSep[1], sSubFieldVals, asSubFieldVals);
 
-                frmPrs.AddStep(sMsg);
-                Application.ProcessMessages;
-
-                sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
-
-                iErrCnt := iErrCnt + 1;
-                if not ErrorQuestionMsgDlg(sMsg) then
+                for iSubField := 0 to asSubFieldVals.Count - 1 do
                 begin
-                  bBreak := True;
-                  Break;
+                  sSubFieldVal := asSubFieldVals[iSubField];
+
+                  if chbTrimCells.Checked then
+                  begin
+                    sSubFieldVal := TRIM(sSubFieldVal);
+                  end;
+
+                  asCsvVals[iCsvCol_FldSep] := sSubFieldVal;
+
+                  try
+
+                    dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+
+                  except
+                    on exc : Exception do
+                    begin
+                      m_oApp.LOG.LogERROR(exc);
+
+                      sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) +
+                              ', multi-value CSV Cell "' + sSubFieldVals + '", Sub Cell #' + IntToStr(iSubField + 1) +
+                              ' value "' + sSubFieldVal + '"!' +  CHR(10) + CHR(10) +
+                              'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+                      frmPrs.AddStep(sMsg);
+                      Application.ProcessMessages;
+
+                      sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+                      iErrCnt := iErrCnt + 1;
+                      if not ErrorQuestionMsgDlg(sMsg) then
+                      begin
+                        bBreak := True;
+                        Break;
+                      end;
+                    end;
+                  end;
+
+                  if bBreak then Break;
+
+                end;
+
+              finally
+                FreeAndNil(asSubFieldVals);
+              end;
+
+            end
+            else
+            begin
+
+              try
+
+                dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+
+              except
+                on exc : Exception do
+                begin
+                  m_oApp.LOG.LogERROR(exc);
+
+                  sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+                  frmPrs.AddStep(sMsg);
+                  Application.ProcessMessages;
+
+                  sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+                  iErrCnt := iErrCnt + 1;
+                  if not ErrorQuestionMsgDlg(sMsg) then
+                  begin
+                    bBreak := True;
+                    Break;
+                  end;
                 end;
               end;
+
             end;
 
           end;

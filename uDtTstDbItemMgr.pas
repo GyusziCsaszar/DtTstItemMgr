@@ -57,6 +57,8 @@ begin
   m_asRel_Fields  .AddStrings(oDbToClone.m_asRel_Fields  );
   m_asRel_Defaults.AddStrings(oDbToClone.m_asRel_Defaults);
   m_asRel_SQLs    .AddStrings(oDbToClone.m_asRel_SQLs    );
+
+  m_asImportDefs  .AddStrings(oDbToClone.m_asImportDefs  );
   { ATTN: Copy ABOVE members in descendants!!! }
 
 end;
@@ -488,7 +490,7 @@ begin
                       '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
                       '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :ItmTypID' +
                       ';' + CHR(13) + CHR(10) +
-                      '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
                               ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
                               ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
                               ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
@@ -497,6 +499,10 @@ begin
                                ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
                                ', :ItmTypID' +
                                ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
+                      ' MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
                       '  RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :ItmID' +
                       ';' + CHR(13) + CHR(10) +
                       ' FOR SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +

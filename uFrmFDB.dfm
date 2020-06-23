@@ -158,11 +158,11 @@ object FrmFDB: TFrmFDB
     end
     object btnCreTblSample: TButton
       Left = 452
-      Top = 144
+      Top = 176
       Width = 143
-      Height = 57
+      Height = 25
       Anchors = [akTop, akRight]
-      Caption = 'Create Table'
+      Caption = 'Create a SAMPLE Table'
       Enabled = False
       TabOrder = 10
       Visible = False
@@ -182,11 +182,9 @@ object FrmFDB: TFrmFDB
       Left = 452
       Top = 80
       Width = 143
-      Height = 58
+      Height = 90
       Anchors = [akTop, akRight]
-      Caption = 
-        'Create Product Tables (in Empty DB or to add product to an exist' +
-        'ing DB)'
+      Caption = 'CREATE PRODUCT TABLES'
       Enabled = False
       TabOrder = 12
       WordWrap = True
