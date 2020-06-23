@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.01'
+  Caption = 'Dt Test Item Manager v1.02'
   ClientHeight = 577
   ClientWidth = 643
   Color = clBtnFace
@@ -88,9 +88,7 @@ object FrmMain: TFrmMain
       'VendorLib=fbclient.dll'
       'VendorLibWin64=fbclient.dll'
       'VendorLibOsx=/Library/Frameworks/Firebird.framework/Firebird'
-      
-        'Database=localhost:C:\Program Files (x86)\Firebird\Firebird_2_5\' +
-        'DB\FIRSTDB.FDB'
+      'Database='
       'User_Name='
       'Password='
       'Role=RoleName'

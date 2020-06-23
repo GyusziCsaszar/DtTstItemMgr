@@ -94,6 +94,13 @@ begin
         raise Exception.Create('No INI Section "DB Connection"! INI Path: ' + sIniPath);
       end;
 
+      con_SalesCatalog.Params.Values['Database'] := fIni.ReadString('DB Connection', 'Database', '');
+
+      if con_SalesCatalog.Params.Values['Database'].Length = 0 then
+      begin
+        raise Exception.Create('No "Database" value in INI Section "DB Connection"! INI Path: ' + sIniPath);
+      end;
+
       con_SalesCatalog.Params.Values['User_Name'] := fIni.ReadString('DB Connection', 'User', '');
       con_SalesCatalog.Params.Values['Password'] := fIni.ReadString('DB Connection', 'Password', '');
 
