@@ -1,8 +1,8 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.07'
-  ClientHeight = 577
+  Caption = 'Dt Test Item Manager v1.08'
+  ClientHeight = 602
   ClientWidth = 917
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -12,44 +12,52 @@ object FrmMain: TFrmMain
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
+  OnShow = FormShow
   DesignSize = (
     917
-    577)
+    602)
   PixelsPerInch = 96
   TextHeight = 13
   object lblLog: TLabel
     Left = 8
-    Top = 469
+    Top = 493
     Width = 24
     Height = 13
     Caption = 'LOG:'
   end
   object lblTop: TLabel
     Left = 300
-    Top = 17
+    Top = 41
     Width = 203
     Height = 13
     Caption = 'N/A (Query, Provider and Client DataSet):'
   end
   object lblBottom: TLabel
     Left = 300
-    Top = 237
+    Top = 269
     Width = 105
     Height = 13
     Caption = 'N/A (Simple DataSet):'
   end
+  object lblDb: TLabel
+    Left = 16
+    Top = 8
+    Width = 140
+    Height = 13
+    Caption = 'Available Firebird Databases:'
+  end
   object lbLog: TListBox
     Left = 8
-    Top = 488
+    Top = 512
     Width = 901
-    Height = 81
+    Height = 82
     Anchors = [akLeft, akTop, akRight, akBottom]
     ItemHeight = 13
     TabOrder = 0
   end
   object btnConnect: TButton
     Left = 8
-    Top = 8
+    Top = 32
     Width = 273
     Height = 28
     Caption = 'Connect'
@@ -58,9 +66,9 @@ object FrmMain: TFrmMain
   end
   object db_grid_Top: TDBGrid
     Left = 300
-    Top = 36
+    Top = 60
     Width = 609
-    Height = 190
+    Height = 193
     Anchors = [akLeft, akTop, akRight]
     DataSource = ds_cds_Top
     TabOrder = 2
@@ -72,9 +80,9 @@ object FrmMain: TFrmMain
   end
   object db_grid_Bottom: TDBGrid
     Left = 300
-    Top = 256
+    Top = 288
     Width = 609
-    Height = 207
+    Height = 193
     Anchors = [akLeft, akTop, akRight]
     DataSource = ds_sds_Bottom
     TabOrder = 3
@@ -86,7 +94,7 @@ object FrmMain: TFrmMain
   end
   object btnGetMetadata: TButton
     Left = 8
-    Top = 42
+    Top = 66
     Width = 130
     Height = 25
     Caption = 'Get Metadata'
@@ -96,16 +104,16 @@ object FrmMain: TFrmMain
   end
   object lbResult: TListBox
     Left = 8
-    Top = 73
+    Top = 97
     Width = 273
-    Height = 390
+    Height = 384
     ItemHeight = 13
     TabOrder = 5
     OnDblClick = lbResultDblClick
   end
   object btnRefreshBottom: TButton
     Left = 848
-    Top = 231
+    Top = 263
     Width = 61
     Height = 25
     Anchors = [akTop, akRight]
@@ -115,7 +123,7 @@ object FrmMain: TFrmMain
   end
   object btnRefreshTop: TButton
     Left = 848
-    Top = 11
+    Top = 35
     Width = 61
     Height = 25
     Anchors = [akTop, akRight]
@@ -125,7 +133,7 @@ object FrmMain: TFrmMain
   end
   object btnInsertBottom: TButton
     Left = 791
-    Top = 231
+    Top = 263
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
@@ -135,7 +143,7 @@ object FrmMain: TFrmMain
   end
   object btnInsertTop: TButton
     Left = 791
-    Top = 11
+    Top = 35
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
@@ -145,7 +153,7 @@ object FrmMain: TFrmMain
   end
   object btnDeleteBottom: TButton
     Left = 728
-    Top = 231
+    Top = 263
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
@@ -155,7 +163,7 @@ object FrmMain: TFrmMain
   end
   object btnDeleteTop: TButton
     Left = 728
-    Top = 11
+    Top = 35
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
@@ -165,12 +173,19 @@ object FrmMain: TFrmMain
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 144
-    Top = 46
+    Top = 70
     Width = 150
     Height = 17
     Caption = 'List Tables Only (On/Off)'
     TabOrder = 12
     OnClick = chbMetadataTablesOnlyClick
+  end
+  object cbbDb: TComboBox
+    Left = 162
+    Top = 5
+    Width = 747
+    Height = 21
+    TabOrder = 13
   end
   object con_Firebird: TSQLConnection
     ConnectionName = 'FirstDB'
@@ -214,19 +229,19 @@ object FrmMain: TFrmMain
       'ServerCharSet='
       'Trim Char=False')
     Left = 128
-    Top = 120
+    Top = 144
   end
   object qry_Top: TSQLQuery
     MaxBlobSize = -1
     Params = <>
     SQLConnection = con_Firebird
     Left = 332
-    Top = 48
+    Top = 72
   end
   object dsp_Top: TDataSetProvider
     DataSet = qry_Top
     Left = 420
-    Top = 49
+    Top = 73
   end
   object cds_Top: TClientDataSet
     Aggregates = <>
@@ -234,12 +249,12 @@ object FrmMain: TFrmMain
     ProviderName = 'dsp_Top'
     AfterPost = cds_TopAfterPost
     Left = 500
-    Top = 48
+    Top = 72
   end
   object ds_cds_Top: TDataSource
     DataSet = cds_Top
     Left = 724
-    Top = 48
+    Top = 72
   end
   object sds_Bottom: TSimpleDataSet
     Aggregates = <>
@@ -249,11 +264,11 @@ object FrmMain: TFrmMain
     Params = <>
     AfterPost = sds_BottomAfterPost
     Left = 332
-    Top = 270
+    Top = 302
   end
   object ds_sds_Bottom: TDataSource
     DataSet = sds_Bottom
     Left = 724
-    Top = 270
+    Top = 302
   end
 end

@@ -35,6 +35,8 @@ type
     btnDeleteBottom: TButton;
     btnDeleteTop: TButton;
     chbMetadataTablesOnly: TCheckBox;
+    lblDb: TLabel;
+    cbbDb: TComboBox;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -47,9 +49,11 @@ type
     procedure btnDeleteTopClick(Sender: TObject);
     procedure btnDeleteBottomClick(Sender: TObject);
     procedure chbMetadataTablesOnlyClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
-    procedure LoadDbConnectPropsFromIni();
+    m_sDbUser: string;
+    m_sDbPassword: string;
     function LogERROR(exc: Exception) : Exception;
     procedure LogINFO(sLogLine: string);
     procedure LogLINE(sLogLine: string);
@@ -70,9 +74,83 @@ uses
 
 const
   sINI_SEC_DBCON = 'DB Connection';
+  sINI_VAL_DBCON_DB_CNT = 'DatabaseCOUNT';
+  sINI_VAL_DBCON_DB_DEF = 'DatabaseDEFAULT';
   sINI_VAL_DBCON_DB = 'Database';
   sINI_VAL_DBCON_USR = 'User';
   sINI_VAL_DBCON_PW = 'Password';
+
+procedure TFrmMain.FormShow(Sender: TObject);
+var
+  sIniPath: string;
+  fIni: TIniFile;
+  iDbCnt, iDbDef, iDb: Integer;
+  sDb: string;
+begin
+  // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
+
+  // ShowMessage Title setting...
+  Application.Title := self.Caption;
+
+  // First LogINFO...
+  LogINFO('Executable Path: ' + Application.ExeName);
+
+  // Member initialization...
+  m_sDbUser := '';
+  m_sDbPassword := '';
+
+  // Loading INI file...
+  sIniPath := Application.ExeName.Substring(0, Application.ExeName.Length - 4) + '.INI';
+  if FileExists(sIniPath) then
+  begin
+    try
+      LogINFO('INI Path: ' + sIniPath);
+
+      fIni := TIniFile.Create(sIniPath);
+
+      if not fIni.SectionExists(sINI_SEC_DBCON) then
+      begin
+        raise LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+      end;
+
+      iDbCnt := fIni.ReadInteger(sINI_SEC_DBCON, sINI_VAL_DBCON_DB_CNT, 0);
+      iDbDef := fIni.ReadInteger(sINI_SEC_DBCON, sINI_VAL_DBCON_DB_DEF, 0);
+
+      if iDbCnt < 1 then
+      begin
+        raise LogERROR(Exception.Create('No valid "' + sINI_VAL_DBCON_DB_CNT + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+      end;
+
+      if (iDbDef < 1) or (iDbDef > iDbCnt) then iDbDef := 1;
+
+      cbbDb.Text := '';
+      cbbDb.Items.Clear();
+
+      for iDb := 1 to iDbCnt do
+      begin
+        sDb := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB + IntToStr(iDb), '');
+        if sDb.Length = 0 then
+        begin
+          raise LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + IntToStr(iDb) + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+        end;
+
+        cbbDb.Items.Add(sDb);
+
+        if iDb = iDbDef then
+        begin
+          cbbDb.Text := sDb;
+        end;
+      end;
+
+      m_sDbUser := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
+      m_sDbPassword := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
+
+    finally
+      FreeAndNil(fIni);
+    end;
+  end;
+
+end;
 
 procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
 begin
@@ -337,9 +415,19 @@ begin
 
   try
 
-    LogINFO('Executable Path: ' + Application.ExeName);
+    con_Firebird.Params.Values['Database'] := cbbDb.Text;
+    if con_Firebird.Params.Values['Database'].Length = 0 then
+    begin
+      raise Exception.Create('No Database specified!');
+    end;
 
-    LoadDbConnectPropsFromIni();
+    con_Firebird.Params.Values['User_Name'] := m_sDbUser;
+    con_Firebird.Params.Values['Password' ] := m_sDbPassword;
+
+    if (con_Firebird.Params.Values['User_Name'].Length > 0) and (con_Firebird.Params.Values['Password'].Length > 0) then
+    begin
+      con_Firebird.LoginPrompt := False;
+    end;
 
     LogINFO('Button Connect is Pressed!');
 
@@ -362,6 +450,8 @@ begin
     LogINFO('Simple DataSet is Active!');
     }
 
+    cbbDb.Enabled := False;
+
     btnConnect.Enabled := False;
 
     btnGetMetadata.Enabled := True;
@@ -374,51 +464,6 @@ begin
       LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
-  end;
-
-end;
-
-procedure TFrmMain.LoadDbConnectPropsFromIni();
-var
-  sIniPath: string;
-  fIni: TIniFile;
-begin
-  sIniPath := Application.ExeName.Substring(0, Application.ExeName.Length - 4) + '.INI';
-
-  LogINFO('INI Path: ' + sIniPath);
-
-  if not FileExists(sIniPath) then
-  begin
-    raise Exception.Create('INI File: "' + sIniPath + '" does not exist!');
-  end;
-
-  try
-    fIni := TIniFile.Create(sIniPath);
-
-    if not fIni.SectionExists(sINI_SEC_DBCON) then
-    begin
-      raise Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
-    end;
-
-    con_Firebird.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
-
-    if con_Firebird.Params.Values['Database'].Length = 0 then
-    begin
-      raise Exception.Create('No "' + sINI_VAL_DBCON_DB + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
-    end;
-
-    self.Caption := self.Caption + ' - ' + con_Firebird.Params.Values['Database'];
-
-    con_Firebird.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
-    con_Firebird.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
-
-    if (con_Firebird.Params.Values['User_Name'].Length > 0) and (con_Firebird.Params.Values['Password'].Length > 0) then
-    begin
-      con_Firebird.LoginPrompt := False;
-    end;
-
-  finally
-    FreeAndNil(fIni);
   end;
 
 end;
