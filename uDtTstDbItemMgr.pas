@@ -15,7 +15,7 @@ type
     constructor Create(oLog: TDtTstLog; oDbToClone: TDtTstDb);
     destructor Destroy(); override;
 
-    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean; override;
+    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean; override;
 
     procedure ADM_CreateTable_ITEMTYPE(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 
@@ -25,7 +25,7 @@ type
 implementation
 
 uses
-  { DtTst Units: } uDtTstConsts, uDtTstFirebird,
+  { DtTst Units: } uDtTstConsts, uDtTstWin, uDtTstFirebird,
   System.Classes, SysUtils, StrUtils, System.IOUtils, Vcl.Forms;
 
 constructor TDtTstDbItemMgr.Create(oLog: TDtTstLog; oDbToClone: TDtTstDb);
@@ -60,12 +60,12 @@ begin
   inherited Destroy();
 end;
 
-function TDtTstDbItemMgr.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean;
+function TDtTstDbItemMgr.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean;
 begin
   Result := False; // Indicated that there are more Database Updates pending...
 
   // Updating ADM tables...
-  if not inherited ADM_DoDbUpdates_internal(oProvider, frmPrs) then
+  if not inherited ADM_DoDbUpdates_internal(oProvider, frmPrs, ADMIN_MODE) then
   begin
     Exit; // There are more Database Updates pending...
   end;
@@ -76,8 +76,21 @@ begin
     if ADM_DbInfVersion_PRD > ciDB_VERSION_PRD then
     begin
       raise Exception.Create('Database PRD Version (' + IntToStr(ADM_DbInfVersion_PRD) +
-                 ') is newer than the Application''s supported Database PRD Version (' +
+                 ') is NEWER than the Application''s supported Database PRD Version (' +
                  IntToStr(ciDB_VERSION_PRD) + ')!');
+    end;
+
+    if (not ADMIN_MODE) or (not QuestionMsgDlg('Database PRD Version (' + IntToStr(ADM_DbInfVersion_PRD) +
+                 ') is OLDER than the Application''s supported Database PRD Version (' +
+                 IntToStr(ciDB_VERSION_PRD) + ')!' + CHR(10) + CHR(10) +
+                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                 'Do you want to continue?')) then
+    begin
+      raise Exception.Create('Database PRD Version (' + IntToStr(ADM_DbInfVersion_PRD) +
+                 ') is OLDER than the Application''s supported Database PRD Version (' +
+                 IntToStr(ciDB_VERSION_PRD) + ')!' + CHR(10) + CHR(10) +
+                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                 'Please contact the Database Administrator!');
     end;
 
     if Assigned(frmPrs) and (not frmPrs.Visible) then
@@ -182,7 +195,7 @@ begin
 
     META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
 
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMTYPE_NAME  , False {bNullable}, 255);
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMTYPE_NAME  , False {bNullable},  5); //255);
 
     oProvider.CreateTable(oTable);
 
@@ -241,7 +254,7 @@ begin
     end;
 
     // ATTN!!! Syntax error could be only cathed this way!!!
-    if not Select_Triggers(nil {asResult}, csDB_TBL_USR_ITEMTYPE, False {bDetails}, csDB_TBL_USR_ITEMTYPE + '_BI' {sTriggerName}) then
+    if not Select_Triggers(nil {asNames}, nil {asInfos}, csDB_TBL_USR_ITEMTYPE, csDB_TBL_USR_ITEMTYPE + '_BI', False {bDecorate}, False {bFull}) then
     begin
       raise Exception.Create('ERROR: Triggier "' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + '_BI' + '" does not exist just after its Creation!');
     end;

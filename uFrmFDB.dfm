@@ -318,7 +318,7 @@ object FrmFDB: TFrmFDB
       Top = 133
       Width = 147
       Height = 25
-      Caption = 'CREATE Database (UTF8)'
+      Caption = 'CREATE Database'
       TabOrder = 23
       OnClick = btnIsqlCreateDbClick
     end

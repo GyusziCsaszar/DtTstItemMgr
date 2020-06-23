@@ -57,6 +57,8 @@ type
 
     m_sTable: string;
 
+    m_asColInfos: TStringList;
+
     m_oStreamCSV: TStreamReader;
     m_cDelimCSV: char;
     m_asRowCSV: TStringList;
@@ -81,7 +83,7 @@ type
     constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
-    procedure Init(sTable: string; asCols: TStringList);
+    procedure Init(sCaption, sTable: string; asCols, asColInfos: TStringList);
 
   end;
 
@@ -103,6 +105,10 @@ begin
 
   m_cDelimCSV := ';';
 
+  m_sTable := '';
+
+  m_asColInfos := TStringList.Create();
+
   inherited Create(AOwner);
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
@@ -120,6 +126,8 @@ begin
 
   m_oApp := nil; // ATTN: Do not Free here!
 
+  FreeAndNil(m_asColInfos);
+
   inherited Destroy();
 end;
 
@@ -136,12 +144,15 @@ begin
 
 end;
 
-procedure TFrmDataImport.Init(sTable: string; asCols: TStringList);
+procedure TFrmDataImport.Init(sCaption, sTable: string; asCols, asColInfos: TStringList);
 begin
 
   m_sTable := sTable;
 
-  lblCaption.Caption := 'Importing from CSV File into table ' + m_sTable;
+  m_asColInfos.Clear();
+  if Assigned(asColInfos) then m_asColInfos.AddStrings(asColInfos);
+
+  lblCaption.Caption := 'Importing from CSV File into table ' + sCaption;
 
   edTblNm.Text := m_sTable;
 
@@ -242,42 +253,92 @@ begin
 end;
 
 procedure TFrmDataImport.btnTblColAddClick(Sender: TObject);
+var
+  asParts, asType: TStringList;
+  sInfo: string;
 begin
 
-  if TComboBox_Text(cbbTblCol).IsEmpty() then
-  begin
-    WarningMsgDlg('Select Table Column!');
-    Exit;
+  asParts := TStringList.Create();
+  asType  := TStringList.Create();
+  try
+
+    if TComboBox_Text(cbbTblCol).IsEmpty() then
+    begin
+      WarningMsgDlg('Select Table Column!');
+      Exit;
+    end;
+
+    if TComboBox_Text(cbbTblCsvCol).IsEmpty() then
+    begin
+      WarningMsgDlg('Select CSV Column!');
+      Exit;
+    end;
+
+    if cbbTblCol.ItemIndex < m_asColInfos.Count then
+    begin
+
+      sInfo := m_asColInfos[cbbTblCol.ItemIndex];
+      sInfo := StringReplace(sInfo,'(' , ';', [rfReplaceAll]);
+      sInfo := StringReplace(sInfo,')|', '|', [rfReplaceAll]);
+
+      Split('|', sInfo, asParts);
+    end
+    else
+    begin
+      asParts.Add('');
+      asParts.Add('');
+    end;
+
+    if ContainsText(asParts[0],';') then
+    begin
+      Split(';', asParts[0], asType);
+      asParts[0] := asType[0];
+      asParts.Insert(1, asType[1]);
+    end
+    else
+    begin
+      asParts.Insert(1, '');
+    end;
+
+    if sgrdDef.ColCount = 1 then
+    begin
+      sgrdDef.ColCount := 4;
+      sgrdDef.RowCount := 1;
+
+      sgrdDef.Cells[0, 0] := 'Table Column';
+      sgrdDef.ColWidths[0] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[0, 0]).cx + 10 {)};
+
+      sgrdDef.Cells[1, 0] := 'CSV Column';
+      sgrdDef.ColWidths[1] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[1, 0]).cx + 10 {)};
+
+      sgrdDef.Cells[2, 0] := 'DB Type';
+      sgrdDef.ColWidths[2] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[2, 0]).cx + 10 {)};
+
+      sgrdDef.Cells[3, 0] := 'DB Length';
+      sgrdDef.ColWidths[3] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[3, 0]).cx + 10 {)};
+
+      btnPreCheck.Enabled := True;
+      btnImport  .Enabled := True;
+    end;
+
+    sgrdDef.RowCount := sgrdDef.RowCount + 1;
+
+    sgrdDef.Cells[0, sgrdDef.RowCount - 1] := cbbTblCol.Text;
+    sgrdDef.ColWidths[0] := Max(sgrd.ColWidths[0], Canvas.TextExtent(sgrdDef.Cells[0, sgrdDef.RowCount - 1]).cx + 10 );
+
+    sgrdDef.Cells[1, sgrdDef.RowCount - 1] := cbbTblCsvCol.Text;
+    sgrdDef.ColWidths[1] := Max(sgrd.ColWidths[1], Canvas.TextExtent(sgrdDef.Cells[1, sgrdDef.RowCount - 1]).cx + 10 );
+
+    sgrdDef.Cells[2, sgrdDef.RowCount - 1] := asParts[0];
+    sgrdDef.ColWidths[2] := Max(sgrd.ColWidths[2], Canvas.TextExtent(sgrdDef.Cells[2, sgrdDef.RowCount - 1]).cx + 10 );
+
+    sgrdDef.Cells[3, sgrdDef.RowCount - 1] := asParts[1];
+    sgrdDef.ColWidths[3] := Max(sgrd.ColWidths[3], Canvas.TextExtent(sgrdDef.Cells[3, sgrdDef.RowCount - 1]).cx + 10 );
+
+  finally
+    FreeAndNil(asParts);
+    FreeAndNil(asType);
   end;
-
-  if TComboBox_Text(cbbTblCsvCol).IsEmpty() then
-  begin
-    WarningMsgDlg('Select CSV Column!');
-    Exit;
-  end;
-
-  if sgrdDef.ColCount = 1 then
-  begin
-    sgrdDef.ColCount := 2;
-    sgrdDef.RowCount := 1;
-
-    sgrdDef.Cells[0, 0] := 'Table Column';
-    sgrdDef.ColWidths[0] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[0, 0]).cx + 10 {)};
-
-    sgrdDef.Cells[1, 0] := 'CSV Column';
-    sgrdDef.ColWidths[1] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[1, 0]).cx + 10 {)};
-
-    btnPreCheck.Enabled := True;
-    btnImport  .Enabled := True;
-  end;
-
-  sgrdDef.RowCount := sgrdDef.RowCount + 1;
-
-  sgrdDef.Cells[0, sgrdDef.RowCount - 1] := cbbTblCol.Text;
-  sgrdDef.ColWidths[0] := Max(sgrd.ColWidths[0], Canvas.TextExtent(sgrdDef.Cells[0, sgrdDef.RowCount - 1]).cx + 10 );
-
-  sgrdDef.Cells[1, sgrdDef.RowCount - 1] := cbbTblCsvCol.Text;
-  sgrdDef.ColWidths[1] := Max(sgrd.ColWidths[1], Canvas.TextExtent(sgrdDef.Cells[1, sgrdDef.RowCount - 1]).cx + 10 );
 
 end;
 
@@ -555,16 +616,22 @@ procedure TFrmDataImport.ProcessCSV(bChkOnly: Boolean);
 var
   frmPrs: TFrmProgress;
   dbSql: TDtTstDbSql;
-  asTblCols: TStringList;
+  asTblCols, asDbTypes, asDbLens, asCsvCols: TStringList;
   aiCsvColIndices: TArray<Integer>;
   asCsvVals: TStringList;
-  iRow, iCol: integer;
+  iRow, iCol, iDbLen, iValLen: integer;
+  sCsvVal, sMsg: string;
+  //ayVal: TBytes;
+  bBreak: Boolean;
 begin
 
-  dbSql := nil;
-  asTblCols := nil;
+  dbSql           := nil;
+  asTblCols       := nil;
+  asDbTypes       := nil;
+  asDbLens        := nil;
   aiCsvColIndices := nil;
-  asCsvVals := nil;
+  asCsvCols       := nil;
+  asCsvVals       := nil;
 
   frmPrs := TFrmProgress.Create(self, m_oApp);
   try
@@ -572,12 +639,24 @@ begin
     if not bChkOnly then
     begin
       dbSql := TDtTstDbSql.Create(m_oApp as TDtTstAppDb);
+    end;
 
-      asTblCols := TStringList.Create;
+    //if not bChkOnly then
+    begin
+
+      asTblCols := TStringList.Create();
+      asDbTypes := TStringList.Create();
+      asDbLens  := TStringList.Create();
       for iRow := 1 to sgrdDef.RowCount - 1 do
       begin
         asTblCols.Add(sgrdDef.Cells[0, iRow]);
+
+        asDbTypes.Add(sgrdDef.Cells[2, iRow]);
+
+        asDbLens .Add(sgrdDef.Cells[3, iRow]);
       end;
+
+      asCsvCols := TStringList.Create();
 
       aiCsvColIndices := TArray<Integer>.Create();
       SetLength(aiCsvColIndices, sgrdDef.RowCount);
@@ -599,6 +678,8 @@ begin
         begin
           raise Exception.Create('CSV Column "' + sgrdDef.Cells[1, iRow] + '" not found!');
         end;
+
+        asCsvCols.Add(sgrdDef.Cells[1, iRow]);
 
       end;
 
@@ -639,6 +720,7 @@ begin
     frmPrs.AddStep('Loading CSV Data');
     Application.ProcessMessages;
 
+    bBreak := False;
     while True do
     begin
 
@@ -656,7 +738,7 @@ begin
 
       Application.ProcessMessages;
 
-      if not bChkOnly then
+      //if not bChkOnly then
       begin
 
         asCsvVals.Clear;
@@ -664,21 +746,79 @@ begin
         for iCol := 0 to asTblCols.Count - 1 do
         begin
           if aiCsvColIndices[iCol] >= m_asRowCSV.Count then
-            asCsvVals.Add('')
+            sCsvVal := ''
           else
-            asCsvVals.Add(m_asRowCSV[aiCsvColIndices[iCol]]);
+            sCsvVal := m_asRowCSV[aiCsvColIndices[iCol]];
+
+          { CHECK - DB Length }
+          if not asDbLens[iCol].IsEmpty() then
+          begin
+
+            iDbLen := StrToInt(asDbLens[iCol]);
+
+            // BUG: NOT REQUIRED!!! TESTED with DB's Defalut Charset = UTF8!
+            {
+            if (m_oApp as TDtTstAppDb).DB.UTF8 then
+            begin
+              // ATTN: UTF8 raw byte len!!!
+              ayVal   := TEncoding.UTF8.GetBytes(sCsvVal);
+              iValLen := Length(ayVal);
+            end
+            else
+            begin
+            }
+              iValLen := sCsvVal.Length;
+            {
+            end;
+            }
+
+            if iValLen > iDbLen then
+            begin
+
+              sMsg := 'ERROR: Length (' + IntToStr(iValLen) + ') of CSV Column "' + asCsvCols[iCol] +
+                      '" in CSV Data Row #' + IntToStr(m_iCsvDataRow) +
+                      ' is GREATER than expected by Table Column "' + asTblCols[iCol] +
+                      '" Length (' + IntToStr(iDbLen) + ')!';
+
+              // BUG: NOT REQUIRED!!! TESTED with DB's Defalut Charset = UTF8!
+              {
+              if (m_oApp as TDtTstAppDb).DB.UTF8 then
+              begin
+                sMsg := sMsg + CHR(10) + CHR(10) + 'NOTE: Charset is UTF8!';
+              end;
+              }
+
+              sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+              if not ErrorQuestionMsgDlg(sMsg) then
+              begin
+                bBreak := True;
+                Break;
+              end;
+
+            end;
+          end;
+
+          asCsvVals.Add(sCsvVal);
         end;
 
-        try
+        if bBreak then Break;
 
-          dbSql.InsertOrUpdate(m_sTable, asTblCols, asCsvVals);
+        if not bChkOnly then
+        begin
 
-        except
-          on exc : Exception do
-          begin
-            m_oApp.LOG.LogERROR(exc);
-            ErrorMsgDlg('ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
+          try
+
+            dbSql.InsertOrUpdate(m_sTable, asTblCols, asCsvVals);
+
+          except
+            on exc : Exception do
+            begin
+              m_oApp.LOG.LogERROR(exc);
+              ErrorMsgDlg('ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
+            end;
           end;
+
         end;
 
       end;
@@ -688,7 +828,10 @@ begin
 
     CloseCSV();
 
-    frmPrs.AddStepEnd('Done!');
+    if bBreak then
+      frmPrs.AddStepEnd('ERROR! User cancelled opertation!')
+    else
+      frmPrs.AddStepEnd('Done!');
     Application.ProcessMessages;
 
     frmPrs.Done();
@@ -709,8 +852,12 @@ begin
     FreeAndNil(frmPrs);
 
     FreeAndNil(asTblCols);
+    FreeAndNil(asDbTypes);
+    FreeAndNil(asDbLens);
 
     //FreeAndNil(aiCsvColIndices); //MUST NOT!!!
+
+    FreeAndNil(asCsvCols);
 
     FreeAndNil(asCsvVals);
 

@@ -83,12 +83,13 @@ type
     function FIXOBJNAME(sTable: string) : string;
 
     procedure Select_Generators(asResult: TStringList);
-    function Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean; sTriggerName: string) : Boolean;
+    function Select_Triggers(asNames, asInfos: TStringList; sTable, sTriggerName: string; bDecorate, bFull: Boolean) : Boolean;
+    function Select_Fields(asNames, asInfos: TStringList; sTable, sFieldName: string; bDecorate: Boolean) : Boolean;
 
     procedure ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
-    procedure ADM_DoDbUpdates(frmPrs: TFrmProgress);
-    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean; virtual;
+    procedure ADM_DoDbUpdates(frmPrs: TFrmProgress; ADMIN_MODE: Boolean);
+    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean; virtual;
 
     procedure ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
     procedure ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
@@ -130,7 +131,7 @@ type
 implementation
 
 uses
-  { DtTst Units: } uDtTstConsts, uDtTstFirebird,
+  { DtTst Units: } uDtTstConsts, uDtTstWin, uDtTstFirebird,
   SysUtils, StrUtils, IniFiles, Vcl.Forms;
 
 constructor TDtTstDb.Create(oLog: TDtTstLog; sIniPath: string);
@@ -554,7 +555,7 @@ begin
   end;
 end;
 
-function TDtTstDb.Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean; sTriggerName: string) : Boolean;
+function TDtTstDb.Select_Triggers(asNames, asInfos: TStringList; sTable, sTriggerName: string; bDecorate, bFull: Boolean) : Boolean;
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -562,7 +563,8 @@ var
 begin
   Result := False;
 
-  if Assigned(asResult) then asResult.Clear();
+  if Assigned(asNames) then asNames.Clear();
+  if Assigned(asInfos) then asInfos.Clear();
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
@@ -577,11 +579,7 @@ begin
       sSql := sSql + ' RDB$RELATION_NAME AS table_name';
     end;
 
-    {
-            ' RDB$TRIGGER_SOURCE AS trigger_body,' +
-    }
-
-    if bDetails then
+    if Assigned(asInfos) then
     begin
       sSql := sSql + ', ';
       sSql := sSql + '  CASE RDB$TRIGGER_TYPE' +
@@ -602,8 +600,16 @@ begin
               '  END AS trigger_event,' +
               '  CASE RDB$TRIGGER_INACTIVE' +
               '   WHEN 1 THEN ''Disabled'' ELSE ''Enabled''' +
-              '  END AS trigger_enabled'; //',' +
-              //'  RDB$DESCRIPTION AS trigger_comment';
+              '  END AS trigger_enabled';
+
+      sSql := sSql + ', ';
+      sSql := sSql + ' RDB$DESCRIPTION AS trigger_comment';
+
+      if bFull then
+      begin
+        sSql := sSql + ', ';
+        sSql := sSql + ' RDB$TRIGGER_SOURCE AS trigger_body';
+      end;
     end;
 
     sSql := sSql + ' FROM RDB$TRIGGERS';
@@ -635,33 +641,211 @@ begin
       while not oQry.Eof do
       begin
 
-        if Assigned(asResult) then
+        if Assigned(asNames) then
         begin
-          sTriggerInfo := TRIM(oQry.FieldByName('trigger_name').AsString);
+          asNames.Add(TRIM(oQry.FieldByName('trigger_name').AsString));
+        end;
 
-          if bDetails then
+        if Assigned(asInfos) then
+        begin
+
+          sTriggerInfo := '';
+
+          if sTable.IsEmpty() then
           begin
-
-            sTriggerInfo := sTriggerInfo + ' ( ';
-
-            if sTable.IsEmpty() then
-            begin
-              sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('table_name').AsString) + ', ';
-            end;
-
-            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_type').AsString) + ', ';
-
-            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_event').AsString) + ', ';
-
-            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_enabled').AsString); // + ', ';
-
-            //sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_comment').AsString) + ', ';
-
-            sTriggerInfo := sTriggerInfo + ' ) ';
-
+            if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+            if bDecorate then sTriggerInfo := sTriggerInfo + 'Table Name: ';
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('table_name').AsString);
           end;
 
-          asResult.Add(sTriggerInfo);
+          if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+          if bDecorate then sTriggerInfo := sTriggerInfo + 'Type: ';
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_type').AsString);
+
+          if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+          if bDecorate then sTriggerInfo := sTriggerInfo + 'Event: ';
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_event').AsString);
+
+          if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+          if bDecorate then sTriggerInfo := sTriggerInfo + 'Enabled: ';
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_enabled').AsString);
+
+          if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+          if bDecorate then sTriggerInfo := sTriggerInfo + 'Comment: ';
+          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_comment').AsString);
+
+          if bFull then
+          begin
+            if not sTriggerInfo.IsEmpty() then sTriggerInfo := sTriggerInfo + '|';
+            if bDecorate then sTriggerInfo := sTriggerInfo + 'Body: ';
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_body').AsString);
+          end;
+
+          asInfos.Add(sTriggerInfo);
+
+        end;
+
+        Result := True;
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+function TDtTstDb.Select_Fields(asNames, asInfos: TStringList; sTable, sFieldName: string; bDecorate: Boolean) : Boolean;
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  sFieldInfo: string;
+begin
+   Result := False;
+
+  if Assigned(asNames) then asNames.Clear();
+  if Assigned(asInfos) then asInfos.Clear();
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // SRC: https://stackoverflow.com/questions/12070162/how-can-i-get-the-table-description-fields-and-types-from-firebird-with-dbexpr
+    sSql := 'SELECT RF.RDB$FIELD_NAME FIELD_NAME';
+
+    if sTable.IsEmpty() then //and bDetails then
+    begin
+      sSql := sSql + ', ';
+      sSql := sSql + ' RDB$RELATION_NAME AS table_name';
+    end;
+
+    if Assigned(asInfos) then
+    begin
+      sSql := sSql + ', ';
+      sSql := sSql + '  CASE F.RDB$FIELD_TYPE' +
+                     '    WHEN 7 THEN' +
+                     '      CASE F.RDB$FIELD_SUB_TYPE' +
+                     '        WHEN 0 THEN ''SMALLINT''' +
+                     '        WHEN 1 THEN ''NUMERIC('' || F.RDB$FIELD_PRECISION || '', '' || (-F.RDB$FIELD_SCALE) || '')''' +
+                     '        WHEN 2 THEN ''DECIMAL''' +
+                     '      END' +
+                     '    WHEN 8 THEN' +
+                     '      CASE F.RDB$FIELD_SUB_TYPE' +
+                     '        WHEN 0 THEN ''INTEGER''' +
+                     '        WHEN 1 THEN ''NUMERIC(''  || F.RDB$FIELD_PRECISION || '', '' || (-F.RDB$FIELD_SCALE) || '')''' +
+                     '        WHEN 2 THEN ''DECIMAL''' +
+                     '      END' +
+                     '    WHEN 9 THEN ''QUAD''' +
+                     '    WHEN 10 THEN ''FLOAT''' +
+                     '    WHEN 12 THEN ''DATE''' +
+                     '    WHEN 13 THEN ''TIME''' +
+                     '    WHEN 14 THEN ''CHAR('' || (TRUNC(F.RDB$FIELD_LENGTH / CH.RDB$BYTES_PER_CHARACTER)) || '') ''' +
+                     '    WHEN 16 THEN' +
+                     '      CASE F.RDB$FIELD_SUB_TYPE' +
+                     '        WHEN 0 THEN ''BIGINT''' +
+                     '        WHEN 1 THEN ''NUMERIC('' || F.RDB$FIELD_PRECISION || '', '' || (-F.RDB$FIELD_SCALE) || '')''' +
+                     '        WHEN 2 THEN ''DECIMAL''' +
+                     '      END' +
+                     '    WHEN 27 THEN ''DOUBLE''' +
+                     '    WHEN 35 THEN ''TIMESTAMP''' +
+                     '    WHEN 37 THEN ''VARCHAR('' || (TRUNC(F.RDB$FIELD_LENGTH / CH.RDB$BYTES_PER_CHARACTER)) || '')''' +
+                     '    WHEN 40 THEN ''CSTRING'' || (TRUNC(F.RDB$FIELD_LENGTH / CH.RDB$BYTES_PER_CHARACTER)) || '')''' +
+                     '    WHEN 45 THEN ''BLOB_ID''' +
+                     '    WHEN 261 THEN ''BLOB SUB_TYPE '' || F.RDB$FIELD_SUB_TYPE' +
+                     '    ELSE ''RDB$FIELD_TYPE: '' || F.RDB$FIELD_TYPE || ''?''' +
+                     '  END FIELD_TYPE,' +
+                     ' IIF(COALESCE(RF.RDB$NULL_FLAG, 0) = 0, ''NULL'', ''NOT NULL'') FIELD_NULL,' +
+                     ' CH.RDB$CHARACTER_SET_NAME FIELD_CHARSET,' +
+                     ' DCO.RDB$COLLATION_NAME FIELD_COLLATION,' +
+                     ' COALESCE(RF.RDB$DEFAULT_SOURCE, F.RDB$DEFAULT_SOURCE) FIELD_DEFAULT,' +
+                     ' F.RDB$VALIDATION_SOURCE FIELD_CHECK,' +
+                     ' RF.RDB$DESCRIPTION FIELD_DESCRIPTION';
+    end;
+
+    sSql := sSql + ' FROM RDB$RELATION_FIELDS RF' +
+                   ' JOIN RDB$FIELDS F ON (F.RDB$FIELD_NAME = RF.RDB$FIELD_SOURCE)' +
+                   ' LEFT OUTER JOIN RDB$CHARACTER_SETS CH ON (CH.RDB$CHARACTER_SET_ID = F.RDB$CHARACTER_SET_ID)' +
+                   ' LEFT OUTER JOIN RDB$COLLATIONS DCO ON ((DCO.RDB$COLLATION_ID = F.RDB$COLLATION_ID) AND (DCO.RDB$CHARACTER_SET_ID = F.RDB$CHARACTER_SET_ID))';
+
+    sSql := sSql + ' WHERE (COALESCE(RF.RDB$SYSTEM_FLAG, 0) = 0)';
+
+    if not sTable.IsEmpty() then
+    begin
+      sSql := sSql + ' AND (RF.RDB$RELATION_NAME = ' + '''' + FIXOBJNAME(sTable) + ''')';
+    end;
+
+    if not sFieldName.IsEmpty() then
+    begin
+      sSql := sSql + ' AND (RF.RDB$FIELD_NAME = ' + '''' + FIXOBJNAME(sFieldName) + ''')';
+    end;
+
+    sSql := sSql + ' ORDER BY RF.RDB$FIELD_POSITION';
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        if Assigned(asNames) then
+        begin
+          asNames.Add(TRIM(oQry.FieldByName('FIELD_NAME').AsString));
+        end;
+
+        if Assigned(asInfos) then
+        begin
+
+          sFieldInfo := '';
+
+          if sTable.IsEmpty() then
+          begin
+            if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+            if bDecorate then sFieldInfo := sFieldInfo + 'Table Name: ';
+            sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('table_name').AsString);
+          end;
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Type: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_TYPE').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Nulls: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_NULL').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Charset: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_CHARSET').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Collation: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_COLLATION').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Default: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_DEFAULT').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Check: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_CHECK').AsString);
+
+          if not sFieldInfo.IsEmpty() then sFieldInfo := sFieldInfo + '|';
+          if bDecorate then sFieldInfo := sFieldInfo + 'Description: ';
+          sFieldInfo := sFieldInfo + TRIM(oQry.FieldByName('FIELD_DESCRIPTION').AsString);
+
+          asInfos.Add(sFieldInfo);
+
         end;
 
         Result := True;
@@ -727,7 +911,7 @@ begin
   end;
 end;
 
-procedure TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress);
+procedure TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress; ADMIN_MODE: Boolean);
 var
   oProvider: TDBXDataExpressMetaDataProvider;
 begin
@@ -738,7 +922,7 @@ begin
     while True do
     begin
 
-        if ADM_DoDbUpdates_internal(oProvider, frmPrs) then
+        if ADM_DoDbUpdates_internal(oProvider, frmPrs, ADMIN_MODE) then
         begin
           Break; // Database is Up-To-Date!!!
         end;
@@ -751,7 +935,7 @@ begin
 
 end;
 
-function TDtTstDb.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean;
+function TDtTstDb.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean;
 begin
   Result := False; // Indicated that there are more Database Updates pending...
 
@@ -763,6 +947,19 @@ begin
       raise Exception.Create('Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
                  ') is newer than the Application''s supported Database ADM Version (' +
                  IntToStr(ciDB_VERSION_ADM) + ')!');
+    end;
+
+    if (not ADMIN_MODE) or (not QuestionMsgDlg('Database PRD Version (' + IntToStr(ADM_DbInfVersion_PRD) +
+                 ') is OLDER than the Application''s supported Database PRD Version (' +
+                 IntToStr(ciDB_VERSION_PRD) + ')!' + CHR(10) + CHR(10) +
+                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                 'Do you want to continue?')) then
+    begin
+      raise Exception.Create('Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
+                 ') is OLDER than the Application''s supported Database ADM Version (' +
+                 IntToStr(ciDB_VERSION_ADM) + ')!' + CHR(10) + CHR(10) +
+                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                 'Please contact the Database Administrator!');
     end;
 
     if Assigned(frmPrs) and (not frmPrs.Visible) then

@@ -20,6 +20,7 @@ procedure ErrorMsgDlg(sErr: string);
 procedure InfoMsgDlg(sInf: string);
 procedure WarningMsgDlg(sWrn: string);
 function QuestionMsgDlg(sQun: string) : boolean;
+function ErrorQuestionMsgDlg(sErrQun: string) : boolean;
 
 implementation
 
@@ -358,6 +359,15 @@ function QuestionMsgDlg(sQun: string) : boolean;
 begin
   Result := False;
   if mrYes = MessageDlg(Application.Title + CHR(10) + CHR(10) + sQun, mtConfirmation, [mbYes, mbNo], 0, mbNo) then
+  begin
+    Result := True;
+  end;
+end;
+
+function ErrorQuestionMsgDlg(sErrQun: string) : boolean;
+begin
+  Result := False;
+  if mrYes = MessageDlg(Application.Title + CHR(10) + CHR(10) + sErrQun, mtError, [mbYes, mbNo], 0, mbNo) then
   begin
     Result := True;
   end;

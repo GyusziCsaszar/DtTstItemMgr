@@ -349,4 +349,11 @@ object FrmMain: TFrmMain
     Left = 176
     Top = 140
   end
+  object tmrStart: TTimer
+    Enabled = False
+    Interval = 250
+    OnTimer = tmrStartTimer
+    Left = 16
+    Top = 80
+  end
 end

@@ -77,7 +77,7 @@ type
 
     function GetDbInfo() : string;
 
-    procedure IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string);
+    function IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string; bChkIsqlResult: Boolean) : Boolean;
 
     procedure AttachDbItemManager(bForceUpdate: Boolean);
 
@@ -176,7 +176,13 @@ begin
 
   if (not Assigned((m_oApp as TDtTstAppDb).DB.SQLConnection)) or (not (m_oApp as TDtTstAppDb).DB.SQLConnection.Connected) then
   begin
-    WarningMsgDlg('No Database is open!');
+    ErrorMsgDlg('No Database is open!');
+    Exit;
+  end;
+
+  if not chbDoDbUpdate.Checked then
+  begin
+    ErrorMsgDlg('Checkbox "Do DB Update" has to be checked!');
     Exit;
   end;
 
@@ -242,7 +248,7 @@ begin
       frmPrs := TFrmProgress.Create(self, m_oApp);
       try
 
-        oDbItemMgr.ADM_DoDbUpdates(frmPrs);
+        oDbItemMgr.ADM_DoDbUpdates(frmPrs, m_oApp.ADMIN_MODE);
 
         frmPrs.Done();
         while frmPrs.Visible do Application.ProcessMessages;
@@ -336,11 +342,12 @@ begin
   Result := panDbInfo.Caption;
 end;
 
-procedure TFrmFDB.IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string);
+function TFrmFDB.IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string; bChkIsqlResult: Boolean) : Boolean;
 var
   sDb, sOutput: string;
   frmPrs: TFrmProgress;
 begin
+  Result := False;
 
   try
 
@@ -372,7 +379,19 @@ begin
 
       frmPrs.AddStepEnd('Done!');
 
+      if bChkIsqlResult then
+      begin
+
+        if not ContainsText(sOutput, csISQL_SUCCESS) then
+        begin
+          raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+        end;
+
+      end;
+
       InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
+
+      Result := True;
 
     finally
       frmPrs.Close();
@@ -413,7 +432,7 @@ begin
       end;
     end;
 
-    IsqlOpen(True {bConnectDB}, moSql.Lines.Text, edTerm.Text);
+    IsqlOpen(True {bConnectDB}, moSql.Lines.Text, edTerm.Text, False {bChkIsqlResult});
   end;
 end;
 
@@ -440,24 +459,46 @@ begin
     Exit;
   end;
 
-  if not QuestionMsgDlg('Creating new Database "' + cbbDb.Text + '"!' + CHR(10) + CHR(10) +
-                        //'WARNING: User and password will be present in TEMP file for short!' + CHR(10) + CHR(10) +
-                        'Do you want to continue?') then
-  begin
-    Exit;
-  end;
-
-
   sTerm := '';
   sStatements := 'CREATE DATABASE ' + '''' + cbbDb.Text + '''' +
                  {' USER ' + edUser.Text +
                  ' PASSWORD ' + edPw.Text + }
-                 ' PAGE_SIZE 4096' +
-                 ' DEFAULT CHARACTER SET ' + 'UTF8' +
-                 {' DEFAULT COLLATION ' + 'UTF8' +} // NO DEFAULT COLLATION
-                 ';';
+                 ' PAGE_SIZE 4096';
 
-  IsqlOpen(False {bConnectDB}, sStatements, sTerm);
+  if chbServerCharsetUtf8.Checked then
+  begin
+   sStatements := sStatements + ' DEFAULT CHARACTER SET ' + 'UTF8';
+   {' DEFAULT COLLATION ' + 'UTF8' +} // NO DEFAULT COLLATION
+  end;
+
+  if not QuestionMsgDlg('Do you want to create a new database as?' + CHR(10) + CHR(10) +
+                        sStatements) then
+  begin
+    Exit;
+  end;
+
+  sStatements := sStatements + ';';
+
+  if IsqlOpen(False {bConnectDB}, sStatements, sTerm, True {bChkIsqlResult}) then
+  begin
+
+    if btnLogin.Enabled and QuestionMsgDlg('Do you want to Login to new database?') then
+    begin
+
+      btnLogin.Click();
+
+      if ((m_oApp as TDtTstAppDb).DB.ADM_DbInfProduct <> csPRODUCT_FULL) then
+      begin
+
+        if btnCrePrdTbls.Enabled and QuestionMsgDlg('Do you want to create Product Tables?') then
+        begin
+
+          btnCrePrdTbls.Click();
+
+        end;
+      end;
+    end;
+  end;
 
   m_oApp.LOG.LogUI('btnIsqlCreateDbClick END');
 end;
@@ -471,7 +512,7 @@ begin
   sTerm := '';
   sStatements := 'SHOW DATABASE;';
 
-  IsqlOpen(True {bConnectDB}, sStatements, sTerm);
+  IsqlOpen(True {bConnectDB}, sStatements, sTerm, False {bChkIsqlResult});
 
   m_oApp.LOG.LogUI('TFrmFDB.btnIsqlShowDbClick END');
 end;
@@ -485,7 +526,7 @@ begin
   sTerm := '';
   sStatements := '';
 
-  IsqlOpen(True {bConnectDB}, sStatements, sTerm);
+  IsqlOpen(True {bConnectDB}, sStatements, sTerm, False {bChkIsqlResult});
 
   m_oApp.LOG.LogUI('TFrmFDB.btnIsqlTestClick END');
 end;
@@ -619,6 +660,15 @@ begin
     end;
     }
 
+    if panAdminMode.Visible then
+    begin
+      if not chbAutoLogin.Checked then InfoMsgDlg('To close this form press Close!');
+    end
+    else
+    begin
+      ModalResult := mrOk; // Close Form...
+    end;
+
   except
     on exc : Exception do
     begin
@@ -670,7 +720,9 @@ begin
 
     btnLogin.Click();
 
-    if not btnLogin.Enabled then
+    // CHNG: Exit even in ADMIN_MODE when AutoLogin is ON!
+    //if (not btnLogin.Enabled) and (not panAdminMode.Visible) then
+    if (not btnLogin.Enabled) then
     begin
       Result := mrOk;
       Exit;

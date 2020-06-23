@@ -9,8 +9,11 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 123;
-  csVERSION_TITLE       = 'v1.23';
+  ciVERSION             = 124;
+  csVERSION_TITLE       = 'v1.24';
+
+  { App - Strings }
+  csITEM_TYPE           = 'ITEM TYPE';
 
   { App - Menu }
   ccMnuBtn                     = '0';
@@ -28,13 +31,17 @@ const
   // --------------------------------
   ccMnuItmID_Table             = '2';
   ccMnuItmID_Table_Column      = '3';
-  ccMnuItmID_Query             = '4';
+  ccMnuItmID_Table_Trigger     = '4';
+  ccMnuItmID_Query             = '5';
   // --------------------------------
   ccMnuBtnID_Refresh           = '1';
-  ccMnuBtnID_Open              = '2';
-  ccMnuBtnID_Import_Table      = '3';
-  ccMnuBtnID_Drop_Table        = '4';
-  ccMnuBtnID_Drop_Column       = '5';
+  ccMnuBtnID_Details           = '2';
+  ccMnuBtnID_Open              = '3';
+  ccMnuBtnID_Import_Table      = '4';
+  ccMnuBtnID_Drop_Table        = '5';
+  ccMnuBtnID_Drop_Column       = '6';
+  // --------------------------------
+  ccMnuBtnID_Import_Item_Type  = '7';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';

@@ -37,6 +37,7 @@ type
     tsViews: TTabSet;
     lbLog: TListBox;
     lbTasks: TListBox;
+    tmrStart: TTimer;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
@@ -59,6 +60,7 @@ type
     procedure lbObjectsDrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
     procedure lbObjectsClick(Sender: TObject);
+    procedure tmrStartTimer(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -68,20 +70,24 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
 
-    function GetSelectedMetaItem(var rsItem: string; var rsType: string) : Boolean;
-
     procedure OpenSql(sTable, sSql: string);
 
     procedure DoDbConnect();
 
-    procedure DoDropColumn();
+    procedure DoDropColumn(cID_Object: char; sCaption_Object: string);
     procedure DoDropTable(cID_Object: char; sCaption_Object: string);
 
     procedure DoRefreshMetaData();
 
-    procedure DoImportTable(cID_Object: char; sCaption_Object: string);
+    procedure DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
 
-    procedure DoOpen(cID_Object: char; sCaption_Object: string);
+    procedure DoDetailsClick(cID_Object: char; sCaption_Object: string);
+
+    function IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string; bChkIsqlResult: Boolean) : Boolean;
+
+    procedure DoTaskOpenClick(cID_Object: char; sCaption_Object: string);
+
+    procedure DoObjectClick();
     procedure DoTasksClick();
 
     procedure DoLbMeasuerItem(Control: TWinControl; Index: Integer; var Height: Integer);
@@ -189,9 +195,20 @@ begin
   chbAutoLogin         .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin'   , False);
   chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
 
-  DoDbConnect();
+  tmrStart.Enabled := True;
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
+end;
+
+procedure TFrmMain.tmrStartTimer(Sender: TObject);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.tmrStartTimer START');
+
+  tmrStart.Enabled := False;
+
+  DoDbConnect();
+
+  m_oApp.LOG.LogUI('TFrmMain.tmrStartTimer END');
 end;
 
 procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
@@ -360,80 +377,6 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.btnRsRefreshClick END');
 end;
 
-function TFrmMain.GetSelectedMetaItem(var rsItem: string; var rsType: string) : Boolean;
-var
-  i: integer;
-  sItem: string;
-begin
-  Result := False;
-  rsItem := '';
-  rsType := '';
-
-  if lbObjects.ItemIndex < 0 then
-  begin
-    WarningMsgDlg('No item is selected!');
-    exit;
-  end;
-
-  if lbObjects.Items[lbObjects.ItemIndex].IsEmpty() then
-  begin
-    WarningMsgDlg('No item is selected!');
-    exit;
-  end;
-
-  if Pos('DUAL ', lbObjects.Items[lbObjects.ItemIndex]) = 1 then
-  begin
-    rsItem := lbObjects.Items[lbObjects.ItemIndex];
-    rsType := 'DUAL';
-    Result := True;
-    Exit;
-  end;
-
-  if (lbObjects.Items[lbObjects.ItemIndex][1] <> ' ') and
-     (lbObjects.Items[lbObjects.ItemIndex][1] <> '[') then
-  begin
-    if ContainsText(lbObjects.Items[lbObjects.ItemIndex].ToUpper(), 'SELECT ') then
-    begin
-      rsItem := lbObjects.Items[lbObjects.ItemIndex];
-      rsType := 'SQL';
-      Result := True;
-      Exit;
-    end
-    else
-    begin
-      rsItem := lbObjects.Items[lbObjects.ItemIndex];
-      rsType := 'TABLE';
-      Result := True;
-      Exit;
-    end;
-  end;
-
-  sItem := TRIM(lbObjects.Items[lbObjects.ItemIndex]);
-
-  if (not sItem.IsEmpty()) and (sItem[1] = '[') then
-  begin
-    WarningMsgDlg('Header item is selected!');
-    Exit;
-  end;
-
-  rsItem := TRIM(lbObjects.Items[lbObjects.ItemIndex]);
-
-  for i := lbObjects.ItemIndex - 1 downto 0 do
-  begin
-
-    sItem := TRIM(lbObjects.Items[i]);
-
-    if (not sItem.IsEmpty()) and (sItem[1] = '[') then
-    begin
-      rsType := sItem.Substring(1, sItem.Length - 2);
-      Result := True;
-      Exit;
-    end;
-
-  end;
-
-end;
-
 procedure TFrmMain.OpenSql(sTable, sSql: string);
 begin
   try
@@ -578,53 +521,43 @@ begin
   m_oApp.LOG.LogInfo('TFrmMain.DoDbConnect END');
 end;
 
-procedure TFrmMain.DoDropColumn();
+procedure TFrmMain.DoDropColumn(cID_Object: char; sCaption_Object: string);
 var
-  sItem, sType, sTblCol, sTbl, sCol: string;
-  i: integer;
+  asParts, asTblCol: TStringList;
 begin
 
-  if GetSelectedMetaItem({var} sItem, {var} sType) then
-  begin
-    if sType = 'Columns' then
-    begin
-      sTblCol := sItem;
-    end
-    else
-    begin
-      WarningMsgDlg('Item type "' + sType + '" is not supported by this operation!');
-      Exit;
-    end;
-  end
-  else
-  begin
-    Exit;
-  end;
-
-  i := Pos('.', sTblCol);
-  if i < 1 then Exit;
-  sTbl := sTblCol.Substring(0, i - 1);
-  sCol := sTblCol.Substring(i);
-
-  if not QuestionMsgDlg('Do you want to really DROP column "' + sCol + '" of table "' + sTbl + '"?') then
-  begin
-    Exit;
-  end;
-
+  asParts  := TStringList.Create();
+  asTblCol := TStringList.Create();
   try
 
-    m_oApp.DB.META_DropTableColumn(sTbl, sCol);
+    Split('|', sCaption_Object, asParts);
 
-    InfoMsgDlg('You have DROPPED column "' + sCol + '" of table "' + sTbl + '"!');
-  except
-    on exc : Exception do
+    Split('.', asParts[2], asTblCol);
+
+    if not QuestionMsgDlg('Do you want to really DROP column "' + asTblCol[1] + '" of table "' + asTblCol[0] + '"?') then
     begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      Exit;
     end;
-  end;
 
-  DoRefreshMetaData();
+    try
+
+      m_oApp.DB.META_DropTableColumn(asTblCol[0], asTblCol[1]);
+
+      InfoMsgDlg('You have DROPPED column "' + asTblCol[1] + '" of table "' + asTblCol[0] + '"!');
+    except
+      on exc : Exception do
+      begin
+        m_oApp.LOG.LogERROR(exc);
+        ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      end;
+    end;
+
+    DoRefreshMetaData();
+
+  finally
+    FreeAndNil(asParts);
+      FreeAndNil(asTblCol);
+  end;
 end;
 
 procedure TFrmMain.DoDropTable(cID_Object: char; sCaption_Object: string);
@@ -704,7 +637,7 @@ begin
         for sItem in asItems do
         begin
           iIdx := iIdx + 1;
-          lbObjects.Items.Insert(iIdx, MnuITM_Selectable(ccMnuItmID_Table_Column, sTable + '.' + sItem, 2));
+          lbObjects.Items.Insert(iIdx, MnuITM_Selectable(ccMnuItmID_Table_Column, '|' + sItem + '|' + sTable + '.' + sItem, 2));
         end;
 
       except
@@ -750,7 +683,7 @@ begin
       asItems := TStringList.Create();
       try
 
-        m_oApp.DB.Select_Triggers(asItems, sTable {sTable}, True {bDetails}, '' {sTriggerName});
+        m_oApp.DB.Select_Triggers(asItems, nil {asInfos}, sTable, '' {sTriggerName}, False {bDecorate}, False {bFull});
 
         iIdx := iIdx + 1;
         lbObjects.Items.Insert(iIdx, MnuGRP('Triggers', 2));
@@ -758,7 +691,7 @@ begin
         for sItem in asItems do
         begin
           iIdx := iIdx + 1;
-          lbObjects.Items.Insert(iIdx, MnuITM(sItem, 2));
+          lbObjects.Items.Insert(iIdx, MnuITM_Selectable(ccMnuItmID_Table_Trigger, '|' + sItem + '|' + sTable + '.' + sItem, 2));
         end;
 
       except
@@ -830,36 +763,71 @@ begin
 
   end;
 
-  lbObjects.Items.Add(MnuGRP(csPRODUCT_TITLE, 0));
+  if (m_oApp.DB.ADM_DbInfProduct = csPRODUCT_FULL) then
+  begin
 
-  lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|ITEM TYPES|SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                     ' FROM ' + csDB_TBL_USR_ITEMTYPE +
-                     ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
+    lbObjects.Items.Add(MnuGRP(csPRODUCT_TITLE, 0));
 
-  lbObjects.Items.Add(MnuSPC());
+    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
+                       ' FROM ' + csDB_TBL_USR_ITEMTYPE +
+                       ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
+
+    lbObjects.Items.Add(MnuSPC());
+  end;
 
 end;
 
-procedure TFrmMain.DoImportTable(cID_Object: char; sCaption_Object: string);
+procedure TFrmMain.DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
 var
-  asCols: TStringList;
+  asCols, asCols_InUse, asInfos, asTmp: TStringList;
+  sCol: string;
   frmImp: TFrmDataImport;
 begin
 
-  asCols := TStringList.Create();
+  asCols       := TStringList.Create();
+  asInfos      := TStringList.Create();
+  asTmp        := TStringList.Create();
+  asCols_InUse := nil;
   frmImp := TFrmDataImport.Create(self, m_oApp);
   try
 
-    con_Firebird.GetFieldNames(sCaption_Object, asCols);
+    if Assigned(asColsOverride) then
+    begin
+      asCols_InUse := asColsOverride;
 
-    frmImp.Init(sCaption_Object, asCols);
+      for sCol in asCols_InUse do
+      begin
+        asTmp.Clear();
+
+        if m_oApp.DB.Select_Fields(nil {asNames}, asTmp, sTable, sCol, False {bDecorate}) then
+          asInfos.Add(asTmp[0])
+        else
+          asInfos.Add(''); // ERROR...
+      end;
+
+    end
+    else
+    begin
+
+      //con_Firebird.GetFieldNames(sTable, asCols);
+
+      m_oApp.DB.Select_Fields(asCols {asNames}, asInfos, sTable, '' {sFieldName}, False {bDecorate});
+
+      asCols_InUse := asCols;
+    end;
+
+    frmImp.Init(sCaption, sTable, asCols_InUse, asInfos);
 
     FreeAndNil(asCols);
+    FreeAndNil(asInfos);
 
     frmImp.ShowModal();
 
   finally
     FreeAndNil(asCols);
+    //FreeAndNil(asCols_InUse); //DO NOT!!!
+    FreeAndNil(asInfos);
+    FreeAndNil(asTmp);
     FreeAndNil(frmImp);
   end;
 end;
@@ -1077,50 +1045,10 @@ begin
 end;
 
 procedure TFrmMain.lbObjectsClick(Sender: TObject);
-var
-  cID: char;
-  sCaption: string;
 begin
   m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick BEGIN');
 
-  lbTasks.Items.Clear();
-
-  if lbObjects.ItemIndex < 0 then Exit;
-  Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID, sCaption);
-
-  case cID of
-
-    ccMnuGrpID_Database: begin
-
-      Menu_AddTask_Group(                               'Tasks'             , 0 );
-      Menu_AddTask_Button(ccMnuBtnID_Refresh          , 'Refresh Metadata'      );
-
-    end;
-
-    ccMnuItmID_Table: begin
-
-      Menu_AddTask_Group(                               'Tasks'             , 0 );
-      Menu_AddTask_Button(ccMnuBtnID_Open             , 'Open'                  );
-      Menu_AddTask_Button(ccMnuBtnID_Import_Table     , 'Import Table (CSV)'    );
-      Menu_AddTask_Button(ccMnuBtnID_Drop_Table       , 'DROP Table'            );
-
-    end;
-
-    ccMnuItmID_Table_Column: begin
-
-      Menu_AddTask_Group(                               'Tasks'             , 0 );
-      Menu_AddTask_Button(ccMnuBtnID_Drop_Column      , 'DROP Column'           );
-
-    end;
-
-    ccMnuItmID_Query: begin
-
-      Menu_AddTask_Group(                               'Tasks'             , 0 );
-      Menu_AddTask_Button(ccMnuBtnID_Open             , 'Open'                  );
-
-    end;
-
-  end;
+  DoObjectClick();
 
   m_oApp.LOG.LogUI('TFrmMain.lbObjectsClick END');
 end;
@@ -1136,7 +1064,7 @@ begin
   if lbObjects.ItemIndex < 0 then Exit;
   Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
 
-  DoOpen(cID_Object, sCaption_Object);
+  DoTaskOpenClick(cID_Object, sCaption_Object);
 
   m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
 end;
@@ -1159,7 +1087,178 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.lbOptionsDblClick END');
 end;
 
-procedure TFrmMain.DoOpen(cID_Object: char; sCaption_Object: string);
+procedure TFrmMain.DoDetailsClick(cID_Object: char; sCaption_Object: string);
+var
+  asParts, asTblCols, asInfos: TStringList;
+  sInf, sInfos: string;
+begin
+  if cID_Object = ccMnuItmID_Table_Column then
+  begin
+
+    asParts   := TStringList.Create();
+    asTblCols := TStringList.Create();
+    asInfos   := TStringList.Create();
+    try
+
+      Split('|', sCaption_Object, asParts);
+
+      Split('.', asParts[2], asTblCols);
+
+      try
+
+        if not m_oApp.DB.Select_Fields(nil {asNames}, asInfos, asTblCols[0], asTblCols[1], True {bDecorate}) then
+        begin
+          ErrorMsgDlg('ERROR: No information is available for' + CHR(10) + 'Column "' + asTblCols[1] + '" of table "' + asTblCols[0] + '"!');
+        end
+        else
+        begin
+
+          sInfos := 'Detailed information about' + CHR(10) + 'Column "' + asTblCols[1] + '" of table "' + asTblCols[0] + '":' + CHR(10);
+
+          for sInf in asInfos do
+          begin
+            sInfos := sInfos + CHR(10) + StringReplace(sInf, '|', CHR(10), [rfReplaceAll]);
+          end;
+
+          InfoMsgDlg(sInfos);
+
+        end;
+      except
+        on exc : Exception do
+        begin
+          m_oApp.LOG.LogERROR(exc);
+          ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+        end;
+      end;
+
+    finally
+      FreeAndNil(asParts);
+      FreeAndNil(asTblCols);
+      FreeAndNil(asInfos);
+    end;
+  end
+  else if cID_Object = ccMnuItmID_Table_Trigger then
+  begin
+
+    asParts   := TStringList.Create();
+    asTblCols := TStringList.Create();
+    asInfos   := TStringList.Create();
+    try
+
+      Split('|', sCaption_Object, asParts);
+
+      Split('.', asParts[2], asTblCols);
+
+      try
+
+        if not m_oApp.DB.Select_Triggers(nil {asNames}, asInfos, asTblCols[0], asTblCols[1], True {bDecorate}, False {bFull}) then
+        begin
+          ErrorMsgDlg('ERROR: No information is available for' + CHR(10) + 'Trigger "' + asTblCols[1] + '" of table "' + asTblCols[0] + '"!');
+        end
+        else
+        begin
+
+          sInfos := 'Detailed information about' + CHR(10) + 'Trigger "' + asTblCols[1] + '" of table "' + asTblCols[0] + '":' + CHR(10);
+
+          for sInf in asInfos do
+          begin
+            sInfos := sInfos + CHR(10) + StringReplace(sInf, '|', CHR(10), [rfReplaceAll]);
+          end;
+
+          InfoMsgDlg(sInfos);
+
+        end;
+      except
+        on exc : Exception do
+        begin
+          m_oApp.LOG.LogERROR(exc);
+          ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+        end;
+      end;
+
+    finally
+      FreeAndNil(asParts);
+      FreeAndNil(asTblCols);
+      FreeAndNil(asInfos);
+    end;
+  end
+  else if cID_Object = ccMnuGrpID_Database then
+  begin
+
+    IsqlOpen(True {bConnectDB}, 'SHOW DATABASE;', '' {sTerm}, False {bChkIsqlResult});
+
+  end;
+end;
+
+function TFrmMain.IsqlOpen(bConnectDB: Boolean; sStatements, sTerm: string; bChkIsqlResult: Boolean) : Boolean;
+var
+  sDb, sOutput: string;
+  frmPrs: TFrmProgress;
+begin
+  Result := False;
+
+  try
+
+    frmPrs := TFrmProgress.Create(self, m_oApp);
+    try
+
+      frmPrs.Show();
+      frmPrs.Init('Calling Firebird Isql tool');
+      frmPrs.SetProgressToMax();
+
+      frmPrs.AddStep('Starting Firebird Isql tool');
+
+      {
+      (m_oApp as TDtTstAppDb).DB.ConnectUser     := edUser.Text;
+      (m_oApp as TDtTstAppDb).DB.ConnectPassword := edPw  .Text;
+
+      if bConnectDB then
+        sDb := cbbDb.Text
+      else
+        sDb := '';
+      }
+
+      sOutput := ISQL_Execute(m_oApp.LOG, TPath.GetDirectoryName(Application.ExeName),
+                              m_oApp.DB.IsqlPathChecked,
+                              m_oApp.DB.ConnectString,
+                              m_oApp.DB.ConnectUser, m_oApp.DB.ConnectPassword,
+                              True {bGetOutput},
+                              (m_oApp.DB.IsqlOptions = 1) {bVisible},
+                              sStatements,
+                              sTerm);
+
+      frmPrs.AddStepEnd('Done!');
+
+      if bChkIsqlResult then
+      begin
+
+        if not ContainsText(sOutput, csISQL_SUCCESS) then
+        begin
+          raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+        end;
+
+      end;
+
+      InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
+
+      Result := True;
+
+    finally
+      frmPrs.Close();
+      FreeAndNil(frmPrs);
+    end;
+
+  except
+    on exc : Exception do
+    begin
+      m_oApp.LOG.LogERROR(exc);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
+procedure TFrmMain.DoTaskOpenClick(cID_Object: char; sCaption_Object: string);
 var
   asParts: TStringList;
 begin
@@ -1185,10 +1284,84 @@ begin
   end;
 end;
 
+procedure TFrmMain.DoObjectClick();
+var
+  cID: char;
+  sCaption: string;
+  asParts: TStringList;
+begin
+
+  lbTasks.Items.Clear();
+
+  if lbObjects.ItemIndex < 0 then Exit;
+  Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID, sCaption);
+
+  asParts := TStringList.Create();
+  try
+
+    Split('|', sCaption, asParts);
+
+    case cID of
+
+      ccMnuGrpID_Database: begin
+
+        Menu_AddTask_Group(                                 'Tasks'             , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Refresh            , 'Refresh Metadata'      );
+        Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
+
+      end;
+
+      ccMnuItmID_Table: begin
+
+        Menu_AddTask_Group(                                 'Tasks'             , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
+        Menu_AddTask_Button(ccMnuBtnID_Import_Table       , 'Import (CSV)'          );
+        Menu_AddTask_Group(                                 'Tasks (Admin)'     , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Drop_Table         , 'DROP Table'            );
+
+      end;
+
+      ccMnuItmID_Table_Column: begin
+
+        Menu_AddTask_Group(                                 'Tasks'             , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
+        Menu_AddTask_Group(                                 'Tasks (Admin)'     , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Drop_Column        , 'DROP Column'           );
+
+      end;
+
+      ccMnuItmID_Table_Trigger: begin
+
+        Menu_AddTask_Group(                                 'Tasks'             , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
+
+      end;
+
+      ccMnuItmID_Query: begin
+
+        Menu_AddTask_Group(                                 'Tasks'             , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
+
+        if asParts[1] = csITEM_TYPE then
+        begin
+          Menu_AddTask_Button(ccMnuBtnID_Import_Item_Type , 'Import (CSV)'          );
+        end;
+
+      end;
+
+    end;
+
+  finally
+    FreeAndNil(asParts);
+  end;
+
+end;
+
 procedure TFrmMain.DoTasksClick();
 var
   cID_Task, cID_Object: char;
   sCaption_Task, sCaption_Object: string;
+  asParts, asCols: TStringList;
 begin
 
   if lbTasks.ItemIndex < 0 then Exit;
@@ -1197,28 +1370,58 @@ begin
   if lbObjects.ItemIndex < 0 then Exit;
   Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
 
-  case cID_Task of
+  asParts := nil;
+  asCols  := nil;
+  try
 
-    ccMnuBtnID_Refresh : begin
-      DoRefreshMetaData();
+    case cID_Task of
+
+      { Common }
+
+      ccMnuBtnID_Refresh : begin
+        DoRefreshMetaData();
+      end;
+
+      ccMnuBtnID_Details : begin
+        DoDetailsClick(cID_Object, sCaption_Object);
+      end;
+
+      ccMnuBtnID_Open : begin
+        DoTaskOpenClick(cID_Object, sCaption_Object);
+      end;
+
+      ccMnuBtnID_Import_Table : begin
+        DoImportTable(sCaption_Object, sCaption_Object, nil);
+      end;
+
+      ccMnuBtnID_Drop_Table : begin
+        DoDropTable(cID_Object, sCaption_Object);
+      end;
+
+      ccMnuBtnID_Drop_Column : begin
+        DoDropColumn(cID_Object, sCaption_Object);
+      end;
+
+      { Product }
+
+      ccMnuBtnID_Import_Item_Type : begin
+
+        asParts := TStringList.Create();
+
+        Split('|', sCaption_Object, asParts);
+
+        asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
+
+        DoImportTable(asParts[1], csDB_TBL_USR_ITEMTYPE, asCols);
+
+      end;
+
     end;
 
-    ccMnuBtnID_Open : begin
-      DoOpen(cID_Object, sCaption_Object);
-    end;
-
-    ccMnuBtnID_Import_Table : begin
-      DoImportTable(cID_Object, sCaption_Object);
-    end;
-
-    ccMnuBtnID_Drop_Table : begin
-      DoDropTable(cID_Object, sCaption_Object);
-    end;
-
-    ccMnuBtnID_Drop_Column : begin
-      DoDropColumn();
-    end;
-
+  finally
+    FreeAndNil(asParts);
+    FreeAndNil(asCols);
   end;
 end;
 
