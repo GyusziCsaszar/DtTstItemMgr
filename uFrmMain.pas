@@ -14,26 +14,39 @@ type
   TFrmMain = class(TForm)
     lblLog: TLabel;
     lbLog: TListBox;
-    con_Employee: TSQLConnection;
+    con_Firebird: TSQLConnection;
     btnConnect: TButton;
-    qry_Customer: TSQLQuery;
-    db_grid_Customer: TDBGrid;
-    lblCustomer: TLabel;
-    dsp_Customer: TDataSetProvider;
-    cds_Customer: TClientDataSet;
-    ds_cds_Customer: TDataSource;
-    sds_Employee: TSimpleDataSet;
-    ds_sds_Employee: TDataSource;
-    db_grid_Employee: TDBGrid;
-    lblEmployee: TLabel;
-    pAttn: TPanel;
+    qry_Top: TSQLQuery;
+    db_grid_Top: TDBGrid;
+    lblTop: TLabel;
+    dsp_Top: TDataSetProvider;
+    cds_Top: TClientDataSet;
+    ds_cds_Top: TDataSource;
+    sds_Bottom: TSimpleDataSet;
+    ds_sds_Bottom: TDataSource;
+    db_grid_Bottom: TDBGrid;
+    lblBottom: TLabel;
     btnGetMetadata: TButton;
-    lblResult: TLabel;
     lbResult: TListBox;
+    btnRefreshBottom: TButton;
+    btnRefreshTop: TButton;
+    btnInsertBottom: TButton;
+    btnInsertTop: TButton;
+    btnDeleteBottom: TButton;
+    btnDeleteTop: TButton;
+    chbMetadataTablesOnly: TCheckBox;
     procedure btnConnectClick(Sender: TObject);
-    procedure sds_EmployeeAfterPost(DataSet: TDataSet);
-    procedure cds_CustomerAfterPost(DataSet: TDataSet);
+    procedure sds_BottomAfterPost(DataSet: TDataSet);
+    procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure btnGetMetadataClick(Sender: TObject);
+    procedure lbResultDblClick(Sender: TObject);
+    procedure btnRefreshTopClick(Sender: TObject);
+    procedure btnRefreshBottomClick(Sender: TObject);
+    procedure btnInsertTopClick(Sender: TObject);
+    procedure btnInsertBottomClick(Sender: TObject);
+    procedure btnDeleteTopClick(Sender: TObject);
+    procedure btnDeleteBottomClick(Sender: TObject);
+    procedure chbMetadataTablesOnlyClick(Sender: TObject);
   private
     { Private declarations }
     procedure LoadDbConnectPropsFromIni();
@@ -61,47 +74,24 @@ const
   sINI_VAL_DBCON_USR = 'User';
   sINI_VAL_DBCON_PW = 'Password';
 
-procedure TFrmMain.cds_CustomerAfterPost(DataSet: TDataSet);
+procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
 begin
-  cds_Customer.ApplyUpdates(0);
+  cds_Top.ApplyUpdates(0);
 end;
 
-procedure TFrmMain.sds_EmployeeAfterPost(DataSet: TDataSet);
+procedure TFrmMain.sds_BottomAfterPost(DataSet: TDataSet);
 begin
-  sds_Employee.ApplyUpdates(0);
+  sds_Bottom.ApplyUpdates(0);
 end;
 
-procedure TFrmMain.btnConnectClick(Sender: TObject);
+procedure TFrmMain.btnDeleteTopClick(Sender: TObject);
 begin
+
+  if not cds_Top.Active then exit;
 
   try
-
-    LogINFO('Executable Path: ' + Application.ExeName);
-
-    LoadDbConnectPropsFromIni();
-
-    LogINFO('Button Connect is Pressed!');
-
-    con_Employee.Connected := True;
-
-    LogINFO('SQL Connection is Connected!');
-
-    qry_Customer.Active := True;
-
-    LogINFO('SQL Query is Active!');
-
-    cds_Customer.Active := True;
-
-    LogINFO('Client DataSet is Active!');
-
-    sds_Employee.Active := True;
-
-    LogINFO('Simple DataSet is Active!');
-
-    btnConnect.Enabled := False;
-
-    btnGetMetadata.Enabled := True;
-
+    cds_Top.Delete();
+    cds_Top.ApplyUpdates(0);
   except
     on exc : Exception do
     begin
@@ -110,6 +100,163 @@ begin
     end;
   end;
 
+end;
+
+procedure TFrmMain.btnDeleteBottomClick(Sender: TObject);
+begin
+
+  if not sds_Bottom.Active then exit;
+
+  try
+    sds_Bottom.Delete();
+    sds_Bottom.ApplyUpdates(0);
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
+procedure TFrmMain.btnInsertTopClick(Sender: TObject);
+begin
+
+  if not cds_Top.Active then exit;
+
+  try
+    cds_Top.Insert();
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
+procedure TFrmMain.btnInsertBottomClick(Sender: TObject);
+begin
+
+  if not sds_Bottom.Active then exit;
+
+  try
+    sds_Bottom.Insert();
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
+procedure TFrmMain.btnRefreshTopClick(Sender: TObject);
+begin
+
+  if not cds_Top.Active then exit;
+
+  try
+    cds_Top.Active := False;
+    qry_Top.Active := False;
+
+    qry_Top.Active := True;
+    LogINFO('SQL Query is Active!');
+    cds_Top.Active := True;
+    LogINFO('Client DataSet is Active!');
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+end;
+
+procedure TFrmMain.btnRefreshBottomClick(Sender: TObject);
+begin
+
+  if not sds_Bottom.Active then exit;
+
+  try
+    sds_Bottom.Active := False;
+
+    sds_Bottom.Active := True;
+    LogINFO('Simple DataSet is Active!');
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+end;
+
+procedure TFrmMain.lbResultDblClick(Sender: TObject);
+var
+  sTable: string;
+begin
+  if lbResult.ItemIndex < 0 then
+  begin
+    ShowMessage('No table is selected!');
+    exit;
+  end;
+
+  if lbResult.Items[lbResult.ItemIndex][1] = ' ' then
+  begin
+    ShowMessage('The selected item is not a Table Name!');
+    exit;
+  end;
+
+  if lbResult.Items[lbResult.ItemIndex][1] = '[' then
+  begin
+    ShowMessage('The selected item is not a Table Name!');
+    exit;
+  end;
+
+  sTable := lbResult.Items[lbResult.ItemIndex];
+
+  try
+    lblTop.Caption := 'N/A (Query, Provider and Client DataSet):';
+    cds_Top.Active := False;
+    qry_Top.Active := False;
+    qry_Top.SQL.Clear();
+    qry_Top.SQL.Add('select * from ' + sTable + ';');
+    qry_Top.Active := True;
+    LogINFO('SQL Query is Active!');
+    cds_Top.Active := True;
+    LogINFO('Client DataSet is Active!');
+    lblTop.Caption := sTable + ' (Query, Provider and Client DataSet):';
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+  try
+    lblBottom.Caption := 'N/A (Simple DataSet):';
+    sds_Bottom.Active := False;
+    sds_Bottom.DataSet.CommandText := 'select * from ' + sTable + ';';
+    sds_Bottom.Active := True;
+    LogINFO('Simple DataSet is Active!');
+    lblBottom.Caption := sTable + ' (Simple DataSet):';
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+end;
+
+procedure TFrmMain.chbMetadataTablesOnlyClick(Sender: TObject);
+begin
+  if btnGetMetadata.Enabled then btnGetMetadata.Click();
 end;
 
 procedure TFrmMain.btnGetMetadataClick(Sender: TObject);
@@ -121,7 +268,9 @@ var
 begin
   lbResult.Items.Clear();
 
-  con_Employee.GetTableNames(lbResult.Items, False);
+  con_Firebird.GetTableNames(lbResult.Items, False);
+
+  if chbMetadataTablesOnly.Checked then exit;
 
   iIdx := -1;
   while True do
@@ -139,7 +288,7 @@ begin
     asItems := TStringList.Create();
     begin
 
-      con_Employee.GetFieldNames(sTable, asItems);
+      con_Firebird.GetFieldNames(sTable, asItems);
 
       iIdx := iIdx + 1;
       lbResult.Items.Insert(iIdx, '  [Fields]');
@@ -150,13 +299,13 @@ begin
         lbResult.Items.Insert(iIdx, '    ' + sItem);
       end;
     end;
-    asItems.Free();
+    FreeAndNil(asItems);
 
     // Table Indices
     asItems := TStringList.Create();
     begin
 
-      con_Employee.GetIndexNames(sTable, asItems);
+      con_Firebird.GetIndexNames(sTable, asItems);
 
       iIdx := iIdx + 1;
       lbResult.Items.Insert(iIdx, '  [Indices]');
@@ -167,17 +316,65 @@ begin
         lbResult.Items.Insert(iIdx, '    ' + sItem);
       end;
     end;
-    asItems.Free();
+    FreeAndNil(asItems);
 
   end;
 
-  lbResult.Items.Insert(0, 'Login Username: ' + con_Employee.GetLoginUsername());
+  lbResult.Items.Insert(0, '[Properties]');
 
-  lbResult.Items.Insert(1, 'Default SchemaName: ' + con_Employee.GetDefaultSchemaName());
+  lbResult.Items.Insert(1, '  Login Username: ' + con_Firebird.GetLoginUsername());
 
-  lbResult.Items.Insert(2, 'Driver Func: ' + con_Employee.GetDriverFunc);
+  lbResult.Items.Insert(2, '  Default SchemaName: ' + con_Firebird.GetDefaultSchemaName());
 
-  lbResult.Items.Insert(3, '[Tables]');
+  lbResult.Items.Insert(3, '  Driver Func: ' + con_Firebird.GetDriverFunc);
+
+  lbResult.Items.Insert(4, '[Tables]');
+
+end;
+
+procedure TFrmMain.btnConnectClick(Sender: TObject);
+begin
+
+  try
+
+    LogINFO('Executable Path: ' + Application.ExeName);
+
+    LoadDbConnectPropsFromIni();
+
+    LogINFO('Button Connect is Pressed!');
+
+    con_Firebird.Connected := True;
+
+    LogINFO('SQL Connection is Connected!');
+
+    // ATTN: No Query loaded at startup!!!
+    {
+    qry_Top.Active := True;
+
+    LogINFO('SQL Query is Active!');
+
+    cds_Top.Active := True;
+
+    LogINFO('Client DataSet is Active!');
+
+    sds_Bottom.Active := True;
+
+    LogINFO('Simple DataSet is Active!');
+    }
+
+    btnConnect.Enabled := False;
+
+    btnGetMetadata.Enabled := True;
+
+    btnGetMetadata.Click();
+
+  except
+    on exc : Exception do
+    begin
+      LogERROR(exc);
+      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
 
 end;
 
@@ -203,23 +400,25 @@ begin
       raise Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
     end;
 
-    con_Employee.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
+    con_Firebird.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
 
-    if con_Employee.Params.Values['Database'].Length = 0 then
+    if con_Firebird.Params.Values['Database'].Length = 0 then
     begin
       raise Exception.Create('No "' + sINI_VAL_DBCON_DB + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
     end;
 
-    con_Employee.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
-    con_Employee.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
+    self.Caption := self.Caption + ' - ' + con_Firebird.Params.Values['Database'];
 
-    if (con_Employee.Params.Values['User_Name'].Length > 0) and (con_Employee.Params.Values['Password'].Length > 0) then
+    con_Firebird.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
+    con_Firebird.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
+
+    if (con_Firebird.Params.Values['User_Name'].Length > 0) and (con_Firebird.Params.Values['Password'].Length > 0) then
     begin
-      con_Employee.LoginPrompt := False;
+      con_Firebird.LoginPrompt := False;
     end;
 
   finally
-    fIni.Free();
+    FreeAndNil(fIni);
   end;
 
 end;
