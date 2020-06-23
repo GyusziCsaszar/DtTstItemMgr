@@ -47,7 +47,7 @@ object FrmMain: TFrmMain
     Caption = 'Database Info:'
   end
   object btnConnect: TButton
-    Left = 120
+    Left = 63
     Top = 56
     Width = 100
     Height = 32
@@ -214,16 +214,16 @@ object FrmMain: TFrmMain
     TabOrder = 15
     Text = '<none>'
   end
-  object btnInitDtTstDb: TButton
+  object btnCrePrdTbls: TButton
     Left = 8
     Top = 94
     Width = 273
     Height = 31
-    Caption = 'Create Database Tables for Product "DtTstItemMgr"'
+    Caption = 'Create Product Tables'
     Enabled = False
     TabOrder = 16
     WordWrap = True
-    OnClick = btnInitDtTstDbClick
+    OnClick = btnCrePrdTblsClick
   end
   object chbServerCharsetUtf8: TCheckBox
     Left = 16
@@ -234,8 +234,8 @@ object FrmMain: TFrmMain
     TabOrder = 17
   end
   object chbDoDbUpdate: TCheckBox
-    Left = 17
-    Top = 62
+    Left = 179
+    Top = 63
     Width = 97
     Height = 17
     Caption = 'Do DB Update'
@@ -244,7 +244,7 @@ object FrmMain: TFrmMain
     TabOrder = 18
   end
   object btnIsql: TButton
-    Left = 236
+    Left = 8
     Top = 56
     Width = 45
     Height = 17
@@ -259,7 +259,7 @@ object FrmMain: TFrmMain
     OnClick = btnIsqlClick
   end
   object chbIsqlVisible: TCheckBox
-    Left = 236
+    Left = 8
     Top = 73
     Width = 49
     Height = 18
@@ -373,6 +373,17 @@ object FrmMain: TFrmMain
     Caption = 'Open...'
     TabOrder = 29
     OnClick = btnDbOpenClick
+  end
+  object btnDrpCol: TButton
+    Left = 93
+    Top = 551
+    Width = 75
+    Height = 25
+    Anchors = [akLeft, akBottom]
+    Caption = 'Drop Column'
+    Enabled = False
+    TabOrder = 30
+    OnClick = btnDrpColClick
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'

@@ -71,10 +71,10 @@ type
 
     function FIXOBJNAME(sTable: string) : string;
 
-    procedure USR_SelectGenerators(asResult: TStringList);
-    procedure USR_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+    procedure Select_Generators(asResult: TStringList);
+    procedure Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean);
 
-    procedure USR_Update(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
+    procedure ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
     procedure ADM_DoDbUpdates(frmPrs: TFrmProgress);
     function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean; virtual;
@@ -87,8 +87,12 @@ type
 
     procedure ADM_UpdateOrInsert_NewTable(oCon: TSQLConnection {nil = DO Transaction}; sTable: string);
 
+    procedure ADM_Increment_DBINFO_VER_PRD(oCon: TSQLConnection {nil = DO Transaction});
+    procedure ADM_Update_DBINFO_VER_PRD(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
+
     procedure ADM_Increment_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction});
     procedure ADM_Update_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
+
     procedure ADM_AlterTable_DBINFO_AddProductVersion(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
     procedure ADM_CreateTable_DBINFO(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 
@@ -100,6 +104,8 @@ type
     procedure META_CreateGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
     procedure META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+
+    procedure META_DropTableColumn(sTableName, sColumnName: string);
 
     procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
     procedure META_DropTable(sTable: string);
@@ -424,7 +430,7 @@ begin
 
 end;
 
-procedure TDtTstDb.USR_SelectGenerators(asResult: TStringList);
+procedure TDtTstDb.Select_Generators(asResult: TStringList);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -469,7 +475,7 @@ begin
   end;
 end;
 
-procedure TDtTstDb.USR_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+procedure TDtTstDb.Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -578,7 +584,7 @@ begin
   end;
 end;
 
-procedure TDtTstDb.USR_Update(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
+procedure TDtTstDb.ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 var
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
@@ -676,6 +682,11 @@ begin
     //if ADM_DbInfVersion < ciDB_VERSION then
     begin
 
+      if Assigned(frmPrs) and (ADM_DbInfVersion_ADM < 101) then
+      begin
+        frmPrs.SetProgressMinMax(ADM_DbInfVersion_ADM, ciDB_VERSION_ADM);
+      end;
+
       case ADM_DbInfVersion_ADM of
 
          -1,
@@ -720,6 +731,13 @@ begin
 
           if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion_ADM);
           if Assigned(frmPrs) then Application.ProcessMessages;
+
+        end;
+
+        else begin
+
+          raise Exception.Create('Current Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
+                 ') is UNKNOWN!');
 
         end;
 
@@ -1013,7 +1031,7 @@ begin
                                         FIXOBJNAME(csDB_TBL_ADM_TABLES) +
                                         '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
                                         ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
-                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = (SELECT current_timestamp FROM RDB$DATABASE);' + CHR(13) + CHR(10) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
                                         ' END!!',
                                         '!!');
 
@@ -1053,7 +1071,7 @@ begin
     ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_ADM_USERS);
 
     // NOTE: Updating to original (???) creation timestamp...
-    USR_Update(m_oCon {nil = DO Transaction}, 'UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) +
+    ExecuteSQL(m_oCon {nil = DO Transaction}, 'UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) +
                ' SET ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
                ' = (SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' FROM ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
                ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1)' +
@@ -1198,7 +1216,7 @@ begin
                                         FIXOBJNAME(csDB_TBL_ADM_USERS) +
                                         '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
                                         ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
-                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = (SELECT current_timestamp FROM RDB$DATABASE);' + CHR(13) + CHR(10) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
                                         ' END!!',
                                         '!!');
 
@@ -1290,6 +1308,63 @@ begin
     }
 
     oQry.Params.ParamByName('TNM').AsString   := sTable;
+
+    //oQry.Prepared := True;
+
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      oQry.ExecSQL(False);
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.ADM_Increment_DBINFO_VER_PRD(oCon: TSQLConnection {nil = DO Transaction});
+begin
+  ADM_Update_DBINFO_VER_PRD( oCon {nil = DO Transaction}, m_iADM_DbInfVersion_PRD + 1);
+  m_iADM_DbInfVersion_PRD := m_iADM_DbInfVersion_PRD + 1;
+end;
+
+procedure TDtTstDb.ADM_Update_DBINFO_VER_PRD(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
+var
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL('UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+                 ' SET ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD_VER) +
+                 ' = :PRDVER' +
+                 ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1' ));
+
+    oQry.Params.ParamByName('PRDVER').AsInteger  := iVersion;
 
     //oQry.Prepared := True;
 
@@ -1639,6 +1714,23 @@ begin
   finally
     FreeAndNil(oIdx);
   end;
+end;
+
+procedure TDtTstDb.META_DropTableColumn(sTableName, sColumnName: string);
+var
+  oProvider: TDBXDataExpressMetaDataProvider;
+begin
+
+  oProvider := META_GetProvider(m_oCon.DBXConnection);
+  try
+
+    oProvider.Execute(m_oLog.LogSQL('ALTER TABLE ' + FIXOBJNAME(sTableName) +
+      ' DROP ' + FIXOBJNAME(sColumnName) + ';'));
+
+  finally
+    FreeAndNil(oProvider);
+  end;
+
 end;
 
 procedure TDtTstDb.META_DropTable(sTable: string);

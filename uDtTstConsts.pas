@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 116;
-  csVERSION_TITLE       = 'v1.16';
+  ciVERSION             = 117;
+  csVERSION_TITLE       = 'v1.17';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -42,7 +42,7 @@ const
   { Firebird }
   csISQL_FILE_IN              = '_Isql_IN.sql';
   csISQL_FILE_OUT             = '_Isql_OUT.txt';
-  csISQL_SUCCESS              = 'ISQL_OK';
+  csISQL_SUCCESS              = 'ISQL_EXEC_OK';
   csFBRD_DBFILE_FILTER        = 'Firebird Database Files (*.FDB)|*.fdb';
 
   { Database - SAMPLE }
@@ -57,6 +57,8 @@ const
   csDB_FLD_ADM_X_ID           = 'ID';
   csDB_FLD_ADM_X_USRCRE       = 'admCreUsr';
   csDB_FLD_ADM_X_TSPCRE       = 'admCreTsp';
+  csDB_FLD_ADM_X_USRUPD       = 'admUpdUsr';
+  csDB_FLD_ADM_X_TSPUPD       = 'admUpdTsp';
   // ------------------------------------
   csDB_TBL_ADM_DBINF          = 'admDbInfo';
   csDB_FLD_ADM_DBINF_VER      = 'Version';
@@ -71,6 +73,11 @@ const
   csDB_FLD_ADM_TABLES_NAME    = 'TableName';
 
   { Database - Product ItemMgr }
+//ciDB_VERSION_PRD            = 100;
+  ciDB_VERSION_PRD            = 101; // CRE usrItemType
+  // ------------------------------------
+  csDB_TBL_USR_ITEMTYPE       = 'usrItemType';
+  csDB_FLD_USR_ITEMTYPE_NAME  = 'Name';
 
 implementation
 
