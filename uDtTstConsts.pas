@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 125;
-  csVERSION_TITLE       = 'v1.25';
+  ciVERSION             = 126;
+  csVERSION_TITLE       = 'v1.26';
 
   { App - Strings }
   csITEM                = 'ITEM';
@@ -30,21 +30,24 @@ const
   // --------------------------------
   ccMnuGrpID_Database          = '1';
   //
-  ccMnuItmID_Table             = '2';
-  ccMnuItmID_Table_Column      = '3';
-  ccMnuItmID_Table_Trigger     = '4';
-  ccMnuItmID_Table_Constraint  = '5';
-  ccMnuItmID_Query             = '6';
+  ccMnuItmID_View              = '2';
+  ccMnuItmID_Table             = '3';
+  ccMnuItmID_Table_Column      = '4';
+  ccMnuItmID_Table_Trigger     = '5';
+  ccMnuItmID_Table_Constraint  = '6';
+  ccMnuItmID_Query             = '7';
   // --------------------------------
   ccMnuBtnID_Refresh           = '1';
   ccMnuBtnID_Details           = '2';
   ccMnuBtnID_Open              = '3';
   ccMnuBtnID_Import_Table      = '4';
-  ccMnuBtnID_Drop_Table        = '5';
-  ccMnuBtnID_Drop_Column       = '6';
+  ccMnuBtnID_Delete_From_Table = '5';
+  ccMnuBtnID_Drop_Table        = '6';
+  ccMnuBtnID_Drop_Column       = '7';
+  ccMnuBtnID_Drop_View         = '8';
   //
-  ccMnuBtnID_Import_Item_Type  = '7';
-  ccMnuBtnID_Import_Item       = '8';
+  ccMnuBtnID_Import_Item_Type  = '9';
+  ccMnuBtnID_Import_Item       = 'A';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -128,6 +131,8 @@ const
   csDB_FLD_USR_ITEMTYPE_NAME        = 'ItemType_Name';
   // ------------------------------------
   csDB_TBL_USR_ITEM                 = 'Item';
+  ciDB_FLD_USR_ITEM_ITEMNR_Length   = 10; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEM_ITEMNR          = 'Item_NR';
   ciDB_FLD_USR_ITEM_NAME_Length     = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEM_NAME            = 'Item_Name';
   csDB_FLD_USR_ITEM_ITEMTYPE_ID     = 'ItemType_ID';

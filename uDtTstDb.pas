@@ -80,8 +80,9 @@ type
     function TableExists(sTable: string) : Boolean;
     function GetTableCount() : integer;
 
-    function FIXOBJNAME(sTable: string) : string;
+    function FIXOBJNAME(sObj: string) : string;
 
+    procedure Select_Views(asResult: TStringList);
     procedure Select_Generators(asResult: TStringList);
 
     function Select_Constraints(bFKeysOnly: boolean; asNames, asInfos: TStringList; sTable, sConstraintName: string; bDecorate: Boolean) : Boolean;
@@ -116,6 +117,8 @@ type
 
     procedure META_CreateConstraint_ForeignKey(oProvider: TDBXDataExpressMetaDataProvider; sTable, sColumn, sTableForeign, sColumnForeign: string);
 
+    procedure META_CreateTrigger(sTableOrView, sTriggerName, sSql: string);
+
     procedure META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
     procedure META_CreateGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
@@ -125,8 +128,11 @@ type
 
     procedure META_DropTableColumn(sTableName, sColumnName: string);
 
-    procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
+    procedure META_After_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
     procedure META_DropTable(sTable: string);
+    procedure META_Before_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
+
+    procedure META_DropView(sView: string);
 
     procedure META_CreateTable_SAMPLE(const AConnection: TDBXConnection);
 
@@ -509,13 +515,56 @@ begin
 
 end;
 
-function TDtTstDb.FIXOBJNAME(sTable: string) : string;
+function TDtTstDb.FIXOBJNAME(sObj: string) : string;
 begin
 
-  Result := sTable.ToUpper();
+  Result := sObj.ToUpper();
 
   if Result = 'USER' then raise Exception.Create('Firebird Reserved Word: ' + Result);
 
+end;
+
+procedure TDtTstDb.Select_Views(asResult: TStringList);
+var
+  sSql: string;
+  oQry: TSQLQuery;
+begin
+
+  asResult.Clear();
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // SRC: http://www.firebirdfaq.org/faq174/
+    sSql := 'select rdb$relation_name as view_name from rdb$relations where rdb$view_blr is not null and (rdb$system_flag is null or rdb$system_flag = 0);';
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        asResult.Add(TRIM(oQry.FieldByName('view_name').AsString));
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
 end;
 
 procedure TDtTstDb.Select_Generators(asResult: TStringList);
@@ -1187,7 +1236,7 @@ begin
   Result := True; // Indicates that Database is Up-To-Date!!!
 end;
 
-procedure TDtTstDb.META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
+procedure TDtTstDb.META_After_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
 begin
 
   if FIXOBJNAME(sTable) = FIXOBJNAME(csDB_TBL_ADM_USERS) then
@@ -1214,6 +1263,13 @@ begin
     ADM_Update_DBINFO_VER_ADM(nil {nil = DO Transaction}, 101);
 
   end;
+
+end;
+
+procedure TDtTstDb.META_Before_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
+begin
+
+  //NOP...
 
 end;
 
@@ -1433,6 +1489,10 @@ begin
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
 
+    { Foreign Key }
+
+    // NONE...
+
     { Generator }
 
     if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_ADM_TABLES +  '_' + csDB_FLD_ADM_X_ID);
@@ -1489,6 +1549,10 @@ begin
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { VIEWS }
+
+  // NONE...
 
   { ROWS }
 
@@ -1570,6 +1634,10 @@ begin
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Foreign Key }
+
+    // NONE...
 
     { Generator }
 
@@ -1674,6 +1742,10 @@ begin
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { VIEWS }
+
+  // NONE...
 
   { ROWS }
 
@@ -1907,6 +1979,10 @@ begin
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
 
+    { Foreign Key }
+
+    // NONE...
+
     { Generator }
 
     // NONE...
@@ -1920,6 +1996,10 @@ begin
   end;
 
   { Indices }
+
+  // NONE...
+
+  { VIEWS }
 
   // NONE...
 
@@ -2153,6 +2233,35 @@ begin
 
 end;
 
+procedure TDtTstDb.META_CreateTrigger(sTableOrView, sTriggerName, sSql: string);
+var
+  sOutput: string;
+begin
+
+  sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                          IsqlPathChecked,
+                          ConnectString,
+                          ConnectUser, ConnectPassword,
+                          True {bGetOutput},
+                          (IsqlOptions = 1) {bVisible},
+                          'CREATE TRIGGER ' + FIXOBJNAME(sTriggerName) + ' FOR '
+                          + FIXOBJNAME(sTableOrView) + CHR(13) + CHR(10) +
+                          sSql + '!!',
+                          '!!');
+
+  if not ContainsText(sOutput, csISQL_SUCCESS) then
+  begin
+    raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+  end;
+
+  // ATTN!!! Syntax error could be only cathed this way!!!
+  if not Select_Triggers(nil {asNames}, nil {asInfos}, sTableOrView, sTriggerName, False {bDecorate}, False {bFull}) then
+  begin
+    raise Exception.Create('ERROR: Triggier "' + FIXOBJNAME(sTriggerName) + '" does not exist just after its Creation!');
+  end;
+
+end;
+
 procedure TDtTstDb.META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 begin
 
@@ -2269,18 +2378,36 @@ begin
   oProvider := META_GetProvider(m_oCon.DBXConnection);
   try
 
+    META_Before_DropTable(oProvider, sTable);
+
     // ATTN: Indices of a Table will be dropped along with the table!!!
     //if oProvider.DropIndex('tblname', 'idxname') then
     //begin
 
-      if not oProvider.DropTable('', sTable) then
-      begin
-        raise Exception.Create('Unable to drop table ' + sTable + '!');
-      end;
+    if not oProvider.DropTable('', sTable) then
+    begin
+      raise Exception.Create('Unable to drop table ' + sTable + '!');
+    end;
 
     //end;
 
-    META_AfterDrop(oProvider, sTable);
+    META_After_DropTable(oProvider, sTable);
+
+  finally
+    FreeAndNil(oProvider);
+  end;
+
+end;
+
+procedure TDtTstDb.META_DropView(sView: string);
+var
+  oProvider: TDBXDataExpressMetaDataProvider;
+begin
+
+  oProvider := META_GetProvider(m_oCon.DBXConnection);
+  try
+
+    oProvider.Execute( m_oLog.LogSQL('DROP VIEW ' + FIXOBJNAME(sView) + ';'));
 
   finally
     FreeAndNil(oProvider);

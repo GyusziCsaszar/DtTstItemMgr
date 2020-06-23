@@ -45,16 +45,16 @@ object FrmDataImport: TFrmDataImport
       430)
     object grpTbl: TGroupBox
       Left = 12
-      Top = 236
+      Top = 207
       Width = 733
-      Height = 150
+      Height = 179
       Anchors = [akLeft, akRight, akBottom]
       Caption = 'Database Table'
       TabOrder = 0
       Visible = False
       DesignSize = (
         733
-        150)
+        179)
       object lblTblNm: TLabel
         Left = 16
         Top = 24
@@ -70,7 +70,7 @@ object FrmDataImport: TFrmDataImport
         Caption = 'Column:'
       end
       object lblTblCsvCol: TLabel
-        Left = 389
+        Left = 367
         Top = 24
         Width = 61
         Height = 13
@@ -88,25 +88,24 @@ object FrmDataImport: TFrmDataImport
       object cbbTblCol: TComboBox
         Left = 223
         Top = 21
-        Width = 145
+        Width = 130
         Height = 21
         Style = csDropDownList
         TabOrder = 1
       end
       object cbbTblCsvCol: TComboBox
-        Left = 456
+        Left = 433
         Top = 21
-        Width = 145
+        Width = 129
         Height = 21
         Style = csDropDownList
         TabOrder = 2
       end
       object btnTblColAdd: TButton
-        Left = 642
+        Left = 584
         Top = 19
-        Width = 75
+        Width = 55
         Height = 25
-        Anchors = [akTop, akRight]
         Caption = 'Add'
         TabOrder = 3
         OnClick = btnTblColAddClick
@@ -115,24 +114,34 @@ object FrmDataImport: TFrmDataImport
         Left = 16
         Top = 56
         Width = 701
-        Height = 80
+        Height = 109
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
         FixedCols = 0
         RowCount = 1
         FixedRows = 0
         TabOrder = 4
+        ExplicitHeight = 80
         ColWidths = (
           64)
         RowHeights = (
           24)
+      end
+      object btnTblColReset: TButton
+        Left = 658
+        Top = 19
+        Width = 59
+        Height = 25
+        Caption = 'Clear'
+        TabOrder = 5
+        OnClick = btnTblColResetClick
       end
     end
     object grpCsv: TGroupBox
       Left = 12
       Top = 13
       Width = 733
-      Height = 217
+      Height = 188
       Anchors = [akLeft, akTop, akRight, akBottom]
       Caption = 'CSV file:'
       ParentBackground = False
@@ -140,7 +149,7 @@ object FrmDataImport: TFrmDataImport
       TabOrder = 1
       DesignSize = (
         733
-        217)
+        188)
       object lblCsvPath: TLabel
         Left = 16
         Top = 24
@@ -202,13 +211,14 @@ object FrmDataImport: TFrmDataImport
         Left = 16
         Top = 80
         Width = 701
-        Height = 120
+        Height = 91
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
         FixedCols = 0
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
+        ExplicitHeight = 120
         ColWidths = (
           64)
         RowHeights = (

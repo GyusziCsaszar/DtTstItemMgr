@@ -38,6 +38,7 @@ type
     btnClose: TButton;
     btnTblColAdd: TButton;
     sgrdDef: TStringGrid;
+    btnTblColReset: TButton;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -51,11 +52,12 @@ type
     procedure btnTblColAddClick(Sender: TObject);
     procedure btnPreCheckClick(Sender: TObject);
     procedure btnImportClick(Sender: TObject);
+    procedure btnTblColResetClick(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
 
-    m_sTable: string;
+    m_sTableOrView: string;
 
     m_asColInfos: TStringList;
 
@@ -83,7 +85,7 @@ type
     constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
-    procedure Init(sCaption, sTable: string; asCols, asColInfos: TStringList);
+    procedure Init(sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 
   end;
 
@@ -112,7 +114,7 @@ begin
 
   m_cDelimCSV := ';';
 
-  m_sTable := '';
+  m_sTableOrView := '';
 
   m_asColInfos := TStringList.Create();
 
@@ -147,21 +149,27 @@ begin
 
   ClearPreview();
 
+  // Registry...
   edCsvPath.Text := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', 'CSVPath', '');
+
+  if not TEdit_Text(edCsvPath).IsEmpty() then
+  begin
+    btnCsvPreview.Click();
+  end;
 
 end;
 
-procedure TFrmDataImport.Init(sCaption, sTable: string; asCols, asColInfos: TStringList);
+procedure TFrmDataImport.Init(sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 begin
 
-  m_sTable := sTable;
+  m_sTableOrView := sTableOrView;
 
   m_asColInfos.Clear();
   if Assigned(asColInfos) then m_asColInfos.AddStrings(asColInfos);
 
   lblCaption.Caption := 'Importing from CSV File into table ' + sCaption;
 
-  edTblNm.Text := m_sTable;
+  edTblNm.Text := m_sTableOrView;
 
   cbbTblCol.Items.AddStrings(asCols);
 
@@ -259,10 +267,30 @@ begin
   end;
 end;
 
+procedure TFrmDataImport.btnTblColResetClick(Sender: TObject);
+begin
+
+  if (sgrdDef.RowCount = 1) and (sgrdDef.ColCount = 1) then Exit;
+
+  if QuestionMsgDlg('Do you want to Clear Import Definition?') then
+  begin
+
+    sgrdDef.RowCount := 1;
+    sgrdDef.ColCount := 1;
+    sgrdDef.Cells[0, 0] := 'N/A';
+
+    btnPreCheck.Enabled := False;
+    btnImport  .Enabled := False;
+
+  end;
+
+end;
+
 procedure TFrmDataImport.btnTblColAddClick(Sender: TObject);
 var
   asParts, asType: TStringList;
   sInfo: string;
+  iRow: Integer;
 begin
 
   asParts := TStringList.Create();
@@ -279,6 +307,24 @@ begin
     begin
       WarningMsgDlg('Select CSV Column!');
       Exit;
+    end;
+
+    for iRow := 1 to sgrdDef.RowCount - 1 do
+    begin
+      if sgrdDef.Cells[0, iRow] = cbbTblCol.Text then
+      begin
+        WarningMsgDlg('Table Column "' + cbbTblCol.Text + '" already added!');
+        Exit;
+      end;
+    end;
+
+    for iRow := 1 to sgrdDef.RowCount - 1 do
+    begin
+      if sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] = cbbTblCsvCol.Text then
+      begin
+        WarningMsgDlg('CSV Column "' + cbbTblCsvCol.Text + '" already added!');
+        Exit;
+      end;
     end;
 
     if cbbTblCol.ItemIndex < m_asColInfos.Count then
@@ -355,6 +401,9 @@ begin
     sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, sgrdDef.RowCount - 1] := asParts[2];
     sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull] := Max(sgrd.ColWidths[ciSGrdDef_ColIdx_DbNull],
         Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, sgrdDef.RowCount - 1]).cx + 10 );
+
+    cbbTblCol.ItemIndex := -1;
+    cbbTblCsvCol.ItemIndex := -1;
 
   finally
     FreeAndNil(asParts);
@@ -896,7 +945,7 @@ begin
 
           try
 
-            dbSql.InsertOrUpdate(m_sTable, asTblCols, asCsvVals);
+            dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
 
           except
             on exc : Exception do

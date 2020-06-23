@@ -21,7 +21,8 @@ type
 
     procedure ADM_CreateTable_ITEMTYPE(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 
-    procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); override;
+    procedure META_After_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); override;
+    procedure META_Before_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); override;
   end;
 
 implementation
@@ -164,10 +165,10 @@ begin
   Result := True; // Indicates that Database is Up-To-Date!!!
 end;
 
-procedure TDtTstDbItemMgr.META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string);
+procedure TDtTstDbItemMgr.META_After_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string);
 begin
 
-  inherited META_AfterDrop(oProvider, sTable);
+  inherited META_After_DropTable(oProvider, sTable);
 
   if FIXOBJNAME(sTable) = FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) then
   begin
@@ -196,12 +197,27 @@ begin
 
 end;
 
+procedure TDtTstDbItemMgr.META_Before_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string);
+begin
+
+  if FIXOBJNAME(sTable) = FIXOBJNAME(csDB_TBL_USR_ITEM) then
+  begin
+
+    //META_DropView('V_' + csDB_TBL_USR_ITEM);
+
+    oProvider.Execute( m_oLog.LogSQL('DROP VIEW ' + 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ';'));
+
+  end;
+
+  inherited META_Before_DropTable(oProvider, sTable);
+
+end;
+
 procedure TDtTstDbItemMgr.ADM_CreateTable_ITEM(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 var
   oTable: TDBXMetaDataTable;
   oFKey: TDBXMetaDataForeignKey;
   oTD: TTransactionDesc;
-  sOutput: string;
 begin
 
   oTable := TDBXMetaDataTable.Create;
@@ -223,6 +239,8 @@ begin
     META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPUPD         , False {bNullable});
 
     META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID             , False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEM_ITEMNR      , False {bNullable},  ciDB_FLD_USR_ITEM_ITEMNR_Length);
 
     META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEM_NAME        , False {bNullable},  ciDB_FLD_USR_ITEM_NAME_Length);
 
@@ -260,47 +278,30 @@ begin
     if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_USR_ITEM + '_BI');
     if Assigned(frmPrs) then Application.ProcessMessages;
 
-    sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                            IsqlPathChecked,
-                            ConnectString,
-                            ConnectUser, ConnectPassword,
-                            True {bGetOutput},
-                            (IsqlOptions = 1) {bVisible},
-                            'CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
-                                        ' ACTIVE BEFORE INSERT OR UPDATE' + CHR(13) + CHR(10) +
-                                        ' POSITION 0' + CHR(13) + CHR(10) +
-                                        ' AS' + CHR(13) + CHR(10) +
-                                        ' BEGIN' + CHR(13) + CHR(10) +
-                                        { INSERTING - ID }
-                                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
-                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
-                                        FIXOBJNAME(csDB_TBL_USR_ITEM) +
-                                        '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
-                                        { INSERTING - USRCRE, TSPCRE}
-                                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) +
-                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) + ' = current_user;' + CHR(13) + CHR(10) +
-                                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
-                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
-                                        { INSERTING OR UPDATING - USRUPD, TSPUPD }
-                                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
-                                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
-                                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
-                                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
-                                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
-                                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
-                                        ' END!!',
-                                        '!!');
-
-    if not ContainsText(sOutput, csISQL_SUCCESS) then
-    begin
-      raise Exception.Create('Isql returned error: "' + sOutput + '"!');
-    end;
-
-    // ATTN!!! Syntax error could be only cathed this way!!!
-    if not Select_Triggers(nil {asNames}, nil {asInfos}, csDB_TBL_USR_ITEM, csDB_TBL_USR_ITEM + '_BI', False {bDecorate}, False {bFull}) then
-    begin
-      raise Exception.Create('ERROR: Triggier "' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_BI' + '" does not exist just after its Creation!');
-    end;
+    META_CreateTrigger( FIXOBJNAME(csDB_TBL_USR_ITEM),
+                        FIXOBJNAME(csDB_TBL_USR_ITEM) + '_BI',
+                        ' ACTIVE BEFORE INSERT OR UPDATE' + CHR(13) + CHR(10) +
+                        ' POSITION 0' + CHR(13) + CHR(10) +
+                        ' AS' + CHR(13) + CHR(10) +
+                        ' BEGIN' + CHR(13) + CHR(10) +
+                        { INSERTING - ID }
+                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
+                        FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                        '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
+                        { INSERTING - USRCRE, TSPCRE}
+                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) +
+                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) + ' = current_user;' + CHR(13) + CHR(10) +
+                        ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
+                        { INSERTING OR UPDATING - USRUPD, TSPUPD }
+                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
+                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
+                        ' END');
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
@@ -319,18 +320,141 @@ begin
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
 
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating UNIQUE index ' + csDB_TBL_USR_ITEM + '_' + csDB_FLD_USR_ITEM_NAME);
+  { ... }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating UNIQUE index ' + csDB_TBL_USR_ITEM + '_' + csDB_FLD_USR_ITEM_ITEMNR);
   if Assigned(frmPrs) then Application.ProcessMessages;
 
-  META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEM, csDB_FLD_USR_ITEM_NAME);
+  META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEM, csDB_FLD_USR_ITEM_ITEMNR);
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { ... }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating NON-Unique index ' + csDB_TBL_USR_ITEM + '_' + csDB_FLD_USR_ITEM_NAME);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  // FIX: A name allowed for more rows!!!
+//META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEM, csDB_FLD_USR_ITEM_NAME);
+  META_CreateIndex_NON_Unique(oProvider, csDB_TBL_USR_ITEM, csDB_FLD_USR_ITEM_NAME);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { ... }
 
   if Assigned(frmPrs) then frmPrs.AddStep('Creating NON-Unique index ' + csDB_TBL_USR_ITEM + '_' + csDB_FLD_USR_ITEM_ITEMTYPE_ID);
   if Assigned(frmPrs) then Application.ProcessMessages;
 
   META_CreateIndex_NON_Unique(oProvider, csDB_TBL_USR_ITEM, csDB_FLD_USR_ITEM_ITEMTYPE_ID);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { VIEWS }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating view ' + 'V_' + csDB_TBL_USR_ITEM);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  // BUG: Read-Only View!!!
+  {
+  oProvider.Execute(
+      m_oLog.LogSQL('CREATE VIEW ' + 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                    ' AS SELECT ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                       ', ' + 'B.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                       ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ' A' +
+                       ' LEFT JOIN ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + ' B' +
+                       '   ON (B.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) + ')' +
+                       ' ORDER BY ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME)) +
+                       ';');
+  }
+
+  // SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/read-only-and-updatable-views-7816.html
+  oProvider.Execute(
+      m_oLog.LogSQL('CREATE VIEW ' + 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                    ' AS SELECT ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                             ', ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                             ', ' + 'B.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                       ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ' A' +
+                           ', ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + ' B' +
+                       ' WHERE ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) + ' = ' + 'B.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                       ';'));
+
+  // SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/read-only-and-updatable-views-7816.html
+  {
+    CREATE TRIGGER  TableView_Delete FOR TableView
+    ACTIVE BEFORE DELETE AS
+    BEGIN
+    DELETE FROM Table1
+    WHERE ColA = OLD.ColA;
+    DELETE FROM Table2
+    WHERE ColA = OLD.ColA;
+    END
+  }
+
+  META_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
+                      'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_DELETE',
+                      ' ACTIVE BEFORE DELETE' + CHR(13) + CHR(10) +
+                    //' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      '   DELETE FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
+                      '   WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ';'  + CHR(13) + CHR(10) +
+                      ' END');
+
+  // SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/read-only-and-updatable-views-7816.html
+  {
+    CREATE TRIGGER  TableView_Update FOR TableView
+    ACTIVE BEFORE UPDATE AS
+    BEGIN
+    UPDATE Table1
+    SET ColB = NEW.ColB
+    WHERE ColA = OLD.ColA;
+    UPDATE Table2
+    SET ColC = NEW.ColC
+    WHERE ColA = OLD.ColA;
+    END
+  }
+
+  META_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
+                      'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_UPDATE',
+                      ' ACTIVE BEFORE UPDATE' + CHR(13) + CHR(10) +
+                    //' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      '   UPDATE ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
+                      '      SET ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME)   + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + CHR(13) + CHR(10) +
+                      '    WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ';'  + CHR(13) + CHR(10) +
+                      ' END');
+
+  // SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/read-only-and-updatable-views-7816.html
+  {
+    CREATE TRIGGER  TableView_Insert FOR TableView
+    ACTIVE BEFORE INSERT AS
+    BEGIN
+    INSERT INTO Table1 values  (NEW.ColA,NEW.ColB);
+    INSERT INTO Table2 values  (NEW.ColA,NEW.ColC);
+    END
+  }
+
+  META_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
+                      'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_INSERT',
+                      ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                    //' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ', '     + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + ')' +
+                      ';' + CHR(13) + CHR(10) +
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ')' +
+                      '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
+                      ';' + CHR(13) + CHR(10) +
+                      ' END');
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
@@ -401,6 +525,10 @@ begin
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Foreign Key }
+
+    // NONE...
 
     { Generator }
 
@@ -483,6 +611,10 @@ begin
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { VIEWS }
+
+  // NONE...
 
   { ROWS }
 

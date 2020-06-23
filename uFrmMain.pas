@@ -83,6 +83,9 @@ type
 
     procedure DoDropColumn(cID_Object: char; sCaption_Object: string);
     procedure DoDropTable(cID_Object: char; sCaption_Object: string);
+    procedure DoDropView(cID_Object: char; sCaption_Object: string);
+
+    procedure DoDeleteFromTable(cID_Object: char; sCaption_Object: string);
 
     procedure DoRefreshMetaData();
     procedure DoRefreshMetaData_PRODUCT();
@@ -204,6 +207,8 @@ begin
   chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
 
   tmrStart.Enabled := True;
+
+  chbMetadataTablesOnly.Visible := m_oApp.ADMIN_MODE;
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
 end;
@@ -648,7 +653,7 @@ begin
 
     Split('.', asParts[2], asTblCol);
 
-    if not QuestionMsgDlg('Do you want to really DROP column "' + asTblCol[1] + '" of table "' + asTblCol[0] + '"?') then
+    if not QuestionMsgDlg('Do you want to DROP column "' + asTblCol[1] + '" of table "' + asTblCol[0] + '"?') then
     begin
       Exit;
     end;
@@ -674,10 +679,33 @@ begin
   end;
 end;
 
+procedure TFrmMain.DoDeleteFromTable(cID_Object: char; sCaption_Object: string);
+begin
+
+  if not QuestionMsgDlg('Do you want to DELETE all ROWs of table "' + sCaption_Object + '"?') then
+  begin
+    Exit;
+  end;
+
+  try
+
+    m_oApp.DB.ExecuteSQL(nil {nil = DO Transaction}, 'DELETE FROM ' + m_oApp.DB.FIXOBJNAME(sCaption_Object) + ';');
+
+    InfoMsgDlg('You have DELETED all ROWs of table "' + sCaption_Object + '"!');
+  except
+    on exc : Exception do
+    begin
+      m_oApp.LOG.LogERROR(exc);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+end;
+
 procedure TFrmMain.DoDropTable(cID_Object: char; sCaption_Object: string);
 begin
 
-  if not QuestionMsgDlg('Do you want to really DROP table "' + sCaption_Object + '"?') then
+  if not QuestionMsgDlg('Do you want to DROP table "' + sCaption_Object + '"?') then
   begin
     Exit;
   end;
@@ -687,6 +715,30 @@ begin
     m_oApp.DB.META_DropTable(sCaption_Object);
 
     InfoMsgDlg('You have DROPPED table "' + sCaption_Object + '"!');
+  except
+    on exc : Exception do
+    begin
+      m_oApp.LOG.LogERROR(exc);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+  DoRefreshMetaData();
+end;
+
+procedure TFrmMain.DoDropView(cID_Object: char; sCaption_Object: string);
+begin
+
+  if not QuestionMsgDlg('Do you want to DROP view "' + sCaption_Object + '"?') then
+  begin
+    Exit;
+  end;
+
+  try
+
+    m_oApp.DB.META_DropView(sCaption_Object);
+
+    InfoMsgDlg('You have DROPPED view "' + sCaption_Object + '"!');
   except
     on exc : Exception do
     begin
@@ -881,6 +933,23 @@ begin
     finally
       FreeAndNil(asItems);
     end;
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuGRP('Views', 0));
+    asItems := TStringList.Create();
+    try
+
+      m_oApp.DB.Select_Views(asItems);
+
+      for sItem in asItems do
+      begin
+        iIdx := iIdx + 1;
+        lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_View, sItem, 0)); //MnuITM(sItem, 0));
+      end;
+    finally
+      FreeAndNil(asItems);
+    end;
+
   end
   else
   begin
@@ -950,7 +1019,8 @@ begin
                        ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 0));
     }
     lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                       'SELECT ' + csDB_FLD_USR_ITEM_NAME +
+                       'SELECT ' + csDB_FLD_USR_ITEM_ITEMNR +
+                            ', ' + csDB_FLD_USR_ITEM_NAME +
                             ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
                        ' FROM ' + csDB_TBL_USR_ITEM +
                        ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
@@ -1544,6 +1614,13 @@ begin
 
       end;
 
+      ccMnuItmID_View: begin
+
+        Menu_AddTask_Group(                               'Tasks (Admin)'       , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Drop_View          , 'DROP View'            );
+
+      end;
+
       ccMnuItmID_Table: begin
 
         Menu_AddTask_Group(                               'Tasks'               , 0 );
@@ -1551,6 +1628,7 @@ begin
         Menu_AddTask_Group(                               'Tasks (Import)'      , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Import_Table       , 'Import (CSV)'          );
         Menu_AddTask_Group(                               'Tasks (Admin)'       , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Delete_From_Table  , 'DELETE from Table'     );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Table         , 'DROP Table'            );
 
       end;
@@ -1641,6 +1719,14 @@ begin
         DoImportTable(sCaption_Object, sCaption_Object, nil);
       end;
 
+      ccMnuBtnID_Drop_View : begin
+        DoDropView(cID_Object, sCaption_Object);
+      end;
+
+      ccMnuBtnID_Delete_From_Table : begin
+        DoDeleteFromTable(cID_Object, sCaption_Object);
+      end;
+
       ccMnuBtnID_Drop_Table : begin
         DoDropTable(cID_Object, sCaption_Object);
       end;
@@ -1671,9 +1757,11 @@ begin
         Split('|', sCaption_Object, asParts);
 
         asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEM_ITEMNR);
         asCols.Add(csDB_FLD_USR_ITEM_NAME);
+        asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
 
-        DoImportTable(asParts[1], csDB_TBL_USR_ITEM, asCols);
+        DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
 
       end;
 
