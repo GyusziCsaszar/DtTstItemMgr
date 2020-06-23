@@ -525,6 +525,39 @@ begin
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
 
+  if Assigned(frmPrs) then frmPrs.AddStep('Update trigger ' + 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_DELETE');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_RE_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
+                      'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_DELETE',
+                      ' ACTIVE BEFORE DELETE' + CHR(13) + CHR(10) +
+                    //' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      '   DECLARE VARIABLE tmpID BIGINT;' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      ' FOR SELECT ' + 'A.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                            ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) + ' A' +
+                                ', ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ' B' +
+                            ' WHERE ' + 'A.' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID) + ' = ' + 'B.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                            '   AND ' + 'B.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = ' + 'OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ' INTO :tmpID' +
+                      ' DO' +
+                      ' BEGIN' +
+                      '   DELETE FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) +
+                              ' WHERE '  + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = :tmpID' +
+                      ';' +
+                    //'   SUSPEND;' +
+                      ' END' +
+                    //';' +
+                      CHR(13) + CHR(10) +
+                      '   DELETE FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
+                      '   WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ';'  + CHR(13) + CHR(10) +
+                      ' END');
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
   { ROWS }
 
   m_oCon.StartTransaction(oTD);
@@ -905,6 +938,26 @@ begin
                     //' POSITION 0' + CHR(13) + CHR(10) +
                       ' AS' + CHR(13) + CHR(10) +
                       ' BEGIN' + CHR(13) + CHR(10) +
+                      // BUG: ITEM_ITEMGROUP does not exist here!!!
+                      {
+                      '   DECLARE VARIABLE tmpID BIGINT;' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      ' FOR SELECT ' + 'A.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                            ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) + ' A' +
+                                ', ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ' B' +
+                            ' WHERE ' + 'A.' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID) + ' = ' + 'B.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                            '   AND ' + 'B.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = ' + 'OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ' INTO :tmpID' +
+                      ' DO' +
+                      ' BEGIN' +
+                      '   DELETE FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) +
+                              ' WHERE '  + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = :tmpID' +
+                      ';' +
+                    //'   SUSPEND;' +
+                      ' END' +
+                    //';' +
+                      CHR(13) + CHR(10) +
+                      }
                       '   DELETE FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
                       '   WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
                       ';'  + CHR(13) + CHR(10) +
@@ -929,12 +982,33 @@ begin
                       ' ACTIVE BEFORE UPDATE' + CHR(13) + CHR(10) +
                     //' POSITION 0' + CHR(13) + CHR(10) +
                       ' AS' + CHR(13) + CHR(10) +
+                      '   DECLARE VARIABLE tmpID BIGINT;' + CHR(13) + CHR(10) +
                       ' BEGIN' + CHR(13) + CHR(10) +
-                      '   UPDATE ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
-                      '      SET ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME)   + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME  ) + CHR(13) + CHR(10) +
-                      '        , ' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO)    + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO   ) + CHR(13) + CHR(10) +
-                      '    WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
-                      ';'  + CHR(13) + CHR(10) +
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
+                      ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + //CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ')' +
+                      '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
+                      '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :tmpID' +
+                       ';' + CHR(13) + CHR(10) +
+                      // BUG: Does not do Update!!!
+                      {
+                      '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', :tmpID' +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
+                      ';' + CHR(13) + CHR(10) +
+                      }
+                      '   UPDATE  ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                              ' SET '   + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) + ' = :tmpID' +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) +
+                              ' WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                      ';' + CHR(13) + CHR(10) +
                       ' END');
 
   // SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/read-only-and-updatable-views-7816.html
@@ -986,6 +1060,8 @@ begin
                       '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
                       '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :tmpID' +
                        ';' + CHR(13) + CHR(10) +
+                      // BUG: Does not do Update!!!
+                      {
                       '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
                               ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
                               ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
@@ -995,6 +1071,21 @@ begin
                                ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
                                ', :tmpID' +
                                ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
+                      ';' + CHR(13) + CHR(10) +
+                      }
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', :tmpID' +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
+                      ' MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                               ', ' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
                       ';' + CHR(13) + CHR(10) +
                       ' END');
 

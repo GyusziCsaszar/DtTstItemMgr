@@ -42,6 +42,9 @@ type
     btnIsqlExecSample: TButton;
     edTerm: TEdit;
     btnIsqlCreateDb: TButton;
+    btnIsqlCreateUser: TButton;
+    edNewUser: TEdit;
+    btnIsqlDropUser: TButton;
     procedure btnCloseClick(Sender: TObject);
     procedure btnLoginClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -59,6 +62,8 @@ type
     procedure btnSqlOpenClick(Sender: TObject);
     procedure lbLogDblClick(Sender: TObject);
     procedure btnIsqlCreateDbClick(Sender: TObject);
+    procedure btnIsqlCreateUserClick(Sender: TObject);
+    procedure btnIsqlDropUserClick(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
@@ -504,6 +509,53 @@ begin
   end;
 
   m_oApp.LOG.LogUI('btnIsqlCreateDbClick END');
+end;
+
+procedure TFrmFDB.btnIsqlCreateUserClick(Sender: TObject);
+var
+  sStatements, sTerm: string;
+begin
+  m_oApp.LOG.LogUI('TFrmFDB.btnIsqlCreateUserClick BEGIN');
+
+  sTerm := '!!';
+
+  sStatements := 'CREATE USER ' + edNewUser.Text + ' PASSWORD ''' + edPw.Text + '''' + sTerm;
+
+  sStatements := sStatements +
+    'EXECUTE BLOCK' +
+    ' AS' +
+    '   DECLARE VARIABLE tablename VARCHAR(32);' +
+    ' BEGIN' +
+    '   FOR SELECT rdb$relation_name' +
+    '   FROM rdb$relations' +
+    '   WHERE' +
+    //' rdb$view_blr IS NULL' +
+    //'   AND ' +
+    ' (rdb$system_flag IS NULL OR rdb$system_flag = 0)' +
+    '   INTO :tablename DO' +
+    '   BEGIN' +
+    '     EXECUTE STATEMENT (''GRANT ALL ON TABLE '' || :tablename || '' TO USER ' + edNewUser.Text + ''');' +
+    '   END' +
+    ' END' +
+    sTerm;
+
+  IsqlOpen(True {bConnectDB}, sStatements, sTerm, False {bChkIsqlResult});
+
+  m_oApp.LOG.LogUI('TFrmFDB.btnIsqlCreateUserClick END');
+end;
+
+procedure TFrmFDB.btnIsqlDropUserClick(Sender: TObject);
+var
+  sStatements, sTerm: string;
+begin
+  m_oApp.LOG.LogUI('TFrmFDB.btnIsqlDropUserClick BEGIN');
+
+  sTerm := '';
+  sStatements := 'DROP USER ' + edNewUser.Text + ';';
+
+  IsqlOpen(True {bConnectDB}, sStatements, sTerm, False {bChkIsqlResult});
+
+  m_oApp.LOG.LogUI('TFrmFDB.btnIsqlDropUserClick END');
 end;
 
 procedure TFrmFDB.btnIsqlShowDbClick(Sender: TObject);

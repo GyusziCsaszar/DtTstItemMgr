@@ -45,6 +45,11 @@ const
   ccMnuBtnID_Import_Item_v1    = 'M';
   ccMnuBtnID_Import_Item       = 'N';
   ccMnuBtnID_Import_Item_Group = 'O';
+  //
+  ccMnuBtnID_Edit_Item_Type    = 'P';
+  ccMnuBtnID_Edit_Item         = 'Q';
+  //
+  ccMnuBtnID_Assign_Item       = 'R';
 
 implementation
 

@@ -101,7 +101,7 @@ type
 
     procedure OpenSql(sTable, sSql: string);
 
-    procedure UpdateTree(sID: string);
+    procedure UpdateTree(sID, sTreeNode: string);
 
     procedure DoDbConnect();
 
@@ -114,6 +114,8 @@ type
     procedure DoRefreshMetaData(bTablesView: Boolean);
     procedure DoRefreshMetaData_PRODUCT(var iIdx: integer);
 
+    procedure DoEditTable(sAction, sCaption, sTable: string; asColsOverride, asColSources, asValues: TStringList;
+                        sWhere, sChangeTagTable: string; bKeyEditAllowed: Boolean);
     procedure DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
 
     procedure DoObjectsDblClick();
@@ -155,7 +157,7 @@ implementation
 
 uses
   { DtTst Units: } uDtTstConstsMenu, uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbSql, uDtTstDbItemMgr,
-  { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB,
+  { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB, uFrmDataEdit,
   System.IOUtils, StrUtils, Clipbrd;
 
 constructor TFrmMain.Create(AOwner: TComponent);
@@ -308,7 +310,7 @@ begin
   begin
 
     lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree ('');
+    UpdateTree ('', '');
 
   end;
 
@@ -508,80 +510,91 @@ begin
     end;
 
     lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString);
+    UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
 
-  end;
-  //else
+  end
+  else if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEMGROUP_NODE) <> nil) then
   begin
 
-    if not ((m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMNR) <> nil)) then
+    if db_grid_Bottom.Visible then
     begin
-      // TREE...
-      lblBottom.Caption := csITEM_ITEMGROUP;
-      UpdateTree ('');
+      db_grid_Bottom.Visible := False;
+      tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
+      tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+      lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
+      lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
 
-    bHasRel := False;
+    lblBottom.Caption := csITEM_ITEMGROUP;
+    UpdateTree ('', ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMGROUP_NODE).AsString);
 
-    iRelCnt := m_oApp.DB.GetINIRelCount();
-    for iRel := 0 to iRelCnt - 1 do
+  end
+  else
+  begin
+    // TREE...
+    lblBottom.Caption := csITEM_ITEMGROUP;
+    UpdateTree ('', '');
+  end;
+
+  bHasRel := False;
+
+  iRelCnt := m_oApp.DB.GetINIRelCount();
+  for iRel := 0 to iRelCnt - 1 do
+  begin
+    if m_oApp.DB.GetINIRel(iRel, sField, sDefault, sSql) then
     begin
-      if m_oApp.DB.GetINIRel(iRel, sField, sDefault, sSql) then
+
+      if ds_cds_Top.DataSet.FindField(sField) <> nil then
       begin
 
-        if ds_cds_Top.DataSet.FindField(sField) <> nil then
+        bHasRel := True;
+
+        if not db_grid_Bottom.Visible then
         begin
-
-          bHasRel := True;
-
-          if not db_grid_Bottom.Visible then
-          begin
-            lbLog.Height  := lbLog.Height  - m_iDbGrdBottom_HeightEx;
-            lbLog.Top     := lbLog.Top     + m_iDbGrdBottom_HeightEx;
-            tvTree.Height := tvTree.Height - m_iDbGrdBottom_HeightEx;
-            tvTree.Top    := tvTree.Top    + m_iDbGrdBottom_HeightEx;
-            db_grid_Bottom.Visible := True;
-          end;
-
-          sID := ds_cds_Top.DataSet.FieldByName(sField).AsString;
-
-          if sID.IsEmpty() then
-            sID := sDefault;
-
-          sds_Bottom.Active := False;
-
-          if sDefault.IsEmpty() then // Char!!!
-            sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', '''' + sID + '''')
-          else
-            sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', sID);
-
-          sds_Bottom.Active := True;
-
-          lblBottom.Caption := 'Details' + ' for ' + lblTop.Caption;
-
-          Break;
+          lbLog.Height  := lbLog.Height  - m_iDbGrdBottom_HeightEx;
+          lbLog.Top     := lbLog.Top     + m_iDbGrdBottom_HeightEx;
+          tvTree.Height := tvTree.Height - m_iDbGrdBottom_HeightEx;
+          tvTree.Top    := tvTree.Top    + m_iDbGrdBottom_HeightEx;
+          db_grid_Bottom.Visible := True;
         end;
 
-      end;
-    end;
+        sID := ds_cds_Top.DataSet.FieldByName(sField).AsString;
 
-    if not bHasRel then
+        if sID.IsEmpty() then
+          sID := sDefault;
+
+        sds_Bottom.Active := False;
+
+        if sDefault.IsEmpty() then // Char!!!
+          sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', '''' + sID + '''')
+        else
+          sds_Bottom.DataSet.CommandText := sSql.Replace(':ID', sID);
+
+        sds_Bottom.Active := True;
+
+        lblBottom.Caption := 'Details' + ' for ' + lblTop.Caption;
+
+        Break;
+      end;
+
+    end;
+  end;
+
+  if not bHasRel then
+  begin
+    if db_grid_Bottom.Visible then
     begin
-      if db_grid_Bottom.Visible then
-      begin
-        db_grid_Bottom.Visible := False;
-        tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
-        tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
-        lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
-        lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
-      end;
+      db_grid_Bottom.Visible := False;
+      tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
+      tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
+      lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
+      lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
-
   end;
 
 end;
 
-procedure TFrmMain.UpdateTree(sID: string);
+procedure TFrmMain.UpdateTree(sID, sTreeNode: string);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -604,6 +617,14 @@ begin
                    ' JOIN ' + csDB_TBL_USR_ITEM + ' C ON C.' + csDB_FLD_ADM_X_ID + ' = B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
                    ' WHERE B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID + ' = A.' + csDB_FLD_ADM_X_ID +
                      ' AND C.' + csDB_FLD_USR_ITEM_ITEMNR + ' = ''' + sID + ''') AS ItemCount' +
+                   ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+               ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+           ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+    end
+    else if not sTreeNode.IsEmpty() then
+    begin
+      sSql := 'SELECT ' +
+                   '(IIF(A.' + csDB_FLD_USR_ITEMGROUP_NODE + ' = ''' + sTreeNode + ''', 1, 0)) AS ItemCount' +
                    ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
                ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
            ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
@@ -1358,6 +1379,100 @@ begin
 
   end;
 
+end;
+
+procedure TFrmMain.DoEditTable(sAction, sCaption, sTable: string; asColsOverride, asColSources, asValues: TStringList;
+  sWhere, sChangeTagTable: string; bKeyEditAllowed: Boolean);
+var
+  asCols, asCols_InUse, asInfos, asTmp: TStringList;
+  sCol, sColReal: string;
+  frmEdt: TFrmDataEdit;
+begin
+
+  asCols       := TStringList.Create();
+  asInfos      := TStringList.Create();
+  asTmp        := TStringList.Create();
+  asCols_InUse := nil;
+  frmEdt := TFrmDataEdit.Create(self, m_oApp);
+  try
+
+    if Assigned(asColsOverride) then
+    begin
+      asCols_InUse := asColsOverride;
+
+      for sCol in asCols_InUse do
+      begin
+        asTmp.Clear();
+
+        sColReal := sCol;
+
+        { DB TREE }
+        if {EndsText not worked!} ContainsText(sCol, csDB_TREE_NODE) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_NODE, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_PARENT) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_PARENT, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_PATH) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_PATH, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_LEVEL) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_LEVEL, '', [rfReplaceAll]));
+        end;
+
+        if sColReal.IsEmpty() then
+        begin
+          if asInfos.Count = 0 then
+          begin
+            raise Exception.Create('ERROR: No DB Info available for column "' + sCol + '"! No DB Info to copy!');
+          end;
+
+          // ATTN: Copy DB Info of previous column!!!
+          asInfos.Add(asInfos[asInfos.Count - 1]);
+
+        end
+        else
+        begin
+
+          if m_oApp.DB.Select_Fields(nil {asNames}, asTmp, sTable, sColReal, False {bDecorate}) then
+            asInfos.Add(asTmp[0])
+          else
+            asInfos.Add(''); // ERROR...
+
+        end;
+      end;
+
+    end
+    else
+    begin
+
+      //con_Firebird.GetFieldNames(sTable, asCols);
+
+      m_oApp.DB.Select_Fields(asCols {asNames}, asInfos, sTable, '' {sFieldName}, False {bDecorate});
+
+      asCols_InUse := asCols;
+    end;
+
+    frmEdt.Init(sAction, sCaption, sTable, asCols_InUse, asInfos, asColSources, asValues, sWhere, sChangeTagTable, bKeyEditAllowed);
+
+    FreeAndNil(asCols);
+    FreeAndNil(asInfos);
+
+    frmEdt.ShowModal();
+
+    DoObjectsDblClick();
+
+  finally
+    FreeAndNil(asCols);
+    //FreeAndNil(asCols_InUse); //DO NOT!!!
+    FreeAndNil(asInfos);
+    FreeAndNil(asTmp);
+    FreeAndNil(frmEdt);
+  end;
 end;
 
 procedure TFrmMain.DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
@@ -2143,17 +2258,17 @@ begin
 
     bKnown := True;
 
-    Menu_AddTask_Group(                               'DB Grid'             , 0 );
+    Menu_AddTask_Group(                               'Browse'                , 0 );
 
     if (cID = ccMnuItmID_Table) or (cID = ccMnuItmID_View) or (cID = ccMnuItmID_Query)  then
-      Menu_AddTask_Button(ccMnuBtnID_Open             , 'Open'                  );
+      Menu_AddTask_Button(ccMnuBtnID_Open             , 'Open'                    );
 
-    Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'               );
+    Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'                 );
 
     if m_oApp.ADMIN_MODE then
     begin
 
-      Menu_AddTask_Group(                               'DB Grid (Edit)'      , 0 );
+      Menu_AddTask_Group(                               'Browse (Edit)'       , 0 );
       Menu_AddTask_Button(ccMnuBtnID_GrdInsert          , 'Insert'                );
       Menu_AddTask_Button(ccMnuBtnID_GrdDelete          , 'Delete'                );
 
@@ -2185,16 +2300,16 @@ begin
 
       ccMnuItmID_View: begin
 
-        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
-        Menu_AddTask_Button(ccMnuBtnID_Drop_View          , 'DROP View'            );
+        Menu_AddTask_Group(                               'Caution!!!'          , 0 );
+        Menu_AddTask_Button(ccMnuBtnID_Drop_View          , 'DROP View'             );
 
       end;
 
       ccMnuItmID_Table: begin
 
-        Menu_AddTask_Group(                               'Import'              , 1 );
+        Menu_AddTask_Group(                               'Import'              , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Import_Table       , 'Import (CSV)'          );
-        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
+        Menu_AddTask_Group(                               'Caution!!!'          , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Delete_From_Table  , 'DELETE from Table'     );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Table         , 'DROP Table'            );
 
@@ -2204,7 +2319,7 @@ begin
 
         Menu_AddTask_Group(                               'View'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
-        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
+        Menu_AddTask_Group(                               'Caution!!!'          , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Column        , 'DROP Column'           );
 
       end;
@@ -2227,22 +2342,33 @@ begin
 
         if asParts[1] = csITEM_TYPE then
         begin
-          Menu_AddTask_Group(                             'Import'              , 1 );
+          Menu_AddTask_Group(                             'Edit'                , 0 );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item_Type   , csINSERT                );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item_Type   , csUPDATE                );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item_Type   , csDELETE                );
+          Menu_AddTask_Group(                             'Import'              , 0 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item_Type , 'Import (CSV)'          );
         end
         else if asParts[1] = csITEM + ' (View #1)' then
         begin
-          Menu_AddTask_Group(                             'Import'              , 1 );
-          Menu_AddTask_Button(ccMnuBtnID_Import_Item_v1      , 'Import (CSV)'          );
+          Menu_AddTask_Group(                             'Import'              , 0 );
+          Menu_AddTask_Button(ccMnuBtnID_Import_Item_v1      , 'Import (CSV)'       );
         end
         else if asParts[1] = csITEM then
         begin
-          Menu_AddTask_Group(                             'Import'              , 1 );
+          Menu_AddTask_Group(                             'Edit'                , 0 );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item        , csINSERT                );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item        , csUPDATE                );
+          Menu_AddTask_Button(ccMnuBtnID_Edit_Item        , csDELETE                );
+          Menu_AddTask_Group(                             csITEM_GROUP + ' Assignment' , 0 );
+          Menu_AddTask_Button(ccMnuBtnID_Assign_Item        , csADD                );
+          Menu_AddTask_Button(ccMnuBtnID_Assign_Item        , csREMOVE                );
+          Menu_AddTask_Group(                             'Import'              , 0 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item      , 'Import (CSV)'          );
         end
         else if asParts[1] = csITEM_GROUP then
         begin
-          Menu_AddTask_Group(                             'Import'              , 1 );
+          Menu_AddTask_Group(                             'Import'              , 0 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item_Group, 'Import (CSV)'          );
         end;
 
@@ -2274,7 +2400,11 @@ procedure TFrmMain.DoTasksClick();
 var
   cID_Task, cID_Object: char;
   sCaption_Task, sCaption_Object: string;
-  asParts, asCols: TStringList;
+  asParts, asCols, asColSources, asValues: TStringList;
+  bEdit: Boolean;
+  sWhere, sChangeTagTable: string;
+  bKeyEditAllowed: Boolean;
+  sSql: string;
 begin
 
   if lbTasks.ItemIndex < 0 then Exit;
@@ -2283,8 +2413,12 @@ begin
   if lbObjects.ItemIndex < 0 then Exit;
   Menu_ExtractItem(lbObjects.Items[lbObjects.ItemIndex], cID_Object, sCaption_Object);
 
-  asParts := nil;
-  asCols  := nil;
+  asParts         := nil;
+  asCols          := nil;
+  asColSources    := nil;
+  asValues        := nil;
+  sWhere          := '';
+  bKeyEditAllowed := False;
   try
 
     case cID_Task of
@@ -2383,7 +2517,7 @@ begin
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;
-        UpdateTree ('');
+        UpdateTree ('', '');
 
       end;
 
@@ -2403,7 +2537,257 @@ begin
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;
-        UpdateTree ('');
+        UpdateTree ('', '');
+
+      end;
+
+      ccMnuBtnID_Edit_Item_Type : begin
+
+        asParts := TStringList.Create();
+
+        Split('|', sCaption_Object, asParts);
+
+        asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
+
+        asColSources := TStringList.Create();
+
+        bEdit := False;
+        if sCaption_Task = csINSERT then
+        begin
+          bEdit := True;
+        end
+        else //if (sCaption_Task = csUPDATE) or (sCaption_Task = csDELETE) then
+        begin
+          if ds_cds_Top.DataSet.Active then
+          begin
+            if not ds_cds_Top.DataSet.IsEmpty then
+            begin
+              if ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME) <> nil then
+              begin
+                bEdit := True;
+
+                bKeyEditAllowed := True;
+
+                sChangeTagTable := m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEMTYPE);
+
+                asValues := TStringList.Create();
+                asValues.Add(ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString);
+
+                sWhere := m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' = ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString + '''';
+              end;
+            end;
+          end;
+        end;
+
+        if bEdit then
+        begin
+          DoEditTable(sCaption_Task, asParts[1], m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEMTYPE), asCols, asColSources, asValues,
+                      sWhere, sChangeTagTable, bKeyEditAllowed);
+        end
+        else
+        begin
+          WarningMsgDlg('Select a record to ' + sCaption_Task + '!');
+        end;
+
+      end;
+
+      ccMnuBtnID_Edit_Item : begin
+
+        asParts := TStringList.Create();
+
+        Split('|', sCaption_Object, asParts);
+
+        asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEM_ITEMNR);
+        asCols.Add(csDB_FLD_USR_ITEM_NAME);
+        asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
+        asCols.Add(csDB_FLD_USR_ITEM_AMO);
+
+        asColSources := TStringList.Create();
+        asColSources.Add('');
+        asColSources.Add('');
+        asColSources.Add('1|SELECT ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                            ' FROM ' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
+                        ' ORDER BY ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME));
+
+        if sCaption_Task = csINSERT then
+        begin
+          bEdit := True;
+        end
+        else //if (sCaption_Task = csUPDATE) or (sCaption_Task = csDELETE) then
+        begin
+          if ds_cds_Top.DataSet.Active then
+          begin
+            if not ds_cds_Top.DataSet.IsEmpty then
+            begin
+              if ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR) <> nil then
+              begin
+                bEdit := True;
+
+                bKeyEditAllowed := False;
+
+                sChangeTagTable := m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM);
+
+                asValues := TStringList.Create();
+                asValues.Add(ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString);
+                asValues.Add(ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_NAME).AsString);
+                asValues.Add(ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString);
+                asValues.Add(ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_AMO).AsString);
+
+                sWhere := m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString + '''';
+              end;
+            end;
+          end;
+        end;
+
+        if bEdit then
+        begin
+          DoEditTable(sCaption_Task, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols, asColSources, asValues,
+                    sWhere, sChangeTagTable, bKeyEditAllowed);
+        end
+        else
+        begin
+          WarningMsgDlg('Select a record to ' + sCaption_Task + '!');
+        end;
+
+        // TREE...
+        lblBottom.Caption := csITEM_ITEMGROUP;
+        UpdateTree ('', '');
+
+      end;
+
+      ccMnuBtnID_Assign_Item : begin
+
+        bEdit := False;
+
+        if ds_cds_Top.DataSet.Active then
+        begin
+          if not ds_cds_Top.DataSet.IsEmpty then
+          begin
+            if ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR) <> nil then
+            begin
+
+              if sCaption_Task = csADD then
+              begin
+
+                if tvTree.Selected = nil then
+                begin
+                  WarningMsgDlg('Select a TREE node to Assign!');
+                  bEdit := True; // Suppres other Msg!
+                end
+                else
+                begin
+
+                  bEdit := True;
+
+                  sSql := 'INSERT INTO ' + 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX' +
+                          ' ( ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                             ', ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                             ', ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                             ', ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) +
+                             ', ' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
+                             ' ) VALUES ' +
+                            '( ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString + '''' +
+                            ', ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_NAME).AsString + '''' +
+                            ', ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString + '''' +
+                            ', ' + {'''' +} ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_AMO).AsString + {'''' +}
+                            ', ' + '''' + tvTree.Selected.Text + '''' +
+                            ' );';
+
+                  // FIX: ISC Error...
+                  ds_cds_Top.DataSet.Active := False;
+                  try
+
+                    try
+
+                      m_oApp.DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
+
+                    except
+                      on exc : Exception do
+                      begin
+                        m_oApp.LOG.LogERROR(exc);
+
+                        ErrorMsgDlg('Error assigning TREE node!' +  CHR(10) + CHR(10) +
+                                'Error: ' + exc.ClassName + ' - ' + exc.Message);
+                      end;
+                    end;
+
+                  finally
+                    ds_cds_Top.DataSet.Active := True;
+                  end;
+
+                  // TREE...
+                  lblBottom.Caption := csITEM_ITEMGROUP;
+                  UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
+
+                end;
+
+              end
+              else if sCaption_Task = csREMOVE then
+              begin
+
+                if tvTree.Selected = nil then
+                begin
+                  WarningMsgDlg('Select a TREE node to Remove assignment!');
+                  bEdit := True; // Suppres other Msg!
+                end
+                else
+                begin
+
+                  bEdit := True;
+
+                  sSql := 'DELETE FROM ' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) + ' A' +
+                          ' WHERE EXISTS (' +
+                          ' SELECT B.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                          ' FROM ' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP) + ' B' +
+                              ', ' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + ' C' +
+                              ', ' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEMGROUP) + ' D' +
+                         ' WHERE ' + ' B.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = ' + ' A.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                         '   AND ' + ' B.' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID) + ' = ' + ' C.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                         '   AND ' + ' B.' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID) + ' = ' + ' D.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                         '   AND ' + ' C.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = ' + '''' + ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString + '''' +
+                         '   AND ' + ' D.' + m_oApp.DB.FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) + ' = ' + '''' + tvTree.Selected.Text + '''' +
+                         ')';
+
+                  // FIX: ISC Error...
+                  ds_cds_Top.DataSet.Active := False;
+                  try
+
+                    try
+
+                      m_oApp.DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
+
+                    except
+                      on exc : Exception do
+                      begin
+                        m_oApp.LOG.LogERROR(exc);
+
+                        ErrorMsgDlg('Error Removing assignment with TREE node!' +  CHR(10) + CHR(10) +
+                                'Error: ' + exc.ClassName + ' - ' + exc.Message);
+                      end;
+                    end;
+
+                  finally
+                    ds_cds_Top.DataSet.Active := True;
+                  end;
+
+                  // TREE...
+                  lblBottom.Caption := csITEM_ITEMGROUP;
+                  UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
+
+                end;
+
+              end;
+
+            end;
+          end;
+        end;
+
+        if not bEdit then
+        begin
+          WarningMsgDlg('Select a record to Assign!');
+        end;
 
       end;
 
@@ -2412,6 +2796,8 @@ begin
   finally
     FreeAndNil(asParts);
     FreeAndNil(asCols);
+    FreeAndNil(asColSources);
+    FreeAndNil(asValues);
   end;
 end;
 

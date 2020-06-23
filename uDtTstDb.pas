@@ -99,6 +99,8 @@ type
     function Select_Triggers(asNames, asInfos: TStringList; sTable, sTriggerName: string; bDecorate, bFull: Boolean) : Boolean;
     function Select_Fields(asNames, asInfos: TStringList; sTable, sFieldName: string; bDecorate: Boolean) : Boolean;
 
+    function GetChageTag(sTable, sWhere: string) : string;
+    function OpenSQL_Into_StringList(sSql: string; asVals: TStringList) : Boolean;
     procedure ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
     procedure ADM_DoDbUpdates(frmPrs: TFrmProgress; ADMIN_MODE: Boolean);
@@ -127,6 +129,7 @@ type
 
     procedure META_CreateConstraint_ForeignKey(oProvider: TDBXDataExpressMetaDataProvider; sTable, sColumn, sTableForeign, sColumnForeign: string);
 
+    procedure META_RE_CreateTrigger(sTableOrView, sTriggerName, sSql: string);
     procedure META_CreateTrigger(sTableOrView, sTriggerName, sSql: string);
 
     procedure META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
@@ -1114,6 +1117,102 @@ begin
         end;
 
         Result := True;
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+function TDtTstDb.GetChageTag(sTable, sWhere: string) : string;
+var
+  oQry: TSQLQuery;
+  sSql: string;
+begin
+  Result := 'N/A|N/A';
+
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    sSql := 'SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ', ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) +
+             ' FROM ' + FIXOBJNAME(sTable) +
+            ' WHERE ' + sWhere;
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    //oQry.Prepared := True;
+
+    try
+
+      oQry.Open();
+
+      if not oQry.Eof then
+      begin
+
+        Result :=       oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_X_USRUPD)).AsString +
+                  '|' + oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD)).AsString;
+
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+
+end;
+
+function TDtTstDb.OpenSQL_Into_StringList(sSql: string; asVals: TStringList) : Boolean;
+var
+  oQry: TSQLQuery;
+begin
+  Result := False;
+
+  if Assigned(asVals) then asVals.Clear();
+
+
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    //oQry.Prepared := True;
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        Result := True;
+
+        if Assigned(asVals) then
+        begin
+          asVals.Add(oQry.Fields[0].AsString);
+        end;
 
         oQry.Next;
       end;
@@ -2350,6 +2449,35 @@ begin
     FreeAndNil(oFKey);
   end;
   }
+
+end;
+
+procedure TDtTstDb.META_RE_CreateTrigger(sTableOrView, sTriggerName, sSql: string);
+var
+  sOutput: string;
+begin
+
+  sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                          IsqlPathChecked,
+                          ConnectString,
+                          ConnectUser, ConnectPassword,
+                          True {bGetOutput},
+                          (IsqlOptions = 1) {bVisible},
+                          'RECREATE TRIGGER ' + FIXOBJNAME(sTriggerName) + ' FOR '
+                          + FIXOBJNAME(sTableOrView) + CHR(13) + CHR(10) +
+                          sSql + '!!',
+                          '!!');
+
+  if not ContainsText(sOutput, csISQL_SUCCESS) then
+  begin
+    raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+  end;
+
+  // ATTN!!! Syntax error could be only cathed this way!!!
+  if not Select_Triggers(nil {asNames}, nil {asInfos}, sTableOrView, sTriggerName, False {bDecorate}, False {bFull}) then
+  begin
+    raise Exception.Create('ERROR: Triggier "' + FIXOBJNAME(sTriggerName) + '" does not exist just after its Creation!');
+  end;
 
 end;
 

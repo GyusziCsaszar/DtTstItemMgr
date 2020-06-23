@@ -9,14 +9,21 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 134;
-  csVERSION_TITLE       = 'v1.34';
+  ciVERSION             = 135;
+  csVERSION_TITLE       = 'v1.35';
 
   { App - Titles }
   csITEM                = 'ITEM';
   csITEM_TYPE           = 'ITEM TYPE';
   csITEM_GROUP          = 'ITEM GROUP';
   csITEM_ITEMGROUP      = 'ITEM -> ITEM GROUP';
+  //
+  csINSERT              = 'New';
+  csUPDATE              = 'Modify';
+  csDELETE              = 'Delete';
+  //
+  csADD                 = 'Add';
+  csREMOVE              = 'Remove';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';

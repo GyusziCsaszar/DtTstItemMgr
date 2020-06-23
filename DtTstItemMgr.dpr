@@ -16,7 +16,8 @@ uses
   uDtTstAppDb in 'uDtTstAppDb.pas',
   uDtTstDbSql in 'uDtTstDbSql.pas',
   uFrmFDB in 'uFrmFDB.pas' {FrmFDB},
-  uDtTstConstsMenu in 'uDtTstConstsMenu.pas';
+  uDtTstConstsMenu in 'uDtTstConstsMenu.pas',
+  uFrmDataEdit in 'uFrmDataEdit.pas' {FrmDataEdit};
 
 {$R *.res}
 

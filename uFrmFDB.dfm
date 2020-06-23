@@ -133,7 +133,7 @@ object FrmFDB: TFrmFDB
     object grpIsql: TGroupBox
       Left = 8
       Top = 54
-      Width = 169
+      Width = 157
       Height = 147
       Caption = 'Firebird Isql tool'
       TabOrder = 8
@@ -151,7 +151,7 @@ object FrmFDB: TFrmFDB
     object chbIsqlVisible: TCheckBox
       Left = 91
       Top = 83
-      Width = 74
+      Width = 67
       Height = 17
       Caption = 'Show Isql'
       TabOrder = 9
@@ -203,8 +203,8 @@ object FrmFDB: TFrmFDB
     end
     object btnIsqlShowDb: TButton
       Left = 20
-      Top = 164
-      Width = 109
+      Top = 137
+      Width = 133
       Height = 25
       Caption = 'SHOW Database'
       TabOrder = 14
@@ -314,8 +314,8 @@ object FrmFDB: TFrmFDB
     end
     object btnIsqlCreateDb: TButton
       Left = 20
-      Top = 133
-      Width = 109
+      Top = 108
+      Width = 133
       Height = 25
       Caption = 'CREATE Database'
       TabOrder = 23
@@ -341,6 +341,31 @@ object FrmFDB: TFrmFDB
       ParentFont = False
       TabOrder = 6
       Visible = False
+    end
+    object btnIsqlCreateUser: TButton
+      Left = 20
+      Top = 166
+      Width = 29
+      Height = 25
+      Caption = 'CRE'
+      TabOrder = 24
+      OnClick = btnIsqlCreateUserClick
+    end
+    object edNewUser: TEdit
+      Left = 111
+      Top = 168
+      Width = 42
+      Height = 21
+      TabOrder = 25
+    end
+    object btnIsqlDropUser: TButton
+      Left = 55
+      Top = 166
+      Width = 50
+      Height = 25
+      Caption = 'DRP Usr'
+      TabOrder = 26
+      OnClick = btnIsqlDropUserClick
     end
   end
   object panAdminMode: TPanel
