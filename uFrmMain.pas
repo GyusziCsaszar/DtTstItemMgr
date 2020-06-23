@@ -15,7 +15,7 @@ type
   TFrmMain = class(TForm)
     lblLog: TLabel;
     lbLog: TListBox;
-    con_Firebird: TSQLConnection;
+    con_Firebird_ANSI: TSQLConnection;
     btnConnect: TButton;
     qry_Top: TSQLQuery;
     db_grid_Top: TDBGrid;
@@ -40,6 +40,11 @@ type
     cbbDb: TComboBox;
     btnCreTbl: TButton;
     btnDrpTbl: TButton;
+    lblDbInfo: TLabel;
+    edDbInfo: TEdit;
+    btnInitDtTstDb: TButton;
+    chbServerCharsetUtf8: TCheckBox;
+    con_Firebird_UTF8: TSQLConnection;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -55,8 +60,10 @@ type
     procedure FormShow(Sender: TObject);
     procedure btnCreTblClick(Sender: TObject);
     procedure btnDrpTblClick(Sender: TObject);
+    procedure btnInitDtTstDbClick(Sender: TObject);
   private
     { Private declarations }
+    con_Firebird: TSQLConnection;
     m_oLog: TDtTstLog;
     m_oDb: TDtTstDb;
   public
@@ -73,15 +80,20 @@ implementation
 {$R *.dfm}
 
 uses
+  { DtTs Units: } uDtTstWin,
   System.IOUtils;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
 
+  con_Firebird := nil;
+
   m_oLog := TDtTstLog.Create(TPath.ChangeExtension(Application.ExeName, csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
 
   inherited Create(AOwner);
+
+  LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
   m_oLog.m_lbLogView := lbLog;
 
@@ -89,11 +101,15 @@ begin
 
   try
     m_oDb := TDtTstDb.Create(m_oLog, TPath.ChangeExtension(Application.ExeName, csINI_EXT));
+
+    // ATTN!!!
+    chbServerCharsetUtf8.Checked := m_oDb.UTF8;
+
   except
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 end;
@@ -101,6 +117,8 @@ end;
 destructor TFrmMain.Destroy();
 begin
   m_oLog.LogLIFE('TFrmMain.Destroy');
+
+  SaveFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
   FreeAndNil(m_oDb);
 
@@ -113,7 +131,7 @@ procedure TFrmMain.FormShow(Sender: TObject);
 begin
   // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
 
-  // ShowMessage Title setting...
+  // NOTE: ShowMessage Title setting...
   Application.Title := self.Caption;
 
   // First LogINFO...
@@ -144,7 +162,8 @@ begin
 
       oDb.CreateTable(con_Firebird.DBXConnection);
 
-      ShowMessage('You have created table DELPHIEXPERTS!');
+      InfoMsgDlg('You have created table "DELPHIEXPERTS"!');
+
     finally
       FreeAndNil(oDb);
     end;
@@ -152,7 +171,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -162,26 +181,42 @@ end;
 
 procedure TFrmMain.btnDrpTblClick(Sender: TObject);
 var
-  oDb: TDtTstDb;
+  sTable: string;
 begin
+  if lbResult.ItemIndex < 0 then
+  begin
+    WarningMsgDlg('No table is selected!');
+    exit;
+  end;
 
-  // try SRC: https://stackoverflow.com/questions/6601147/how-to-correctly-write-try-finally-except-statements
-  try
-    try
-      oDb := TDtTstDb.Create(m_oLog, '');
+  if lbResult.Items[lbResult.ItemIndex][1] = ' ' then
+  begin
+    WarningMsgDlg('The selected item is not a Table Name!');
+    exit;
+  end;
 
-      oDb.DropTable(con_Firebird.DBXConnection);
+  if lbResult.Items[lbResult.ItemIndex][1] = '[' then
+  begin
+    WarningMsgDlg('The selected item is not a Table Name!');
+    exit;
+  end;
 
-      ShowMessage('You have dropped table DELPHIEXPERTS!');
-
-    finally
-      FreeAndNil(oDb);
+  sTable := lbResult.Items[lbResult.ItemIndex];
+    if not QuestionMsgDlg('Do you want to really DROP Table "' + sTable + '"?') then
+    begin
+      Exit;
     end;
+
+  try
+
+    m_oDb.DropTable(sTable);
+
+    InfoMsgDlg('You have DROPPED Table "' + sTable + '"!');
   except
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -211,7 +246,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -229,7 +264,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -246,7 +281,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -263,7 +298,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
@@ -286,7 +321,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 end;
@@ -305,7 +340,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 end;
@@ -316,55 +351,67 @@ var
 begin
   if lbResult.ItemIndex < 0 then
   begin
-    ShowMessage('No table is selected!');
+    WarningMsgDlg('No table is selected!');
     exit;
   end;
-
-  if lbResult.Items[lbResult.ItemIndex][1] = ' ' then
+  if lbResult.Items[lbResult.ItemIndex].IsEmpty() then
   begin
-    ShowMessage('The selected item is not a Table Name!');
+    WarningMsgDlg('No table is selected!');
     exit;
   end;
 
-  if lbResult.Items[lbResult.ItemIndex][1] = '[' then
+  if (lbResult.Items[lbResult.ItemIndex][1] = ' ') or
+     (lbResult.Items[lbResult.ItemIndex][1] = '[') then
   begin
-    ShowMessage('The selected item is not a Table Name!');
-    exit;
-  end;
+    WarningMsgDlg('The selected item is not a Table Name!');
 
-  sTable := lbResult.Items[lbResult.ItemIndex];
+    sTable := '';
+  end
+  else
+  begin
+    sTable := lbResult.Items[lbResult.ItemIndex];
+  end;
 
   try
     lblTop.Caption := 'N/A (Query, Provider and Client DataSet):';
     cds_Top.Active := False;
     qry_Top.Active := False;
     qry_Top.SQL.Clear();
-    qry_Top.SQL.Add('select * from ' + sTable + ';');
-    qry_Top.Active := True;
-    m_oLog.LogINFO('SQL Query is Active!');
-    cds_Top.Active := True;
-    m_oLog.LogINFO('Client DataSet is Active!');
-    lblTop.Caption := sTable + ' (Query, Provider and Client DataSet):';
+
+    if not sTable.IsEmpty() then
+    begin
+      qry_Top.SQL.Add('select * from ' + m_oDb.FIXOBJNAME(sTable) + ';');
+      qry_Top.Active := True;
+      m_oLog.LogINFO('SQL Query is Active!');
+      cds_Top.Active := True;
+      m_oLog.LogINFO('Client DataSet is Active!');
+      lblTop.Caption := sTable + ' (Query, Provider and Client DataSet):';
+    end;
   except
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
   try
     lblBottom.Caption := 'N/A (Simple DataSet):';
     sds_Bottom.Active := False;
-    sds_Bottom.DataSet.CommandText := 'select * from ' + sTable + ';';
-    sds_Bottom.Active := True;
-    m_oLog.LogINFO('Simple DataSet is Active!');
-    lblBottom.Caption := sTable + ' (Simple DataSet):';
+    sds_Bottom.DataSet.CommandText := '';
+
+    if not sTable.IsEmpty() then
+    begin
+      sds_Bottom.DataSet.CommandText := 'select * from ' + m_oDb.FIXOBJNAME(sTable) + ';';
+      sds_Bottom.Active := True;
+      m_oLog.LogINFO('Simple DataSet is Active!');
+      lblBottom.Caption := sTable + ' (Simple DataSet):';
+    end;
   except
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 end;
@@ -447,28 +494,83 @@ begin
 
 end;
 
+procedure TFrmMain.btnInitDtTstDbClick(Sender: TObject);
+begin
+
+  if (not Assigned(con_Firebird)) or (not con_Firebird.Connected) then
+  begin
+    WarningMsgDlg('No Database is open!');
+    Exit;
+  end;
+
+  if not m_oDb.DtTstDbInfProduct.IsEmpty() then
+  begin
+    if m_oDb.DtTstDbInfProduct = csCOMPANY + csPRODUCT then
+    begin
+      WarningMsgDlg('Database already contains Tables for Product "' + csCOMPANY + csPRODUCT + '"!');
+    end
+    else
+    begin
+      ErrorMsgDlg('Database contains Tables for DIFFERENT Product "' + m_oDb.DtTstDbInfProduct + '"!' +
+                  CHR(10) + CHR(10) + 'No mixed Products are allowed in a single Database!');
+    end;
+
+    Exit;
+  end;
+
+  if m_oDb.GetTableCount() > 0 then
+  begin
+    if not QuestionMsgDlg('Database already has ' + IntToStr(m_oDb.GetTableCount()) + ' Table(s) and is not Empty!' +
+          CHR(10) + CHR(10) + 'Do you want to create Tables for Product "' + csCOMPANY + csPRODUCT + '"?') then
+    begin
+      Exit;
+    end;
+  end;
+
+  try
+    m_oDb.CreateTableDtTstDbVer();
+  except
+    on exc : Exception do
+    begin
+      m_oLog.LogERROR(exc);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+  btnGetMetadata.Click();
+
+end;
+
 procedure TFrmMain.btnConnectClick(Sender: TObject);
+var
+  sDbInfo: string;
 begin
 
   try
 
-    con_Firebird.Params.Values['Database'] := cbbDb.Text;
-    if con_Firebird.Params.Values['Database'].IsEmpty() then
-    begin
-      raise Exception.Create('No Database specified!');
-    end;
-
-    con_Firebird.Params.Values['User_Name'] := m_oDb.ConnectUser;
-    con_Firebird.Params.Values['Password' ] := m_oDb.ConnectPassword;
-
-    if (con_Firebird.Params.Values['User_Name'].Length > 0) and (con_Firebird.Params.Values['Password'].Length > 0) then
-    begin
-      con_Firebird.LoginPrompt := False;
-    end;
-
     m_oLog.LogINFO('Button Connect is Pressed!');
 
-    con_Firebird.Connected := True;
+    if chbServerCharSetUtf8.Checked then
+    begin
+      con_Firebird := con_Firebird_UTF8;
+    end
+    else
+    begin
+      con_Firebird := con_Firebird_ANSI;
+    end;
+
+    m_oDb.ConnectString := cbbDb.Text;
+    m_oDb.Connect(con_Firebird);
+
+    sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
+    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.DtTstDbInfVersion) +
+                ', Product = "' + m_oDb.DtTstDbInfProduct + '" )';
+
+    edDbInfo.Text := sDbInfo;
+
+    // ATTN: Required!!!
+    qry_Top.SQLConnection := con_Firebird;
+    sds_Bottom.Connection := con_Firebird;
 
     m_oLog.LogINFO('SQL Connection is Connected!');
 
@@ -487,13 +589,14 @@ begin
     m_oLog.LogINFO('Simple DataSet is Active!');
     }
 
-    cbbDb.Enabled := False;
+    cbbDb               .Enabled := False;
+    chbServerCharSetUtf8.Enabled := False;
+    btnConnect          .Enabled := False;
 
-    btnConnect.Enabled := False;
-
+    btnInitDtTstDb.Enabled := True;
     btnGetMetadata.Enabled := True;
-    btnCreTbl.Enabled := True;
-    btnDrpTbl.Enabled := True;
+    btnCreTbl     .Enabled := True;
+    btnDrpTbl     .Enabled := True;
 
     btnGetMetadata.Click();
 
@@ -501,7 +604,7 @@ begin
     on exc : Exception do
     begin
       m_oLog.LogERROR(exc);
-      ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 

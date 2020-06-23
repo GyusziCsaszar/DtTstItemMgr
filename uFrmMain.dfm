@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.10'
+  Caption = 'Dt Test Item Manager v1.11'
   ClientHeight = 602
   ClientWidth = 917
   Color = clBtnFace
@@ -20,21 +20,24 @@ object FrmMain: TFrmMain
   TextHeight = 13
   object lblLog: TLabel
     Left = 8
-    Top = 493
-    Width = 24
-    Height = 13
-    Caption = 'LOG:'
+    Top = 520
+    Width = 9
+    Height = 60
+    Alignment = taCenter
+    AutoSize = False
+    Caption = 'L O G'
+    WordWrap = True
   end
   object lblTop: TLabel
     Left = 300
-    Top = 41
+    Top = 65
     Width = 203
     Height = 13
     Caption = 'N/A (Query, Provider and Client DataSet):'
   end
   object lblBottom: TLabel
     Left = 300
-    Top = 269
+    Top = 293
     Width = 105
     Height = 13
     Caption = 'N/A (Simple DataSet):'
@@ -42,22 +45,29 @@ object FrmMain: TFrmMain
   object lblDb: TLabel
     Left = 16
     Top = 8
-    Width = 140
+    Width = 219
     Height = 13
-    Caption = 'Available Firebird Databases:'
+    Caption = 'Firebird Database Connect Strings (from INI):'
+  end
+  object lblDbInfo: TLabel
+    Left = 162
+    Top = 32
+    Width = 73
+    Height = 13
+    Caption = 'Database Info:'
   end
   object lbLog: TListBox
-    Left = 8
-    Top = 512
-    Width = 901
-    Height = 82
+    Left = 23
+    Top = 520
+    Width = 886
+    Height = 73
     Anchors = [akLeft, akTop, akRight, akBottom]
     ItemHeight = 13
     TabOrder = 0
   end
   object btnConnect: TButton
     Left = 8
-    Top = 32
+    Top = 56
     Width = 273
     Height = 28
     Caption = 'Connect'
@@ -66,7 +76,7 @@ object FrmMain: TFrmMain
   end
   object db_grid_Top: TDBGrid
     Left = 300
-    Top = 60
+    Top = 84
     Width = 609
     Height = 193
     Anchors = [akLeft, akTop, akRight]
@@ -80,7 +90,7 @@ object FrmMain: TFrmMain
   end
   object db_grid_Bottom: TDBGrid
     Left = 300
-    Top = 288
+    Top = 312
     Width = 609
     Height = 193
     Anchors = [akLeft, akTop, akRight]
@@ -94,7 +104,7 @@ object FrmMain: TFrmMain
   end
   object btnGetMetadata: TButton
     Left = 8
-    Top = 66
+    Top = 129
     Width = 130
     Height = 25
     Caption = 'Get Metadata'
@@ -104,16 +114,16 @@ object FrmMain: TFrmMain
   end
   object lbResult: TListBox
     Left = 8
-    Top = 97
+    Top = 160
     Width = 273
-    Height = 352
+    Height = 281
     ItemHeight = 13
     TabOrder = 5
     OnDblClick = lbResultDblClick
   end
   object btnRefreshBottom: TButton
     Left = 848
-    Top = 263
+    Top = 287
     Width = 61
     Height = 25
     Anchors = [akTop, akRight]
@@ -123,7 +133,7 @@ object FrmMain: TFrmMain
   end
   object btnRefreshTop: TButton
     Left = 848
-    Top = 35
+    Top = 59
     Width = 61
     Height = 25
     Anchors = [akTop, akRight]
@@ -133,7 +143,7 @@ object FrmMain: TFrmMain
   end
   object btnInsertBottom: TButton
     Left = 791
-    Top = 263
+    Top = 287
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
@@ -143,7 +153,7 @@ object FrmMain: TFrmMain
   end
   object btnInsertTop: TButton
     Left = 791
-    Top = 35
+    Top = 59
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
@@ -153,7 +163,7 @@ object FrmMain: TFrmMain
   end
   object btnDeleteBottom: TButton
     Left = 728
-    Top = 263
+    Top = 287
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
@@ -163,7 +173,7 @@ object FrmMain: TFrmMain
   end
   object btnDeleteTop: TButton
     Left = 728
-    Top = 35
+    Top = 59
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
@@ -173,7 +183,7 @@ object FrmMain: TFrmMain
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 144
-    Top = 70
+    Top = 133
     Width = 150
     Height = 17
     Caption = 'List Tables Only (On/Off)'
@@ -181,35 +191,72 @@ object FrmMain: TFrmMain
     OnClick = chbMetadataTablesOnlyClick
   end
   object cbbDb: TComboBox
-    Left = 162
+    Left = 241
     Top = 5
-    Width = 747
+    Width = 668
     Height = 21
+    Anchors = [akLeft, akTop, akRight]
     TabOrder = 13
   end
   object btnCreTbl: TButton
     Left = 8
-    Top = 456
-    Width = 81
+    Top = 480
+    Width = 273
     Height = 25
-    Caption = 'Create Table'
+    Caption = 'Create Table DELPHIEXPERTS'
     Enabled = False
     TabOrder = 14
+    WordWrap = True
     OnClick = btnCreTblClick
   end
   object btnDrpTbl: TButton
-    Left = 95
-    Top = 456
-    Width = 75
+    Left = 8
+    Top = 447
+    Width = 81
     Height = 25
     Caption = 'Drop Table'
     Enabled = False
     TabOrder = 15
+    WordWrap = True
     OnClick = btnDrpTblClick
   end
-  object con_Firebird: TSQLConnection
+  object edDbInfo: TEdit
+    Left = 241
+    Top = 29
+    Width = 668
+    Height = 21
+    Anchors = [akLeft, akTop, akRight]
+    ReadOnly = True
+    TabOrder = 16
+    Text = '<none>'
+  end
+  object btnInitDtTstDb: TButton
+    Left = 8
+    Top = 90
+    Width = 273
+    Height = 31
+    Caption = 'Create Database Tables for Product "DtTstItemMgr"'
+    Enabled = False
+    TabOrder = 17
+    WordWrap = True
+    OnClick = btnInitDtTstDbClick
+  end
+  object chbServerCharsetUtf8: TCheckBox
+    Left = 16
+    Top = 31
+    Width = 140
+    Height = 17
+    Caption = 'Server CharSet = UTF8'
+    TabOrder = 18
+  end
+  object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'
     Params.Strings = (
+      'GetDriverFunc=getSQLDriverINTERBASE'
+      'Database=database.fdb'
+      'User_Name=sysdba'
+      'Password=masterkey'
+      'ServerCharSet='
       'DriverName=Firebird'
       'DriverUnit=Data.DBXFirebird'
       
@@ -231,9 +278,6 @@ object FrmMain: TFrmMain
       'VendorLib=fbclient.dll'
       'VendorLibWin64=fbclient.dll'
       'VendorLibOsx=/Library/Frameworks/Firebird.framework/Firebird'
-      'Database='
-      'User_Name='
-      'Password='
       'Role=RoleName'
       'MaxBlobSize=-1'
       'LocaleCode=0000'
@@ -245,22 +289,21 @@ object FrmMain: TFrmMain
       'BlobSize=-1'
       'ErrorResourceFile='
       'RoleName=RoleName'
-      'ServerCharSet='
       'Trim Char=False')
-    Left = 128
-    Top = 144
+    Left = 64
+    Top = 208
   end
   object qry_Top: TSQLQuery
     MaxBlobSize = -1
     Params = <>
-    SQLConnection = con_Firebird
+    SQLConnection = con_Firebird_ANSI
     Left = 332
-    Top = 72
+    Top = 96
   end
   object dsp_Top: TDataSetProvider
     DataSet = qry_Top
     Left = 420
-    Top = 73
+    Top = 97
   end
   object cds_Top: TClientDataSet
     Aggregates = <>
@@ -268,26 +311,70 @@ object FrmMain: TFrmMain
     ProviderName = 'dsp_Top'
     AfterPost = cds_TopAfterPost
     Left = 500
-    Top = 72
+    Top = 96
   end
   object ds_cds_Top: TDataSource
     DataSet = cds_Top
     Left = 724
-    Top = 72
+    Top = 96
   end
   object sds_Bottom: TSimpleDataSet
     Aggregates = <>
-    Connection = con_Firebird
+    Connection = con_Firebird_ANSI
     DataSet.MaxBlobSize = -1
     DataSet.Params = <>
     Params = <>
     AfterPost = sds_BottomAfterPost
     Left = 332
-    Top = 302
+    Top = 326
   end
   object ds_sds_Bottom: TDataSource
     DataSet = sds_Bottom
     Left = 724
-    Top = 302
+    Top = 326
+  end
+  object con_Firebird_UTF8: TSQLConnection
+    DriverName = 'Firebird'
+    Params.Strings = (
+      'Database=database.fdb'
+      'User_Name=sysdba'
+      'Password=masterkey'
+      'GetDriverFunc=getSQLDriverINTERBASE'
+      'ServerCharSet=UTF8'
+      'DriverName=Firebird'
+      'DriverUnit=Data.DBXFirebird'
+      
+        'DriverPackageLoader=TDBXDynalinkDriverLoader,DbxCommonDriver240.' +
+        'bpl'
+      
+        'DriverAssemblyLoader=Borland.Data.TDBXDynalinkDriverLoader,Borla' +
+        'nd.Data.DbxCommonDriver,Version=24.0.0.0,Culture=neutral,PublicK' +
+        'eyToken=91d62ebb5b0d1b1b'
+      
+        'MetaDataPackageLoader=TDBXFirebirdMetaDataCommandFactory,DbxFire' +
+        'birdDriver240.bpl'
+      
+        'MetaDataAssemblyLoader=Borland.Data.TDBXFirebirdMetaDataCommandF' +
+        'actory,Borland.Data.DbxFirebirdDriver,Version=24.0.0.0,Culture=n' +
+        'eutral,PublicKeyToken=91d62ebb5b0d1b1b'
+      'LibraryName=dbxfb.dll'
+      'LibraryNameOsx=libsqlfb.dylib'
+      'VendorLib=fbclient.dll'
+      'VendorLibWin64=fbclient.dll'
+      'VendorLibOsx=/Library/Frameworks/Firebird.framework/Firebird'
+      'Role=RoleName'
+      'MaxBlobSize=-1'
+      'LocaleCode=0000'
+      'IsolationLevel=ReadCommitted'
+      'SQLDialect=3'
+      'CommitRetain=False'
+      'WaitOnLocks=True'
+      'TrimChar=False'
+      'BlobSize=-1'
+      'ErrorResourceFile='
+      'RoleName=RoleName'
+      'Trim Char=False')
+    Left = 176
+    Top = 208
   end
 end

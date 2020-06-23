@@ -6,7 +6,8 @@ uses
   uDtTstDb in 'uDtTstDb.pas',
   uDtTstLog in 'uDtTstLog.pas',
   uDtTstUtils in 'uDtTstUtils.pas',
-  uDtTstConsts in 'uDtTstConsts.pas';
+  uDtTstConsts in 'uDtTstConsts.pas',
+  uDtTstWin in 'uDtTstWin.pas';
 
 {$R *.res}
 
