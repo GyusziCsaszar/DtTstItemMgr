@@ -42,6 +42,7 @@ type
     db_grid_Details: TDBGrid;
     sds_Details: TSimpleDataSet;
     ds_sds_Details: TDataSource;
+    lblLog: TLabel;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
@@ -68,6 +69,8 @@ type
     procedure ds_cds_TopDataChange(Sender: TObject; Field: TField);
     procedure sds_DetailsAfterPost(DataSet: TDataSet);
     procedure ds_sds_BottomDataChange(Sender: TObject; Field: TField);
+    procedure chbShowLogClick(Sender: TObject);
+    procedure lbLogDblClick(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -129,7 +132,7 @@ implementation
 uses
   { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbItemMgr,
   { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB,
-  System.IOUtils, StrUtils;
+  System.IOUtils, StrUtils, Clipbrd;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
@@ -146,7 +149,15 @@ begin
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
-  m_oApp.LOG.m_lbLogView := lbLog;
+  //Registry...
+  chbShowLog.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'ShowLog', True);
+
+  lblLog.Visible := chbShowLog.Checked;
+
+  if chbShowLog.Checked then
+  begin
+    m_oApp.LOG.m_lbLogView := lbLog;
+  end;
 
   m_oApp.LOG.LogLIFE('TFrmMain.Create');
 
@@ -578,6 +589,27 @@ begin
   DoRefreshMetaData();
 
   m_oApp.LOG.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
+end;
+
+procedure TFrmMain.chbShowLogClick(Sender: TObject);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.chbShowLogClick BEGIN');
+
+  SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'ShowLog', chbShowLog.Checked);
+
+  if chbShowLog.Checked then
+  begin
+    m_oApp.LOG.m_lbLogView := lbLog;
+  end
+  else
+  begin
+    m_oApp.LOG.m_lbLogView := nil;
+    lbLog.Items.Clear();
+  end;
+
+  lblLog.Visible := chbShowLog.Checked;
+
+  m_oApp.LOG.LogUI('TFrmMain.chbShowLogClick END');
 end;
 
 procedure TFrmMain.DoDbConnect();
@@ -1022,6 +1054,7 @@ begin
                        'SELECT ' + csDB_FLD_USR_ITEM_ITEMNR +
                             ', ' + csDB_FLD_USR_ITEM_NAME +
                             ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
+                            ', ' + csDB_FLD_USR_ITEM_AMO +
                        ' FROM ' + csDB_TBL_USR_ITEM +
                        ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
 
@@ -1299,6 +1332,14 @@ begin
 
     end;
 
+  end;
+end;
+
+procedure TFrmMain.lbLogDblClick(Sender: TObject);
+begin
+  if lbLog.ItemIndex >= 0 then
+  begin
+    Clipboard.AsText := lbLog.Items[lbLog.ItemIndex];
   end;
 end;
 
@@ -1760,6 +1801,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEM_ITEMNR);
         asCols.Add(csDB_FLD_USR_ITEM_NAME);
         asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
+        asCols.Add(csDB_FLD_USR_ITEM_AMO);
 
         DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
 

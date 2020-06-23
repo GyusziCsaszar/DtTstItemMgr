@@ -40,6 +40,14 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentFont = False
   end
+  object lblLog: TLabel
+    Left = 528
+    Top = 431
+    Width = 183
+    Height = 13
+    Anchors = [akLeft, akBottom]
+    Caption = 'LOG (DblClk = Copy line to Clipboard!)'
+  end
   object panLeft: TPanel
     Left = 0
     Top = 43
@@ -59,7 +67,7 @@ object FrmMain: TFrmMain
       OnClick = chbAutoLoginClick
     end
     object chbMetadataTablesOnly: TCheckBox
-      Left = 147
+      Left = 179
       Top = 5
       Width = 145
       Height = 17
@@ -68,7 +76,7 @@ object FrmMain: TFrmMain
       OnClick = chbMetadataTablesOnlyClick
     end
     object chbShowLog: TCheckBox
-      Left = 287
+      Left = 436
       Top = 5
       Width = 97
       Height = 17
@@ -76,6 +84,7 @@ object FrmMain: TFrmMain
       Checked = True
       State = cbChecked
       TabOrder = 2
+      OnClick = chbShowLogClick
     end
   end
   object db_grid_Top: TDBGrid
@@ -211,9 +220,9 @@ object FrmMain: TFrmMain
   end
   object lbLog: TListBox
     Left = 528
-    Top = 431
+    Top = 448
     Width = 380
-    Height = 149
+    Height = 132
     Anchors = [akLeft, akRight, akBottom]
     Color = clInfoBk
     Font.Charset = DEFAULT_CHARSET
@@ -224,6 +233,7 @@ object FrmMain: TFrmMain
     ItemHeight = 13
     ParentFont = False
     TabOrder = 10
+    OnDblClick = lbLogDblClick
   end
   object lbTasks: TListBox
     Left = 287

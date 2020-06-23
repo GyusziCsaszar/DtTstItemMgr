@@ -86,6 +86,21 @@ object FrmProgress: TFrmProgress
       TabOrder = 2
       Visible = False
     end
+    object btnCopyToClipboard: TButton
+      Left = 24
+      Top = 240
+      Width = 137
+      Height = 25
+      Caption = 'Copy to Clipboard'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 3
+      OnClick = btnCopyToClipboardClick
+    end
   end
   object pbPrs: TProgressBar
     Left = 0

@@ -121,7 +121,6 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 4
-        ExplicitHeight = 80
         ColWidths = (
           64)
         RowHeights = (
@@ -218,7 +217,6 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
-        ExplicitHeight = 120
         ColWidths = (
           64)
         RowHeights = (
@@ -307,5 +305,12 @@ object FrmDataImport: TFrmDataImport
       TabOrder = 4
       OnClick = btnCloseClick
     end
+  end
+  object tmrStart: TTimer
+    Enabled = False
+    Interval = 250
+    OnTimer = tmrStartTimer
+    Left = 136
+    Top = 8
   end
 end

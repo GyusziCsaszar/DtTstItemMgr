@@ -39,6 +39,7 @@ type
     btnTblColAdd: TButton;
     sgrdDef: TStringGrid;
     btnTblColReset: TButton;
+    tmrStart: TTimer;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -53,6 +54,7 @@ type
     procedure btnPreCheckClick(Sender: TObject);
     procedure btnImportClick(Sender: TObject);
     procedure btnTblColResetClick(Sender: TObject);
+    procedure tmrStartTimer(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
@@ -152,11 +154,19 @@ begin
   // Registry...
   edCsvPath.Text := LoadStringReg(csCOMPANY, csPRODUCT, 'Settings\Import', 'CSVPath', '');
 
+  tmrStart.Enabled := True;
+
+end;
+
+procedure TFrmDataImport.tmrStartTimer(Sender: TObject);
+begin
+
+  tmrStart.Enabled := False;
+
   if not TEdit_Text(edCsvPath).IsEmpty() then
   begin
     btnCsvPreview.Click();
   end;
-
 end;
 
 procedure TFrmDataImport.Init(sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
@@ -689,8 +699,8 @@ var
   asTblCols_NOT_NULL, asTblCols, asDbTypes, asDbLens, asCsvCols: TStringList;
   aiCsvColIndices: TArray<Integer>;
   asCsvVals: TStringList;
-  iRow, iCol, iDbLen, iValLen: integer;
-  sTblCol_NOT_NULL, sTblCol, sCsvVal, sMsg: string;
+  iRow, iCol, iDbLen, iValLen, iTmp: integer;
+  sTblCol_NOT_NULL, sTblCol, sCsvVal, sMsg, sTmp: string;
   //ayVal: TBytes;
   bBreak, bHit: Boolean;
   iErrCnt: integer;
@@ -881,6 +891,43 @@ begin
             sCsvVal := ''
           else
             sCsvVal := m_asRowCSV[aiCsvColIndices[iCol]];
+
+          { CSV Value CORRECTION }
+
+          sCsvVal := sCsvVal.Replace(CHR( 9), '\t', [rfReplaceAll]);
+          sCsvVal := sCsvVal.Replace(CHR(13), '\r', [rfReplaceAll]);
+
+          { CHECK - INTEGER }
+          if asDbTypes[iCol] = 'INTEGER' then
+          begin
+
+            if not Integer.TryParse(sCsvVal, iTmp) then
+            begin
+
+              sTmp := sCsvVal;
+              sTmp := sTmp.Replace(CHR( 9), '\t', [rfReplaceAll]);
+              sTmp := sTmp.Replace(CHR(13), '\r', [rfReplaceAll]);
+              sTmp := sTmp.Replace(CHR(10), '\n', [rfReplaceAll]);
+
+              sMsg := 'ERROR: Value "' + sTmp + '" of CSV Column "' + asCsvCols[iCol] +
+                      '" in CSV Data Row #' + IntToStr(m_iCsvDataRow) +
+                      ' is not Number (' + asDbTypes[iCol] + ')!';
+
+              frmPrs.AddStep(sMsg);
+              Application.ProcessMessages;
+
+              sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+              iErrCnt := iErrCnt + 1;
+              if not ErrorQuestionMsgDlg(sMsg) then
+              begin
+                bBreak := True;
+                Break;
+              end;
+
+            end;
+
+          end;
 
           { CHECK - DB Length }
           if not asDbLens[iCol].IsEmpty() then

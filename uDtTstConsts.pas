@@ -6,11 +6,11 @@ const
 
   { App Specific }
   csCOMPANY             = 'Dt';
-  csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
+  csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 126;
-  csVERSION_TITLE       = 'v1.26';
+  ciVERSION             = 127;
+  csVERSION_TITLE       = 'v1.27';
 
   { App - Strings }
   csITEM                = 'ITEM';
@@ -136,6 +136,7 @@ const
   ciDB_FLD_USR_ITEM_NAME_Length     = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEM_NAME            = 'Item_Name';
   csDB_FLD_USR_ITEM_ITEMTYPE_ID     = 'ItemType_ID';
+  csDB_FLD_USR_ITEM_AMO             = 'Item_Amount';
 
 implementation
 

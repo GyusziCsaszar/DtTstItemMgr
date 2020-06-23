@@ -16,8 +16,10 @@ type
     lbHistory: TListBox;
     btnClose: TButton;
     btnCancel: TButton;
+    btnCopyToClipboard: TButton;
     procedure FormShow(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
+    procedure btnCopyToClipboardClick(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
@@ -46,7 +48,7 @@ implementation
 
 uses
   { DtTst Units: } uDtTstConsts, uDtTstWin,
-  System.Math;
+  System.Math, Clipbrd;
 
 constructor TFrmProgress.Create(AOwner: TComponent; oApp: TDtTstApp);
 begin
@@ -134,6 +136,14 @@ end;
 procedure TFrmProgress.btnCloseClick(Sender: TObject);
 begin
   self.Close();
+end;
+
+procedure TFrmProgress.btnCopyToClipboardClick(Sender: TObject);
+begin
+
+  Clipboard.AsText := lblCaption.Caption + CHR(13) + CHR(10)
+    + CHR(13) + CHR(10) + lbHistory.Items.Text;
+
 end;
 
 procedure TFrmProgress.Done();

@@ -246,6 +246,8 @@ begin
 
     META_AddColumn_INT32(     oTable, csDB_FLD_USR_ITEM_ITEMTYPE_ID , True  {bNullable});
 
+    META_AddColumn_INT32(     oTable, csDB_FLD_USR_ITEM_AMO         , True  {bNullable});
+
     oProvider.CreateTable(oTable);
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
@@ -376,6 +378,7 @@ begin
                     ' AS SELECT ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
                              ', ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
                              ', ' + 'B.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                             ', ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) +
                        ' FROM ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + ' A' +
                            ', ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + ' B' +
                        ' WHERE ' + 'A.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) + ' = ' + 'B.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
@@ -425,7 +428,8 @@ begin
                       ' AS' + CHR(13) + CHR(10) +
                       ' BEGIN' + CHR(13) + CHR(10) +
                       '   UPDATE ' + FIXOBJNAME(csDB_TBL_USR_ITEM) + CHR(13) + CHR(10) +
-                      '      SET ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME)   + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + CHR(13) + CHR(10) +
+                      '      SET ' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME)   + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME  ) + CHR(13) + CHR(10) +
+                      '        , ' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO)    + ' = NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO   ) + CHR(13) + CHR(10) +
                       '    WHERE ' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ' = OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
                       ';'  + CHR(13) + CHR(10) +
                       ' END');
@@ -440,6 +444,8 @@ begin
     END
   }
 
+  // BUG: Does not set FOREIGN KEY ID!!!
+  {
   META_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
                       'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_INSERT',
                       ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
@@ -447,12 +453,45 @@ begin
                       ' AS' + CHR(13) + CHR(10) +
                       ' BEGIN' + CHR(13) + CHR(10) +
                       '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
-                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ', '     + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + ' )' + CHR(13) + CHR(10) +
-                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) + ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) + ')' +
+                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                              //', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
                       ';' + CHR(13) + CHR(10) +
-                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + CHR(13) + CHR(10) +
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
+                      ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + //CHR(13) + CHR(10) +
                       '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ')' +
                       '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
+                    //  '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                       ';' + CHR(13) + CHR(10) +
+                      ' END');
+  }
+
+  META_CreateTrigger( 'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM),
+                      'V_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_INSERT',
+                      ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                    //' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      '   DECLARE VARIABLE tmpID BIGINT;' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      '   UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
+                      ' (' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' + //CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ')' +
+                      '   MATCHING( ' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) + ' )' +
+                      '   RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' INTO :tmpID' +
+                       ';' + CHR(13) + CHR(10) +
+                      '   INSERT INTO ' + FIXOBJNAME(csDB_TBL_USR_ITEM) +
+                              ' ('      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID) +
+                              ', '      + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ' )' + CHR(13) + CHR(10) +
+                      '   VALUES( NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMNR) +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_NAME) +
+                               ', :tmpID' +
+                               ', NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEM_AMO) + ')' +
                       ';' + CHR(13) + CHR(10) +
                       ' END');
 

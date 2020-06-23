@@ -2064,7 +2064,7 @@ begin
 
     { Table }
 
-    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_USERS);
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_DBINF);
     if Assigned(frmPrs) then Application.ProcessMessages;
 
     oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
@@ -2079,6 +2079,10 @@ begin
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
     if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Foreign Key }
+
+    // NONE...
 
     { Generator }
 
@@ -2096,8 +2100,11 @@ begin
 
   // NONE...
 
-  { ROWS }
+  { Views }
 
+  // NONE...
+
+  { ROWS }
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
