@@ -8,7 +8,7 @@ uses
   midaslib, // ATTN!!!
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
-  Vcl.Grids, Vcl.DBGrids;
+  Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls;
 
 type
   TFrmMain = class(TForm)
@@ -22,6 +22,11 @@ type
     dsp_Customer: TDataSetProvider;
     cds_Customer: TClientDataSet;
     ds_cds_Customer: TDataSource;
+    sds_Employee: TSimpleDataSet;
+    ds_sds_Employee: TDataSource;
+    db_grid_Employee: TDBGrid;
+    lblEmployee: TLabel;
+    pAttn: TPanel;
     procedure btnConnectClick(Sender: TObject);
   private
     { Private declarations }
@@ -72,6 +77,10 @@ begin
     cds_Customer.Active := True;
 
     LogINFO('Client DataSet is Active!');
+
+    sds_Employee.Active := True;
+
+    LogINFO('Simple DataSet is Active!');
 
     btnConnect.Enabled := False;
 
