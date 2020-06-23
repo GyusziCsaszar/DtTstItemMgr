@@ -9,10 +9,11 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 124;
-  csVERSION_TITLE       = 'v1.24';
+  ciVERSION             = 125;
+  csVERSION_TITLE       = 'v1.25';
 
   { App - Strings }
+  csITEM                = 'ITEM';
   csITEM_TYPE           = 'ITEM TYPE';
 
   { App - Menu }
@@ -28,11 +29,12 @@ const
   ciMnuGrpItmLeftMargin        = 8; //13;
   // --------------------------------
   ccMnuGrpID_Database          = '1';
-  // --------------------------------
+  //
   ccMnuItmID_Table             = '2';
   ccMnuItmID_Table_Column      = '3';
   ccMnuItmID_Table_Trigger     = '4';
-  ccMnuItmID_Query             = '5';
+  ccMnuItmID_Table_Constraint  = '5';
+  ccMnuItmID_Query             = '6';
   // --------------------------------
   ccMnuBtnID_Refresh           = '1';
   ccMnuBtnID_Details           = '2';
@@ -40,8 +42,9 @@ const
   ccMnuBtnID_Import_Table      = '4';
   ccMnuBtnID_Drop_Table        = '5';
   ccMnuBtnID_Drop_Column       = '6';
-  // --------------------------------
+  //
   ccMnuBtnID_Import_Item_Type  = '7';
+  ccMnuBtnID_Import_Item       = '8';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -82,6 +85,11 @@ const
   { Generic }
   csCSV_FILE_FILTER           = 'CSV Files (*.CSV)|*.csv';
 
+  // ATTN!!!
+  // Max VarChar (UTF8) Lenght when Indexing IS: 253 // When FDB Page Size is 4096
+  // SRC: https://stackoverflow.com/questions/1953690/what-is-the-maximum-size-of-a-primary-key-in-firebird
+  ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN = 253;
+
   { Database - SAMPLE }
   csDB_TBL_SAMPLE             = 'SAMPLETABLE';
 
@@ -92,6 +100,7 @@ const
   ciDB_VERSION_ADM            = 103; // ALT admDbInfo, CRE ProductVersion = 100
   // ------------------------------------
   csDB_FLD_ADM_X_ID           = 'ID';
+  ciDB_FLD_ADM_X_USR_Lenght   = 8;            // ATTN: Allowed User Name's Max Length!!!
   csDB_FLD_ADM_X_USRCRE       = 'admCreUsr';
   csDB_FLD_ADM_X_TSPCRE       = 'admCreTsp';
   csDB_FLD_ADM_X_USRUPD       = 'admUpdUsr';
@@ -111,10 +120,17 @@ const
 
   { Database - Product ItemMgr }
 //ciDB_VERSION_PRD            = 100;
-  ciDB_VERSION_PRD            = 101; // CRE usrItemType
+//ciDB_VERSION_PRD            = 101; // CRE ItemType
+  ciDB_VERSION_PRD            = 102; // CRE Item
   // ------------------------------------
-  csDB_TBL_USR_ITEMTYPE       = 'usrItemType';
-  csDB_FLD_USR_ITEMTYPE_NAME  = 'Name';
+  csDB_TBL_USR_ITEMTYPE             = 'ItemType';
+  ciDB_FLD_USR_ITEMTYPE_NAME_Length = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEMTYPE_NAME        = 'ItemType_Name';
+  // ------------------------------------
+  csDB_TBL_USR_ITEM                 = 'Item';
+  ciDB_FLD_USR_ITEM_NAME_Length     = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEM_NAME            = 'Item_Name';
+  csDB_FLD_USR_ITEM_ITEMTYPE_ID     = 'ItemType_ID';
 
 implementation
 

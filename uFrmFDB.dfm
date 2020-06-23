@@ -108,7 +108,7 @@ object FrmFDB: TFrmFDB
       Visible = False
     end
     object chbServerCharsetUtf8: TCheckBox
-      Left = 8
+      Left = 216
       Top = 54
       Width = 140
       Height = 17
@@ -131,9 +131,9 @@ object FrmFDB: TFrmFDB
     end
     object grpIsql: TGroupBox
       Left = 8
-      Top = 77
+      Top = 54
       Width = 169
-      Height = 124
+      Height = 147
       Caption = 'Firebird Isql tool'
       TabOrder = 8
       Visible = False
@@ -148,8 +148,8 @@ object FrmFDB: TFrmFDB
       end
     end
     object chbIsqlVisible: TCheckBox
-      Left = 95
-      Top = 102
+      Left = 91
+      Top = 83
       Width = 74
       Height = 17
       Caption = 'Show Isql'
@@ -169,8 +169,8 @@ object FrmFDB: TFrmFDB
       OnClick = btnCreTblSampleClick
     end
     object chbAutoLogin: TCheckBox
-      Left = 248
-      Top = 54
+      Left = 216
+      Top = 156
       Width = 97
       Height = 17
       Caption = 'Auto Login'
@@ -205,7 +205,7 @@ object FrmFDB: TFrmFDB
     object btnIsqlShowDb: TButton
       Left = 20
       Top = 164
-      Width = 147
+      Width = 109
       Height = 25
       Caption = 'SHOW Database'
       TabOrder = 14
@@ -316,7 +316,7 @@ object FrmFDB: TFrmFDB
     object btnIsqlCreateDb: TButton
       Left = 20
       Top = 133
-      Width = 147
+      Width = 109
       Height = 25
       Caption = 'CREATE Database'
       TabOrder = 23

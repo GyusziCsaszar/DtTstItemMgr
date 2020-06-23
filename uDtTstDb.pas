@@ -83,6 +83,8 @@ type
     function FIXOBJNAME(sTable: string) : string;
 
     procedure Select_Generators(asResult: TStringList);
+
+    function Select_Constraints(bFKeysOnly: boolean; asNames, asInfos: TStringList; sTable, sConstraintName: string; bDecorate: Boolean) : Boolean;
     function Select_Triggers(asNames, asInfos: TStringList; sTable, sTriggerName: string; bDecorate, bFull: Boolean) : Boolean;
     function Select_Fields(asNames, asInfos: TStringList; sTable, sFieldName: string; bDecorate: Boolean) : Boolean;
 
@@ -112,9 +114,13 @@ type
     procedure META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
 
+    procedure META_CreateConstraint_ForeignKey(oProvider: TDBXDataExpressMetaDataProvider; sTable, sColumn, sTableForeign, sColumnForeign: string);
+
     procedure META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
     procedure META_CreateGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
+    procedure META_CreateIndex_NON_Unique(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+    procedure META_CreateIndex_UNIQUE(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
     procedure META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
     procedure META_DropTableColumn(sTableName, sColumnName: string);
@@ -555,6 +561,136 @@ begin
   end;
 end;
 
+function TDtTstDb.Select_Constraints(bFKeysOnly: boolean; asNames, asInfos: TStringList; sTable, sConstraintName: string; bDecorate: Boolean) : Boolean;
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  sConstraintInfo: string;
+begin
+  Result := False;
+
+  if Assigned(asNames) then asNames.Clear();
+  if Assigned(asInfos) then asInfos.Clear();
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // SRC: https://www.firebirdnews.org/listing-the-foreign-keys-in-a-firebird-database/
+    sSql := 'SELECT rc.RDB$CONSTRAINT_NAME AS constraint_name';
+
+    if sTable.IsEmpty() then //and bDetails then
+    begin
+      sSql := sSql + ', ';
+      sSql := sSql + ' i.RDB$RELATION_NAME AS table_name';
+    end;
+    if Assigned(asInfos) then
+    begin
+      sSql := sSql + ', ';
+      sSql := sSql + ' s.RDB$FIELD_NAME AS field_name' +
+                    ', i.RDB$DESCRIPTION AS description';
+
+                    {
+                    rc.RDB$DEFERRABLE AS is_deferrable,
+                    rc.RDB$INITIALLY_DEFERRED AS is_deferred,
+                    refc.RDB$UPDATE_RULE AS on_update,
+                    refc.RDB$DELETE_RULE AS on_delete,
+                    refc.RDB$MATCH_OPTION AS match_type,
+                    i2.RDB$RELATION_NAME AS references_table,
+                    s2.RDB$FIELD_NAME AS references_field,
+                    (s.RDB$FIELD_POSITION + 1) AS field_position
+                    }
+    end;
+
+    sSql := sSql + ' FROM RDB$INDEX_SEGMENTS s' +
+                   ' LEFT JOIN RDB$INDICES i ON i.RDB$INDEX_NAME = s.RDB$INDEX_NAME' +
+                   ' LEFT JOIN RDB$RELATION_CONSTRAINTS rc ON rc.RDB$INDEX_NAME = s.RDB$INDEX_NAME' +
+                   ' LEFT JOIN RDB$REF_CONSTRAINTS refc ON rc.RDB$CONSTRAINT_NAME = refc.RDB$CONSTRAINT_NAME' +
+                   ' LEFT JOIN RDB$RELATION_CONSTRAINTS rc2 ON rc2.RDB$CONSTRAINT_NAME = refc.RDB$CONST_NAME_UQ' +
+                   ' LEFT JOIN RDB$INDICES i2 ON i2.RDB$INDEX_NAME = rc2.RDB$INDEX_NAME' +
+                   ' LEFT JOIN RDB$INDEX_SEGMENTS s2 ON i2.RDB$INDEX_NAME = s2.RDB$INDEX_NAME' +
+                   '';
+
+    if not sTable.IsEmpty() then
+    begin
+      sSql := sSql + ' WHERE i.RDB$RELATION_NAME = ' + '''' + FIXOBJNAME(sTable) + '''';
+    end;
+
+    if not sConstraintName.IsEmpty() then
+    begin
+      if sTable.IsEmpty() then
+        sSql := sSql + ' WHERE'
+      else
+        sSql := sSql + ' AND';
+
+      sSql := sSql + ' rc.RDB$CONSTRAINT_NAME = ' + '''' + FIXOBJNAME(sConstraintName) + '''';
+    end;
+
+    if bFKeysOnly then
+    begin
+      if sTable.IsEmpty() then
+        sSql := sSql + ' WHERE'
+      else
+        sSql := sSql + ' AND';
+
+      sSql := sSql + ' rc.RDB$CONSTRAINT_TYPE = ''FOREIGN KEY''';
+    end;
+
+    sSql := sSql + ' ORDER BY s.RDB$FIELD_POSITION';
+
+    oQry.SQLConnection := m_oCon;
+
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    try
+
+      oQry.Open();
+
+      while not oQry.Eof do
+      begin
+
+        if Assigned(asNames) then
+        begin
+          asNames.Add(TRIM(oQry.FieldByName('constraint_name').AsString));
+        end;
+
+        if Assigned(asInfos) then
+        begin
+
+          sConstraintInfo := '';
+
+          if sTable.IsEmpty() then
+          begin
+            if not sConstraintInfo.IsEmpty() then sConstraintInfo := sConstraintInfo + '|';
+            if bDecorate then sConstraintInfo := sConstraintInfo + 'Table Name: ';
+            sConstraintInfo := sConstraintInfo + TRIM(oQry.FieldByName('table_name').AsString);
+          end;
+
+          if not sConstraintInfo.IsEmpty() then sConstraintInfo := sConstraintInfo + '|';
+          if bDecorate then sConstraintInfo := sConstraintInfo + 'Description: ';
+          sConstraintInfo := sConstraintInfo + TRIM(oQry.FieldByName('description').AsString);
+
+          asInfos.Add(sConstraintInfo);
+
+        end;
+
+        Result := True;
+
+        oQry.Next;
+      end;
+
+    except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
 function TDtTstDb.Select_Triggers(asNames, asInfos: TStringList; sTable, sTriggerName: string; bDecorate, bFull: Boolean) : Boolean;
 var
   sSql: string;
@@ -949,17 +1085,20 @@ begin
                  IntToStr(ciDB_VERSION_ADM) + ')!');
     end;
 
-    if (not ADMIN_MODE) or (not QuestionMsgDlg('Database PRD Version (' + IntToStr(ADM_DbInfVersion_PRD) +
-                 ') is OLDER than the Application''s supported Database PRD Version (' +
-                 IntToStr(ciDB_VERSION_PRD) + ')!' + CHR(10) + CHR(10) +
-                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
-                 'Do you want to continue?')) then
+    //if ADM_DbInfVersion_ADM < ciDB_VERSION_ADM then
     begin
-      raise Exception.Create('Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
-                 ') is OLDER than the Application''s supported Database ADM Version (' +
-                 IntToStr(ciDB_VERSION_ADM) + ')!' + CHR(10) + CHR(10) +
-                 'Database UPDATE is required!' + CHR(10) + CHR(10) +
-                 'Please contact the Database Administrator!');
+      if (not ADMIN_MODE) or (not QuestionMsgDlg('Database PRD Version (' + IntToStr(ADM_DbInfVersion_ADM) +
+                   ') is OLDER than the Application''s supported Database PRD Version (' +
+                   IntToStr(ciDB_VERSION_ADM) + ')!' + CHR(10) + CHR(10) +
+                   'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                   'Do you want to continue?')) then
+      begin
+        raise Exception.Create('Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
+                   ') is OLDER than the Application''s supported Database ADM Version (' +
+                   IntToStr(ciDB_VERSION_ADM) + ')!' + CHR(10) + CHR(10) +
+                   'Database UPDATE is required!' + CHR(10) + CHR(10) +
+                   'Please contact the Database Administrator!');
+      end;
     end;
 
     if Assigned(frmPrs) and (not frmPrs.Visible) then
@@ -1423,7 +1562,7 @@ begin
 
     META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
 
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_USERS_USER     , False {bNullable}, 31);
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_USERS_USER     , False {bNullable}, ciDB_FLD_ADM_X_USR_Lenght);
 
     META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_USERS_LSTLOGIN , False {bNullable});
 
@@ -1969,6 +2108,51 @@ begin
   oTable.AddColumn(oCol);
 end;
 
+procedure TDtTstDb.META_CreateConstraint_ForeignKey(oProvider: TDBXDataExpressMetaDataProvider; sTable, sColumn, sTableForeign, sColumnForeign: string);
+// SRC: https://www.wisdomjobs.com/e-university/firebird-tutorial-210/the-foreign-key-constraint-7634.html
+var
+  sSql: string;
+begin
+
+  sSql := 'ALTER TABLE ' + FIXOBJNAME(sTable) +
+          ' ADD CONSTRAINT ' + 'FK_' + FIXOBJNAME(sTable) + '_' + FIXOBJNAME(sColumn) +
+          ' FOREIGN KEY(' + FIXOBJNAME(sColumn) + ')' +
+          ' REFERENCES ' + FIXOBJNAME(sTableForeign) + '(' + FIXOBJNAME(sColumnForeign) + ')' +
+        //' REFERENCES ' + FIXOBJNAME(sTableForeign)' + // ATTN: If PriKey then optional to specify!!!
+          ';';
+
+  {
+  FOREIGN KEY (column [, col  ...])
+  REFERENCES (parent-table  [, col ...])
+  [USING [ASC | DESC] INDEX  index-name] // v.1.5 and above
+  [ON DELETE {NO ACTION |  CASCADE | SET NULL  | SET DEFAULT]
+  [ON UPDATE {NO ACTION |  CASCADE | SET NULL  | SET DEFAULT]
+  }
+
+  oProvider.Execute(m_oLog.LogSQL(sSql));
+
+  // NOTE:
+  {
+  oFKey := TDBXMetaDataForeignKey.Create();
+  try
+
+    oFKey.ForeignKeyName := 'FK_' + FIXOBJNAME(csDB_TBL_USR_ITEM) + '_' + FIXOBJNAME(csDB_FLD_USR_ITEM_ITEMTYPE_ID);
+
+    oFKey.TableName := FIXOBJNAME(csDB_TBL_USR_ITEM);
+
+    oFKey.PrimaryTableName := FIXOBJNAME(csDB_TBL_USR_ITEM);
+
+    oFKey.AddReference();
+
+    oProvider.CreateForeignKey(oFKey);
+
+  finally
+    FreeAndNil(oFKey);
+  end;
+  }
+
+end;
+
 procedure TDtTstDb.META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 begin
 
@@ -1986,6 +2170,56 @@ begin
   oProvider.Execute(m_oLog.LogSQL('SET GENERATOR ' + FIXOBJNAME(sTableName) +
     '_' + FIXOBJNAME(sColumnName) + ' TO 0;'));
 
+end;
+
+procedure TDtTstDb.META_CreateIndex_NON_Unique(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+var
+  oIdx: TDBXMetaDataIndex;
+begin
+
+  oIdx := TDBXMetaDataIndex.Create;
+  try
+
+    {ATTN: OPTIONAL to name the Index!!!}
+    {      Original Sample does not do so!!!}
+    oIdx.IndexName := FIXOBJNAME(sTableName) + '_' + FIXOBJNAME(sColumnName);
+
+    oIdx.TableName := FIXOBJNAME(sTableName);
+    oIdx.AddColumn(FIXOBJNAME(sColumnName));
+
+    // ATTN...
+    //oIdx.Unique := True;
+
+    // Add the Index with my provider
+    oProvider.CreateIndex(oIdx);
+  finally
+    FreeAndNil(oIdx);
+  end;
+end;
+
+procedure TDtTstDb.META_CreateIndex_UNIQUE(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+var
+  oIdx: TDBXMetaDataIndex;
+begin
+
+  oIdx := TDBXMetaDataIndex.Create;
+  try
+
+    {ATTN: OPTIONAL to name the Index!!!}
+    {      Original Sample does not do so!!!}
+    oIdx.IndexName := FIXOBJNAME(sTableName) + '_' + FIXOBJNAME(sColumnName);
+
+    oIdx.TableName := FIXOBJNAME(sTableName);
+    oIdx.AddColumn(FIXOBJNAME(sColumnName));
+
+    // ATTN...
+    oIdx.Unique := True;
+
+    // Add the Index with my provider
+    oProvider.CreateUniqueIndex(oIdx);
+  finally
+    FreeAndNil(oIdx);
+  end;
 end;
 
 procedure TDtTstDb.META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);

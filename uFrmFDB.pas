@@ -65,6 +65,7 @@ type
     m_oConAnsi: TSQLConnection;
     m_oConUtf8: TSQLConnection;
     m_oCon    : TSQLConnection;
+    m_bAutoLoginClick: Boolean;
   public
     { Public declarations }
     SQL_OpenSelect: string;
@@ -103,6 +104,8 @@ begin
   SQL_OpenSelect := '';
 
   m_oApp := oApp;
+
+  m_bAutoLoginClick := False;
 
   inherited Create(AOwner);
 
@@ -662,7 +665,7 @@ begin
 
     if panAdminMode.Visible then
     begin
-      if not chbAutoLogin.Checked then InfoMsgDlg('To close this form press Close!');
+      if not m_bAutoLoginClick {chbAutoLogin.Checked} then InfoMsgDlg('To close this form press Close!');
     end
     else
     begin
@@ -718,7 +721,11 @@ begin
   if chbAutoLogin.Checked then
   begin
 
+    m_bAutoLoginClick := True;
+
     btnLogin.Click();
+
+    m_bAutoLoginClick := False;
 
     // CHNG: Exit even in ADMIN_MODE when AutoLogin is ON!
     //if (not btnLogin.Enabled) and (not panAdminMode.Visible) then

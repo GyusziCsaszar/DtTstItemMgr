@@ -51,7 +51,6 @@ object FrmProgress: TFrmProgress
       ItemHeight = 13
       ParentFont = False
       TabOrder = 0
-      ExplicitWidth = 409
     end
     object btnClose: TButton
       Left = 360
@@ -69,7 +68,6 @@ object FrmProgress: TFrmProgress
       ParentFont = False
       TabOrder = 1
       OnClick = btnCloseClick
-      ExplicitLeft = 358
     end
     object btnCancel: TButton
       Left = 279
@@ -87,7 +85,6 @@ object FrmProgress: TFrmProgress
       ParentFont = False
       TabOrder = 2
       Visible = False
-      ExplicitLeft = 277
     end
   end
   object pbPrs: TProgressBar

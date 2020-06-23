@@ -98,6 +98,13 @@ uses
   { DtTst Units: } uDtTstConsts, uDtTstUtils, uDtTstWin, uDtTstAppDb, uFrmProgress, uDtTstDbSql,
   System.IOUtils, StrUtils, System.Math;
 
+const
+
+  ciSGrdDef_ColIdx_CsvCol = 1;
+  ciSGrdDef_ColIdx_DbType = 2;
+  ciSGrdDef_ColIdx_DbLen  = 3;
+  ciSGrdDef_ColIdx_DbNull = 4;
+
 constructor TFrmDataImport.Create(AOwner: TComponent; oApp: TDtTstApp);
 begin
 
@@ -302,20 +309,27 @@ begin
 
     if sgrdDef.ColCount = 1 then
     begin
-      sgrdDef.ColCount := 4;
+      sgrdDef.ColCount := 5;
       sgrdDef.RowCount := 1;
 
       sgrdDef.Cells[0, 0] := 'Table Column';
       sgrdDef.ColWidths[0] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[0, 0]).cx + 10 {)};
 
-      sgrdDef.Cells[1, 0] := 'CSV Column';
-      sgrdDef.ColWidths[1] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[1, 0]).cx + 10 {)};
+      sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, 0] := 'CSV Column';
+      sgrdDef.ColWidths[ciSGrdDef_ColIdx_CsvCol] := {Max(sgrd.ColWidths[iCol],}
+          Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, 0]).cx + 10 {)};
 
-      sgrdDef.Cells[2, 0] := 'DB Type';
-      sgrdDef.ColWidths[2] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[2, 0]).cx + 10 {)};
+      sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, 0] := 'DB Type';
+      sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbType] := {Max(sgrd.ColWidths[iCol],}
+          Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, 0]).cx + 10 {)};
 
-      sgrdDef.Cells[3, 0] := 'DB Length';
-      sgrdDef.ColWidths[3] := {Max(sgrd.ColWidths[iCol],} Canvas.TextExtent(sgrdDef.Cells[3, 0]).cx + 10 {)};
+      sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, 0] := 'DB Length';
+      sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbLen] := {Max(sgrd.ColWidths[iCol],}
+          Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, 0]).cx + 10 {)};
+
+      sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, 0] := 'DB Nullable';
+      sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull] := {Max(sgrd.ColWidths[iCol],}
+          Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, 0]).cx + 10 {)};
 
       btnPreCheck.Enabled := True;
       btnImport  .Enabled := True;
@@ -326,14 +340,21 @@ begin
     sgrdDef.Cells[0, sgrdDef.RowCount - 1] := cbbTblCol.Text;
     sgrdDef.ColWidths[0] := Max(sgrd.ColWidths[0], Canvas.TextExtent(sgrdDef.Cells[0, sgrdDef.RowCount - 1]).cx + 10 );
 
-    sgrdDef.Cells[1, sgrdDef.RowCount - 1] := cbbTblCsvCol.Text;
-    sgrdDef.ColWidths[1] := Max(sgrd.ColWidths[1], Canvas.TextExtent(sgrdDef.Cells[1, sgrdDef.RowCount - 1]).cx + 10 );
+    sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, sgrdDef.RowCount - 1] := cbbTblCsvCol.Text;
+    sgrdDef.ColWidths[ciSGrdDef_ColIdx_CsvCol] := Max(sgrd.ColWidths[ciSGrdDef_ColIdx_CsvCol],
+        Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, sgrdDef.RowCount - 1]).cx + 10 );
 
-    sgrdDef.Cells[2, sgrdDef.RowCount - 1] := asParts[0];
-    sgrdDef.ColWidths[2] := Max(sgrd.ColWidths[2], Canvas.TextExtent(sgrdDef.Cells[2, sgrdDef.RowCount - 1]).cx + 10 );
+    sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, sgrdDef.RowCount - 1] := asParts[0];
+    sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbType] := Max(sgrd.ColWidths[ciSGrdDef_ColIdx_DbType],
+        Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, sgrdDef.RowCount - 1]).cx + 10 );
 
-    sgrdDef.Cells[3, sgrdDef.RowCount - 1] := asParts[1];
-    sgrdDef.ColWidths[3] := Max(sgrd.ColWidths[3], Canvas.TextExtent(sgrdDef.Cells[3, sgrdDef.RowCount - 1]).cx + 10 );
+    sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, sgrdDef.RowCount - 1] := asParts[1];
+    sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbLen] := Max(sgrd.ColWidths[ciSGrdDef_ColIdx_DbLen],
+        Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, sgrdDef.RowCount - 1]).cx + 10 );
+
+    sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, sgrdDef.RowCount - 1] := asParts[2];
+    sgrdDef.ColWidths[ciSGrdDef_ColIdx_DbNull] := Max(sgrd.ColWidths[ciSGrdDef_ColIdx_DbNull],
+        Canvas.TextExtent(sgrdDef.Cells[ciSGrdDef_ColIdx_DbNull, sgrdDef.RowCount - 1]).cx + 10 );
 
   finally
     FreeAndNil(asParts);
@@ -616,25 +637,42 @@ procedure TFrmDataImport.ProcessCSV(bChkOnly: Boolean);
 var
   frmPrs: TFrmProgress;
   dbSql: TDtTstDbSql;
-  asTblCols, asDbTypes, asDbLens, asCsvCols: TStringList;
+  asTblCols_NOT_NULL, asTblCols, asDbTypes, asDbLens, asCsvCols: TStringList;
   aiCsvColIndices: TArray<Integer>;
   asCsvVals: TStringList;
   iRow, iCol, iDbLen, iValLen: integer;
-  sCsvVal, sMsg: string;
+  sTblCol_NOT_NULL, sTblCol, sCsvVal, sMsg: string;
   //ayVal: TBytes;
-  bBreak: Boolean;
+  bBreak, bHit: Boolean;
+  iErrCnt: integer;
 begin
 
-  dbSql           := nil;
-  asTblCols       := nil;
-  asDbTypes       := nil;
-  asDbLens        := nil;
-  aiCsvColIndices := nil;
-  asCsvCols       := nil;
-  asCsvVals       := nil;
+  dbSql               := nil;
+  asTblCols_NOT_NULL  := nil;
+  asTblCols           := nil;
+  asDbTypes           := nil;
+  asDbLens            := nil;
+  aiCsvColIndices     := nil;
+  asCsvCols           := nil;
+  asCsvVals           := nil;
+
+  bBreak  := False;
+  iErrCnt := 0;
 
   frmPrs := TFrmProgress.Create(self, m_oApp);
   try
+
+    frmPrs.Show();
+    if bChkOnly then
+      frmPrs.Init('Checking CSV File')
+    else
+      frmPrs.Init('Importing CSV File');
+    frmPrs.SetProgressToMax();
+    frmPrs.AddStepHeader('CSV file "' + edCsvPath.Text + '"');
+    Application.ProcessMessages;
+
+    frmPrs.AddStep('Checking Import definition');
+    Application.ProcessMessages;
 
     if not bChkOnly then
     begin
@@ -644,6 +682,16 @@ begin
     //if not bChkOnly then
     begin
 
+      asTblCols_NOT_NULL := TStringList.Create();
+
+      for iCol := 1 to cbbTblCol.Items.Count - 1 do
+      begin
+        if ContainsText(m_asColInfos[iCol], '|NOT NULL|') then
+        begin
+          asTblCols_NOT_NULL.Add(cbbTblCol.Items[iCol]);
+        end;
+      end;
+
       asTblCols := TStringList.Create();
       asDbTypes := TStringList.Create();
       asDbLens  := TStringList.Create();
@@ -651,9 +699,44 @@ begin
       begin
         asTblCols.Add(sgrdDef.Cells[0, iRow]);
 
-        asDbTypes.Add(sgrdDef.Cells[2, iRow]);
+        asDbTypes.Add(sgrdDef.Cells[ciSGrdDef_ColIdx_DbType, iRow]);
 
-        asDbLens .Add(sgrdDef.Cells[3, iRow]);
+        asDbLens .Add(sgrdDef.Cells[ciSGrdDef_ColIdx_DbLen, iRow]);
+      end;
+
+      // ATTN: NOT NULL Columns have to get CSV Value!
+      for sTblCol_NOT_NULL in asTblCols_NOT_NULL do
+      begin
+        bHit := False;
+
+        for sTblCol in asTblCols do
+        begin
+          if sTblCol_NOT_NULL = sTblCol then
+          begin
+            bHit := True;
+            Break;
+          end;
+        end;
+
+        if not bHit then
+        begin
+
+          sMsg := 'ERROR: Table Column "' + sTblCol_NOT_NULL + '" has to get Value from CSV file! Cannot be NULL';
+
+          frmPrs.AddStep(sMsg);
+          Application.ProcessMessages;
+
+          sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+          iErrCnt := iErrCnt + 1;
+          if not ErrorQuestionMsgDlg(sMsg) then
+          begin
+            bBreak := True;
+            Break;
+          end;
+
+        end;
+
       end;
 
       asCsvCols := TStringList.Create();
@@ -667,7 +750,7 @@ begin
 
         for iCol := 0 to sgrd.ColCount - 1 do
         begin
-          if sgrd.Cells[iCol, 0] = sgrdDef.Cells[1, iRow] then
+          if sgrd.Cells[iCol, 0] = sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] then
           begin
             aiCsvColIndices[iRow - 1] := iCol;
             Break;
@@ -676,10 +759,10 @@ begin
 
         if aiCsvColIndices[iRow - 1] = -1 then
         begin
-          raise Exception.Create('CSV Column "' + sgrdDef.Cells[1, iRow] + '" not found!');
+          raise Exception.Create('CSV Column "' + sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow] + '" not found!');
         end;
 
-        asCsvCols.Add(sgrdDef.Cells[1, iRow]);
+        asCsvCols.Add(sgrdDef.Cells[ciSGrdDef_ColIdx_CsvCol, iRow]);
 
       end;
 
@@ -687,41 +770,41 @@ begin
 
     end;
 
-    frmPrs.Show();
-    if bChkOnly then
-      frmPrs.Init('Checking CSV File')
-    else
-      frmPrs.Init('Importing CSV File');
-    frmPrs.SetProgressToMax();
-    frmPrs.AddStepHeader('CSV file "' + edCsvPath.Text + '"');
+    if iErrCnt = 0 then frmPrs.AddStepEnd('Done!');
     Application.ProcessMessages;
 
-    //ClearPreview();
+    iErrCnt := 0;
 
-    //m_bAsked_MoreRowCols  := False;
-    //m_bAsked_FewerRowCols := False;
+    if not bBreak then
+    begin
 
-    frmPrs.AddStep('Opening file');
-    Application.ProcessMessages;
+      //ClearPreview();
 
-    if not OpenCSV() then Exit;
+      //m_bAsked_MoreRowCols  := False;
+      //m_bAsked_FewerRowCols := False;
 
-    frmPrs.AddStepEnd('Done!');
-    Application.ProcessMessages;
+      frmPrs.AddStep('Opening file');
+      Application.ProcessMessages;
 
-    frmPrs.AddStep('Loading CSV Header');
-    Application.ProcessMessages;
+      if not OpenCSV() then Exit;
 
-    if not LoadCSVHeader() then Exit;
+      frmPrs.AddStepEnd('Done!');
+      Application.ProcessMessages;
 
-    frmPrs.AddStepEnd('Done!');
-    Application.ProcessMessages;
+      frmPrs.AddStep('Loading CSV Header');
+      Application.ProcessMessages;
 
-    frmPrs.AddStep('Loading CSV Data');
-    Application.ProcessMessages;
+      if not LoadCSVHeader() then Exit;
 
-    bBreak := False;
-    while True do
+      frmPrs.AddStepEnd('Done!');
+      Application.ProcessMessages;
+
+      frmPrs.AddStep('Loading CSV Data');
+      Application.ProcessMessages;
+
+    end;
+
+    while (not bBreak) do
     begin
 
       if sgrd.RowCount > 1 then
@@ -788,8 +871,12 @@ begin
               end;
               }
 
+              frmPrs.AddStep(sMsg);
+              Application.ProcessMessages;
+
               sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
 
+              iErrCnt := iErrCnt + 1;
               if not ErrorQuestionMsgDlg(sMsg) then
               begin
                 bBreak := True;
@@ -815,7 +902,20 @@ begin
             on exc : Exception do
             begin
               m_oApp.LOG.LogERROR(exc);
-              ErrorMsgDlg('ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
+
+              sMsg := 'ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message;
+
+              frmPrs.AddStep(sMsg);
+              Application.ProcessMessages;
+
+              sMsg := sMsg + CHR(10) + CHR(10) + 'Do you want to continue?';
+
+              iErrCnt := iErrCnt + 1;
+              if not ErrorQuestionMsgDlg(sMsg) then
+              begin
+                bBreak := True;
+                Break;
+              end;
             end;
           end;
 
@@ -823,15 +923,21 @@ begin
 
       end;
 
+      if bBreak then Break;
+
       if m_oStreamCSV.EndOfStream then Break;
     end;
 
     CloseCSV();
 
     if bBreak then
-      frmPrs.AddStepEnd('ERROR! User cancelled opertation!')
+    begin
+      frmPrs.AddStep('ERROR! User cancelled opertation!');
+    end
     else
-      frmPrs.AddStepEnd('Done!');
+    begin
+      if iErrCnt = 0 then frmPrs.AddStepEnd('Done!');
+    end;
     Application.ProcessMessages;
 
     frmPrs.Done();
@@ -851,6 +957,7 @@ begin
     frmPrs.Close();
     FreeAndNil(frmPrs);
 
+    FreeAndNil(asTblCols_NOT_NULL);
     FreeAndNil(asTblCols);
     FreeAndNil(asDbTypes);
     FreeAndNil(asDbLens);

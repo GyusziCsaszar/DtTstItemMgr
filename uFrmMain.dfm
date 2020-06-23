@@ -48,13 +48,41 @@ object FrmMain: TFrmMain
     Anchors = [akLeft, akTop, akBottom]
     Color = clWindow
     ParentBackground = False
-    TabOrder = 8
+    TabOrder = 7
+    object chbAutoLogin: TCheckBox
+      Left = 8
+      Top = 5
+      Width = 97
+      Height = 17
+      Caption = 'Auto Login'
+      TabOrder = 0
+      OnClick = chbAutoLoginClick
+    end
+    object chbMetadataTablesOnly: TCheckBox
+      Left = 147
+      Top = 5
+      Width = 145
+      Height = 17
+      Caption = 'Tables and Queries Only'
+      TabOrder = 1
+      OnClick = chbMetadataTablesOnlyClick
+    end
+    object chbShowLog: TCheckBox
+      Left = 287
+      Top = 5
+      Width = 97
+      Height = 17
+      Caption = 'Log Viewer'
+      Checked = True
+      State = cbChecked
+      TabOrder = 2
+    end
   end
   object db_grid_Top: TDBGrid
     Left = 528
     Top = 69
     Width = 380
-    Height = 356
+    Height = 156
     Anchors = [akLeft, akTop, akRight, akBottom]
     DataSource = ds_cds_Top
     TabOrder = 0
@@ -68,7 +96,7 @@ object FrmMain: TFrmMain
     Left = 528
     Top = 69
     Width = 380
-    Height = 356
+    Height = 156
     Anchors = [akLeft, akTop, akRight, akBottom]
     DataSource = ds_sds_Bottom
     TabOrder = 1
@@ -121,15 +149,6 @@ object FrmMain: TFrmMain
     TabOrder = 5
     OnClick = btnRsDeleteClick
   end
-  object chbMetadataTablesOnly: TCheckBox
-    Left = 131
-    Top = 48
-    Width = 150
-    Height = 17
-    Caption = 'List Tables Only (On/Off)'
-    TabOrder = 6
-    OnClick = chbMetadataTablesOnlyClick
-  end
   object panDbInfo: TPanel
     Left = 0
     Top = 586
@@ -148,7 +167,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 7
+    TabOrder = 6
   end
   object panAdminMode: TPanel
     Left = 300
@@ -167,16 +186,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 9
-  end
-  object chbAutoLogin: TCheckBox
-    Left = 8
-    Top = 48
-    Width = 97
-    Height = 17
-    Caption = 'Auto Login'
-    TabOrder = 10
-    OnClick = chbAutoLoginClick
+    TabOrder = 8
   end
   object tsViews: TTabSet
     Left = 528
@@ -205,8 +215,15 @@ object FrmMain: TFrmMain
     Width = 380
     Height = 149
     Anchors = [akLeft, akRight, akBottom]
+    Color = clInfoBk
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clInfoText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
     ItemHeight = 13
-    TabOrder = 12
+    ParentFont = False
+    TabOrder = 10
   end
   object lbTasks: TListBox
     Left = 287
@@ -215,11 +232,25 @@ object FrmMain: TFrmMain
     Height = 509
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akBottom]
-    TabOrder = 13
+    TabOrder = 11
     OnClick = lbTasksClick
     OnDblClick = lbTasksDblClick
     OnDrawItem = lbTasksDrawItem
     OnMeasureItem = lbTasksMeasureItem
+  end
+  object db_grid_Details: TDBGrid
+    Left = 528
+    Top = 240
+    Width = 380
+    Height = 185
+    Anchors = [akLeft, akRight, akBottom]
+    DataSource = ds_sds_Details
+    TabOrder = 12
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'Tahoma'
+    TitleFont.Style = []
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'
@@ -269,26 +300,27 @@ object FrmMain: TFrmMain
     MaxBlobSize = -1
     Params = <>
     SQLConnection = con_Firebird_ANSI
-    Left = 20
-    Top = 231
+    Left = 548
+    Top = 111
   end
   object dsp_Top: TDataSetProvider
     DataSet = qry_Top
-    Left = 76
-    Top = 232
+    Left = 652
+    Top = 112
   end
   object cds_Top: TClientDataSet
     Aggregates = <>
     Params = <>
     ProviderName = 'dsp_Top'
     AfterPost = cds_TopAfterPost
-    Left = 132
-    Top = 231
+    Left = 732
+    Top = 111
   end
   object ds_cds_Top: TDataSource
     DataSet = cds_Top
-    Left = 188
-    Top = 231
+    OnDataChange = ds_cds_TopDataChange
+    Left = 844
+    Top = 111
   end
   object sds_Bottom: TSimpleDataSet
     Aggregates = <>
@@ -297,13 +329,14 @@ object FrmMain: TFrmMain
     DataSet.Params = <>
     Params = <>
     AfterPost = sds_BottomAfterPost
-    Left = 20
-    Top = 302
+    Left = 548
+    Top = 174
   end
   object ds_sds_Bottom: TDataSource
     DataSet = sds_Bottom
-    Left = 188
-    Top = 302
+    OnDataChange = ds_sds_BottomDataChange
+    Left = 844
+    Top = 174
   end
   object con_Firebird_UTF8: TSQLConnection
     DriverName = 'Firebird'
@@ -355,5 +388,20 @@ object FrmMain: TFrmMain
     OnTimer = tmrStartTimer
     Left = 16
     Top = 80
+  end
+  object sds_Details: TSimpleDataSet
+    Aggregates = <>
+    Connection = con_Firebird_ANSI
+    DataSet.MaxBlobSize = -1
+    DataSet.Params = <>
+    Params = <>
+    AfterPost = sds_DetailsAfterPost
+    Left = 552
+    Top = 328
+  end
+  object ds_sds_Details: TDataSource
+    DataSet = sds_Details
+    Left = 848
+    Top = 328
   end
 end

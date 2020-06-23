@@ -109,6 +109,7 @@ end;
 procedure TFrmProgress.AddStepHeader(sStepHeader: string);
 begin
 
+  if lbHistory.Items.Count > 0 then lbHistory.Items.Add('');
   lbHistory.Items.Add('[ ' + sStepHeader + ' ]');
 
   // NOTE: Scroll into view...
