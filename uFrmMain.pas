@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
-  midaslib, // ATTN!!!
+  { DtTs Units: } uDtTstConsts, uDtTstLog, uDtTstDb,
+  { ATTN: for DBExpress: } midaslib,
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
   Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls;
@@ -37,6 +38,8 @@ type
     chbMetadataTablesOnly: TCheckBox;
     lblDb: TLabel;
     cbbDb: TComboBox;
+    btnCreTbl: TButton;
+    btnDrpTbl: TButton;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -50,16 +53,17 @@ type
     procedure btnDeleteBottomClick(Sender: TObject);
     procedure chbMetadataTablesOnlyClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure btnCreTblClick(Sender: TObject);
+    procedure btnDrpTblClick(Sender: TObject);
   private
     { Private declarations }
+    m_oLog: TDtTstLog;
     m_sDbUser: string;
     m_sDbPassword: string;
-    function LogERROR(exc: Exception) : Exception;
-    procedure LogINFO(sLogLine: string);
-    procedure LogLINE(sLogLine: string);
-    function DateTimeToStrHu(dt: TDatetime): string;
   public
     { Public declarations }
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy(); override;
   end;
 
 var
@@ -72,13 +76,25 @@ implementation
 uses
   IniFiles;
 
-const
-  sINI_SEC_DBCON = 'DB Connection';
-  sINI_VAL_DBCON_DB_CNT = 'DatabaseCOUNT';
-  sINI_VAL_DBCON_DB_DEF = 'DatabaseDEFAULT';
-  sINI_VAL_DBCON_DB = 'Database';
-  sINI_VAL_DBCON_USR = 'User';
-  sINI_VAL_DBCON_PW = 'Password';
+constructor TFrmMain.Create(AOwner: TComponent);
+begin
+  m_oLog := TDtTstLog.Create(Application.ExeName + '.LOG');
+
+  inherited Create(AOwner);
+
+  m_oLog.m_lbLogView := lbLog;
+
+  m_oLog.LogINFO('TFrmMain.Create');
+end;
+
+destructor TFrmMain.Destroy();
+begin
+  m_oLog.LogINFO('TFrmMain.Destroy');
+
+  inherited Destroy();
+
+  FreeAndNil(m_oLog);
+end;
 
 procedure TFrmMain.FormShow(Sender: TObject);
 var
@@ -93,7 +109,7 @@ begin
   Application.Title := self.Caption;
 
   // First LogINFO...
-  LogINFO('Executable Path: ' + Application.ExeName);
+  m_oLog.LogINFO('Executable Path: ' + Application.ExeName);
 
   // Member initialization...
   m_sDbUser := '';
@@ -104,13 +120,13 @@ begin
   if FileExists(sIniPath) then
   begin
     try
-      LogINFO('INI Path: ' + sIniPath);
+      m_oLog.LogINFO('INI Path: ' + sIniPath);
 
       fIni := TIniFile.Create(sIniPath);
 
       if not fIni.SectionExists(sINI_SEC_DBCON) then
       begin
-        raise LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+        raise m_oLog.LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
       end;
 
       iDbCnt := fIni.ReadInteger(sINI_SEC_DBCON, sINI_VAL_DBCON_DB_CNT, 0);
@@ -118,7 +134,7 @@ begin
 
       if iDbCnt < 1 then
       begin
-        raise LogERROR(Exception.Create('No valid "' + sINI_VAL_DBCON_DB_CNT + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+        raise m_oLog.LogERROR(Exception.Create('No valid "' + sINI_VAL_DBCON_DB_CNT + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
       end;
 
       if (iDbDef < 1) or (iDbDef > iDbCnt) then iDbDef := 1;
@@ -131,7 +147,7 @@ begin
         sDb := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB + IntToStr(iDb), '');
         if sDb.Length = 0 then
         begin
-          raise LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + IntToStr(iDb) + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+          raise m_oLog.LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + IntToStr(iDb) + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
         end;
 
         cbbDb.Items.Add(sDb);
@@ -151,6 +167,50 @@ begin
   end;
 
 end;
+
+procedure TFrmMain.btnCreTblClick(Sender: TObject);
+var
+  oDb: TDtTstDb;
+begin
+  try
+    oDb := TDtTstDb.Create(m_oLog);
+
+    if oDb.CreateTable(con_Firebird.DBXConnection) then
+    begin
+      ShowMessage('You have created a DelphiExperts Table! Good job!');
+    end;
+
+  finally
+    FreeAndNil(oDb);
+  end;
+
+  if btnGetMetadata.Enabled then btnGetMetadata.Click;
+
+end;
+
+procedure TFrmMain.btnDrpTblClick(Sender: TObject);
+var
+  oDb: TDtTstDb;
+begin
+  try
+    oDb := TDtTstDb.Create(m_oLog);
+
+    if oDb.DropTable(con_Firebird.DBXConnection) then
+    begin
+      ShowMessage('You have dropped the DelphiExperts Table! Good job!');
+    end
+    else
+    begin
+      ShowMessage('ERROR: Unable to drop the DelphiExperts Table!');
+    end;
+
+  finally
+    FreeAndNil(oDb);
+  end;
+
+  if btnGetMetadata.Enabled then btnGetMetadata.Click;
+
+  end;
 
 procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
 begin
@@ -173,7 +233,7 @@ begin
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -191,7 +251,7 @@ begin
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -208,7 +268,7 @@ begin
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -225,7 +285,7 @@ begin
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -242,13 +302,13 @@ begin
     qry_Top.Active := False;
 
     qry_Top.Active := True;
-    LogINFO('SQL Query is Active!');
+    m_oLog.LogINFO('SQL Query is Active!');
     cds_Top.Active := True;
-    LogINFO('Client DataSet is Active!');
+    m_oLog.LogINFO('Client DataSet is Active!');
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -263,11 +323,11 @@ begin
     sds_Bottom.Active := False;
 
     sds_Bottom.Active := True;
-    LogINFO('Simple DataSet is Active!');
+    m_oLog.LogINFO('Simple DataSet is Active!');
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -304,14 +364,14 @@ begin
     qry_Top.SQL.Clear();
     qry_Top.SQL.Add('select * from ' + sTable + ';');
     qry_Top.Active := True;
-    LogINFO('SQL Query is Active!');
+    m_oLog.LogINFO('SQL Query is Active!');
     cds_Top.Active := True;
-    LogINFO('Client DataSet is Active!');
+    m_oLog.LogINFO('Client DataSet is Active!');
     lblTop.Caption := sTable + ' (Query, Provider and Client DataSet):';
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -321,12 +381,12 @@ begin
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := 'select * from ' + sTable + ';';
     sds_Bottom.Active := True;
-    LogINFO('Simple DataSet is Active!');
+    m_oLog.LogINFO('Simple DataSet is Active!');
     lblBottom.Caption := sTable + ' (Simple DataSet):';
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
@@ -429,25 +489,25 @@ begin
       con_Firebird.LoginPrompt := False;
     end;
 
-    LogINFO('Button Connect is Pressed!');
+    m_oLog.LogINFO('Button Connect is Pressed!');
 
     con_Firebird.Connected := True;
 
-    LogINFO('SQL Connection is Connected!');
+    m_oLog.LogINFO('SQL Connection is Connected!');
 
     // ATTN: No Query loaded at startup!!!
     {
     qry_Top.Active := True;
 
-    LogINFO('SQL Query is Active!');
+    m_oLog.LogINFO('SQL Query is Active!');
 
     cds_Top.Active := True;
 
-    LogINFO('Client DataSet is Active!');
+    m_oLog.LogINFO('Client DataSet is Active!');
 
     sds_Bottom.Active := True;
 
-    LogINFO('Simple DataSet is Active!');
+    m_oLog.LogINFO('Simple DataSet is Active!');
     }
 
     cbbDb.Enabled := False;
@@ -455,55 +515,19 @@ begin
     btnConnect.Enabled := False;
 
     btnGetMetadata.Enabled := True;
+    btnCreTbl.Enabled := True;
+    btnDrpTbl.Enabled := True;
 
     btnGetMetadata.Click();
 
   except
     on exc : Exception do
     begin
-      LogERROR(exc);
+      m_oLog.LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
 
-end;
-
-function TFrmMain.LogERROR(exc: Exception) : Exception;
-begin
-  Result := exc;
-  LogLINE('-( E )- ERROR: (' + exc.ClassName + ') ' + exc.Message);
-end;
-
-procedure TFrmMain.LogINFO(sLogLine: string);
-begin
-  LogLINE('-( I )- ' + sLogLine);
-end;
-
-procedure TFrmMain.LogLINE(sLogLine: string);
-begin
-  lbLog.Items.Insert(0, DateTimeToStrHu(Now) + ' ' + sLogLine);
-end;
-
-function TFrmMain.DateTimeToStrHu(dt: TDatetime): string;
-// SRC: https://stackoverflow.com/questions/35200000/how-to-convert-delphi-tdatetime-to-string-with-microsecond-precision
-//      Original Name = DateTimeToStrUs
-var
-    sMs: string;
-begin
-    //Spit out most of the result: '20160802 11:34:36.'
-    Result := FormatDateTime('yyyy. mm. dd. hh":"nn":"ss"."', dt);
-
-    //extract the number of microseconds
-    dt := Frac(dt); //fractional part of day
-    dt := dt * 24*60*60; //number of seconds in that day
-
-    //FIX: Using Round it is possible to get value of 1000000!!!
-    //sMs := IntToStr(Round(Frac(dt)*1000000));
-    sMs := IntToStr(Trunc(Frac(dt)*1000000));
-
-    //Add the us integer to the end:
-    // '20160801 11:34:36.' + '00' + '123456'
-    Result := Result + StringOfChar('0', 6-Length(sMs)) + sMs;
 end;
 
 end.

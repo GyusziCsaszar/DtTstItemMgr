@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.08'
+  Caption = 'Dt Test Item Manager v1.09'
   ClientHeight = 602
   ClientWidth = 917
   Color = clBtnFace
@@ -106,7 +106,7 @@ object FrmMain: TFrmMain
     Left = 8
     Top = 97
     Width = 273
-    Height = 384
+    Height = 352
     ItemHeight = 13
     TabOrder = 5
     OnDblClick = lbResultDblClick
@@ -186,6 +186,26 @@ object FrmMain: TFrmMain
     Width = 747
     Height = 21
     TabOrder = 13
+  end
+  object btnCreTbl: TButton
+    Left = 8
+    Top = 456
+    Width = 81
+    Height = 25
+    Caption = 'Create Table'
+    Enabled = False
+    TabOrder = 14
+    OnClick = btnCreTblClick
+  end
+  object btnDrpTbl: TButton
+    Left = 95
+    Top = 456
+    Width = 75
+    Height = 25
+    Caption = 'Drop Table'
+    Enabled = False
+    TabOrder = 15
+    OnClick = btnDrpTblClick
   end
   object con_Firebird: TSQLConnection
     ConnectionName = 'FirstDB'
