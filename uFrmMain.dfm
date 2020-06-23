@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.11'
+  Caption = 'TstItemMgr'
   ClientHeight = 602
   ClientWidth = 917
   Color = clBtnFace
@@ -198,16 +198,16 @@ object FrmMain: TFrmMain
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 13
   end
-  object btnCreTbl: TButton
+  object btnCreTblSample: TButton
     Left = 8
     Top = 480
     Width = 273
     Height = 25
-    Caption = 'Create Table DELPHIEXPERTS'
+    Caption = 'Create Table'
     Enabled = False
     TabOrder = 14
     WordWrap = True
-    OnClick = btnCreTblClick
+    OnClick = btnCreTblSampleClick
   end
   object btnDrpTbl: TButton
     Left = 8

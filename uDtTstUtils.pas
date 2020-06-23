@@ -2,12 +2,22 @@ unit uDtTstUtils;
 
 interface
 
+procedure CreateUTF8BOMFile(sPath: string; bOverWrite: Boolean);
+
 function DateTimeToStrHu(dt: TDatetime): string;
 
 implementation
 
 uses
-  SysUtils;
+  SysUtils, System.IOUtils;
+
+procedure CreateUTF8BOMFile(sPath: string; bOverWrite: Boolean);
+begin
+  if bOverWrite or (not FileExists(sPath)) then
+  begin
+    TFile.WriteAllBytes(sPath, [$EF, $BB, $BF]);
+  end;
+end;
 
 function DateTimeToStrHu(dt: TDatetime): string;
 // SRC: https://stackoverflow.com/questions/35200000/how-to-convert-delphi-tdatetime-to-string-with-microsecond-precision

@@ -7,9 +7,15 @@ const
   { App Specific }
   csCOMPANY             = 'Dt';
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
+  csPRODUCT_TITLE       = 'Test Item Manager';
+  ciVERSION             = 112;
+  csVERSION_TITLE       = 'v1.12';
+  ciDB_VERSION          = 100;
+  ciDB_VERSION_100      = 100;
 
   { LOG levels }
-  csLOG_EXT             = '.LOG';
+  //csLOG_EXT             = '.LOG';
+  csLOG_UTF8_EXT        = '.UTF-8.LOG';
   ciLOGLEVEL_ALL        = -1;
   ciLOGLEVEL_NONE       = 0;
   ciLOGLEVEL_DECORATION = 0;
@@ -30,7 +36,10 @@ const
     csINI_VAL_DB_PW           = 'Password';
 
   { Database }
+  csDB_TBL_SAMPLE           = 'SAMPLETABLE';
+
   csDB_TBL_ADM_DBINF        = 'admDbInfo';
+  csDB_FLD_ADM_DBINF_ID     = 'ID';
   csDB_FLD_ADM_DBINF_VER    = 'Version';
   csDB_FLD_ADM_DBINF_PRD    = 'Product';
 

@@ -52,14 +52,17 @@ type
 
     function FIXOBJNAME(sTable: string) : string;
 
-    procedure CreateTableDtTstDbVer();
+    procedure META_CreateTable_DtTstDb_DBINFO();
 
-    procedure DropTable(sTable: string);
+    procedure META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
+    procedure META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
 
-    procedure CreateTable(const AConnection: TDBXConnection);
+    procedure META_DropTable(sTable: string);
+
+    procedure META_CreateTable_SAMPLE(const AConnection: TDBXConnection);
 
   private
-    function DBXGetMetaProvider(const AConnection: TDBXConnection) : TDBXDataExpressMetaDataProvider;
+    function META_GetProvider(const AConnection: TDBXConnection) : TDBXDataExpressMetaDataProvider;
   end;
 
 implementation
@@ -310,32 +313,26 @@ begin
   Result := sTable.ToUpper();
 end;
 
-procedure TDtTstDb.CreateTableDtTstDbVer();
+procedure TDtTstDb.META_CreateTable_DtTstDb_DBINFO();
 var
   oProvider: TDBXDataExpressMetaDataProvider;
   oTable: TDBXMetaDataTable;
-  oColVer: TDBXInt32Column;
-  oColPrd: TDBXUnicodeCharColumn; //TDBXAnsiCharColumn;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
 begin
 
-  oProvider := DBXGetMetaProvider(m_oCon.DBXConnection);
+  oProvider := META_GetProvider(m_oCon.DBXConnection);
   try
 
     oTable := TDBXMetaDataTable.Create;
     try
       oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
 
-      oColVer := TDBXInt32Column.Create(FIXOBJNAME(csDB_FLD_ADM_DBINF_VER));
-      oColVer.Nullable := False;
-      oTable.AddColumn(oColVer);
+      META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_ID , False {bNullable});
 
-      // oColPrd := TDBXAnsiCharColumn.Create(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD), 32);
-      oColPrd := TDBXUnicodeCharColumn.Create(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD), 32);
-      oColPrd.Nullable := False;
-      oColPrd.FixedLength := False; // To make VarChar...
-      oTable.AddColumn(oColPrd);
+      META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_VER, False {bNullable});
+
+      META_AddColumn_VARCHAR(oTable, csDB_FLD_ADM_DBINF_PRD, False {bNullable}, 32);
 
       oProvider.CreateTable(oTable);
 
@@ -351,9 +348,14 @@ begin
       oQry.ParamCheck := True;
       // oQry.PrepareStatement;
       oQry.SQL.Add('INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
-                   ' (' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) + ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD) +
-                   ') VALUES (:VER, :PRD)');
-      oQry.Params.ParamByName('VER').AsInteger  := 100;
+                   ' (' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) +
+                   ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
+                   ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD) +
+                   ') VALUES (:ID, :VER, :PRD)');
+
+      oQry.Params.ParamByName('ID').AsInteger   := 1;
+
+      oQry.Params.ParamByName('VER').AsInteger  := ciDB_VERSION_100;
 
       // ATTN: To write UTF8 string, nothing extra is required!!!
       {
@@ -385,12 +387,39 @@ begin
 
 end;
 
-procedure TDtTstDb.DropTable(sTable: string);
+procedure TDtTstDb.META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
+var
+  oCol: TDBXInt32Column;
+begin
+  oCol := TDBXInt32Column.Create(FIXOBJNAME(sColumnName));
+
+  oCol.Nullable := bNullable;
+
+  oTable.AddColumn(oCol);
+end;
+
+procedure TDtTstDb.META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
+var
+  oCol: TDBXAnsiCharColumn; //TDBXUnicodeCharColumn;
+begin
+
+  oCol := TDBXAnsiCharColumn.Create(FIXOBJNAME(sColumnName), iLen);
+  // oCol := TDBXUnicodeCharColumn.Create(FIXOBJNAME(sColumnName), iLen);
+
+  oCol.Nullable := bNullable;
+
+  // ATTN!!!
+  oCol.FixedLength := False; // To make VarChar...
+
+  oTable.AddColumn(oCol);
+end;
+
+procedure TDtTstDb.META_DropTable(sTable: string);
 var
   oProvider: TDBXDataExpressMetaDataProvider;
 begin
 
-  oProvider := DBXGetMetaProvider(m_oCon.DBXConnection);
+  oProvider := META_GetProvider(m_oCon.DBXConnection);
   try
 
     // ATTN: Indices of a Table will be dropped along with the table!!!
@@ -410,7 +439,7 @@ begin
 
 end;
 
-procedure TDtTstDb.CreateTable(const AConnection: TDBXConnection);
+procedure TDtTstDb.META_CreateTable_SAMPLE(const AConnection: TDBXConnection);
 // SRC: https://www.embarcadero.com/images/dm/technical-papers/delphi-2010-and-firebird.pdf
 var
   MyProvider: TDBXDataExpressMetaDataProvider;
@@ -419,13 +448,13 @@ var
   MyIDColumn: TDBXInt32Column;
 begin
   // Get the MetadataProvider from my Connection
-  MyProvider := DBXGetMetaProvider(AConnection);
+  MyProvider := META_GetProvider(AConnection);
   try
     // Create the Table structure
     MyNewTable := TDBXMetaDataTable.Create;
 
     try
-      MyNewTable.TableName := 'DELPHIEXPERTS';
+      MyNewTable.TableName := csDB_TBL_SAMPLE;
       MyIDColumn := TDBXInt32Column.Create('ID');
       MyIDColumn.Nullable:=false;
       MyNewTable.AddColumn(MyIDColumn);
@@ -444,9 +473,9 @@ begin
 
       {ATTN: OPTIONAL to name the Index!!!}
       {      Original Sample does not do so!!!}
-      MyPrimaryKey.IndexName := 'DELPHIEXPERTS_ID';
+      MyPrimaryKey.IndexName := csDB_TBL_SAMPLE + '_ID';
 
-      MyPrimaryKey.TableName := 'DELPHIEXPERTS';
+      MyPrimaryKey.TableName := csDB_TBL_SAMPLE;
       MyPrimaryKey.AddColumn('ID');
       // Add the Primary Key with my provider
       MyProvider.CreatePrimaryKey(MyPrimaryKey);
@@ -458,20 +487,20 @@ begin
   end;
 end;
 
-function TDtTstDb.DBXGetMetaProvider(const AConnection: TDBXConnection) : TDBXDataExpressMetaDataProvider;
+function TDtTstDb.META_GetProvider(const AConnection: TDBXConnection) : TDBXDataExpressMetaDataProvider;
 // SRC: https://www.embarcadero.com/images/dm/technical-papers/delphi-2010-and-firebird.pdf
 var
-  Provider: TDBXDataExpressMetaDataProvider;
+  oProvider: TDBXDataExpressMetaDataProvider;
 begin
-  Provider := TDBXDataExpressMetaDataProvider.Create;
+  oProvider := TDBXDataExpressMetaDataProvider.Create;
   try
-    Provider.Connection := AConnection;
-    Provider.Open;
+    oProvider.Connection := AConnection;
+    oProvider.Open;
   except
-    FreeAndNil(Provider);
+    FreeAndNil(oProvider);
     raise ;
   end;
-  Result := Provider;
+  Result := oProvider;
 end;
 
 end.

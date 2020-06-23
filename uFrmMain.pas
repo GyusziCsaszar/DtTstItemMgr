@@ -38,7 +38,7 @@ type
     chbMetadataTablesOnly: TCheckBox;
     lblDb: TLabel;
     cbbDb: TComboBox;
-    btnCreTbl: TButton;
+    btnCreTblSample: TButton;
     btnDrpTbl: TButton;
     lblDbInfo: TLabel;
     edDbInfo: TEdit;
@@ -58,7 +58,7 @@ type
     procedure btnDeleteBottomClick(Sender: TObject);
     procedure chbMetadataTablesOnlyClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure btnCreTblClick(Sender: TObject);
+    procedure btnCreTblSampleClick(Sender: TObject);
     procedure btnDrpTblClick(Sender: TObject);
     procedure btnInitDtTstDbClick(Sender: TObject);
   private
@@ -86,9 +86,12 @@ uses
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
 
+  // NOTE: ShowMessage Title setting...
+  Application.Title := csCOMPANY + ' ' + csPRODUCT_TITLE + ' ' + csVERSION_TITLE;
+
   con_Firebird := nil;
 
-  m_oLog := TDtTstLog.Create(TPath.ChangeExtension(Application.ExeName, csLOG_EXT),
+  m_oLog := TDtTstLog.Create(TPath.ChangeExtension(Application.ExeName, csLOG_UTF8_EXT), //csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
 
   inherited Create(AOwner);
@@ -131,11 +134,12 @@ procedure TFrmMain.FormShow(Sender: TObject);
 begin
   // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
 
-  // NOTE: ShowMessage Title setting...
-  Application.Title := self.Caption;
+  self.Caption := Application.Title;
 
   // First LogINFO...
-  m_oLog.LogINFO('Executable Path: ' + Application.ExeName);
+  m_oLog.LogINFO('App Path: '  + Application.ExeName);
+  m_oLog.LogINFO('App Title: ' + Application.Title);
+  m_oLog.LogINFO('App Info: PRD = ' + csPRODUCT + ' VER = ' + IntToStr(ciVERSION) + ' DB(' + csPRODUCT + ').VER = ' + IntToStr(ciDB_VERSION));
 
   // DB Info from INI file...
   cbbDb.Text := '';
@@ -148,9 +152,11 @@ begin
   end;
 
   m_oDb.GetConnectStrings(cbbDb);
+
+  btnCreTblSample.Caption := btnCreTblSample.Caption + ' "' + csDB_TBL_SAMPLE + '"';
 end;
 
-procedure TFrmMain.btnCreTblClick(Sender: TObject);
+procedure TFrmMain.btnCreTblSampleClick(Sender: TObject);
 var
   oDb: TDtTstDb;
 begin
@@ -160,9 +166,9 @@ begin
     try
       oDb := TDtTstDb.Create(m_oLog, '');
 
-      oDb.CreateTable(con_Firebird.DBXConnection);
+      oDb.META_CreateTable_SAMPLE(con_Firebird.DBXConnection);
 
-      InfoMsgDlg('You have created table "DELPHIEXPERTS"!');
+      InfoMsgDlg('You have created table "' + csDB_TBL_SAMPLE + '"!');
 
     finally
       FreeAndNil(oDb);
@@ -201,15 +207,22 @@ begin
     exit;
   end;
 
+  if Pos('DUAL ', lbResult.Items[lbResult.ItemIndex]) = 1 then
+  begin
+    ErrorMsgDlg('Table is not deletable!');
+    exit;
+  end;
+
   sTable := lbResult.Items[lbResult.ItemIndex];
-    if not QuestionMsgDlg('Do you want to really DROP Table "' + sTable + '"?') then
-    begin
-      Exit;
-    end;
+
+  if not QuestionMsgDlg('Do you want to really DROP Table "' + sTable + '"?') then
+  begin
+    Exit;
+  end;
 
   try
 
-    m_oDb.DropTable(sTable);
+    m_oDb.META_DropTable(sTable);
 
     InfoMsgDlg('You have DROPPED Table "' + sTable + '"!');
   except
@@ -347,7 +360,8 @@ end;
 
 procedure TFrmMain.lbResultDblClick(Sender: TObject);
 var
-  sTable: string;
+  sTable, sSQL: string;
+  bDUAL: Boolean;
 begin
   if lbResult.ItemIndex < 0 then
   begin
@@ -360,16 +374,29 @@ begin
     exit;
   end;
 
-  if (lbResult.Items[lbResult.ItemIndex][1] = ' ') or
-     (lbResult.Items[lbResult.ItemIndex][1] = '[') then
-  begin
-    WarningMsgDlg('The selected item is not a Table Name!');
+  bDUAL := (Pos('DUAL ', lbResult.Items[lbResult.ItemIndex]) = 1);
 
-    sTable := '';
+  if (lbResult.Items[lbResult.ItemIndex][1] = ' ') or
+     (lbResult.Items[lbResult.ItemIndex][1] = '[') or
+     (bDUAL) then
+  begin
+    if bDUAL then
+    begin
+      sTable := lbResult.Items[lbResult.ItemIndex];
+    end
+    else
+    begin
+      WarningMsgDlg('The selected item is not a Table Name!');
+
+      sTable := 'N/A';
+    end;
+
+    sSQL   := 'select current_timestamp from RDB$DATABASE;'
   end
   else
   begin
     sTable := lbResult.Items[lbResult.ItemIndex];
+    sSQL   := 'select * from ' + m_oDb.FIXOBJNAME(sTable) + ';'
   end;
 
   try
@@ -378,9 +405,9 @@ begin
     qry_Top.Active := False;
     qry_Top.SQL.Clear();
 
-    if not sTable.IsEmpty() then
+    if not sSQL.IsEmpty() then
     begin
-      qry_Top.SQL.Add('select * from ' + m_oDb.FIXOBJNAME(sTable) + ';');
+      qry_Top.SQL.Add(sSQL);
       qry_Top.Active := True;
       m_oLog.LogINFO('SQL Query is Active!');
       cds_Top.Active := True;
@@ -400,9 +427,9 @@ begin
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
 
-    if not sTable.IsEmpty() then
+    if not sSQL.IsEmpty() then
     begin
-      sds_Bottom.DataSet.CommandText := 'select * from ' + m_oDb.FIXOBJNAME(sTable) + ';';
+      sds_Bottom.DataSet.CommandText := sSQL;
       sds_Bottom.Active := True;
       m_oLog.LogINFO('Simple DataSet is Active!');
       lblBottom.Caption := sTable + ' (Simple DataSet):';
@@ -492,6 +519,8 @@ begin
 
   lbResult.Items.Insert(4, '[Tables]');
 
+  lbResult.Items.Insert(5, 'DUAL (in firebird RDB$DATABASE)');
+
 end;
 
 procedure TFrmMain.btnInitDtTstDbClick(Sender: TObject);
@@ -528,7 +557,7 @@ begin
   end;
 
   try
-    m_oDb.CreateTableDtTstDbVer();
+    m_oDb.META_CreateTable_DtTstDb_DBINFO();
   except
     on exc : Exception do
     begin
@@ -593,10 +622,10 @@ begin
     chbServerCharSetUtf8.Enabled := False;
     btnConnect          .Enabled := False;
 
-    btnInitDtTstDb.Enabled := True;
-    btnGetMetadata.Enabled := True;
-    btnCreTbl     .Enabled := True;
-    btnDrpTbl     .Enabled := True;
+    btnInitDtTstDb .Enabled := True;
+    btnGetMetadata .Enabled := True;
+    btnCreTblSample.Enabled := True;
+    btnDrpTbl      .Enabled := True;
 
     btnGetMetadata.Click();
 

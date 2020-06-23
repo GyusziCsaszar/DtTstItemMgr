@@ -120,7 +120,12 @@ begin
   if m_sLogPath.Length > 0 then
   begin
     try
+
+      // ATTN!!!
+      CreateUTF8BOMFile(m_sLogPath, False {bOverWrite});
+
       TFile.AppendAllText(m_sLogPath, sLn + Chr(13) + Chr(10));
+
     except
       on exc : Exception do
       begin
