@@ -72,7 +72,7 @@ type
     function FIXOBJNAME(sTable: string) : string;
 
     procedure Select_Generators(asResult: TStringList);
-    procedure Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+    function Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean; sTriggerName: string) : Boolean;
 
     procedure ExecuteSQL(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
@@ -475,26 +475,28 @@ begin
   end;
 end;
 
-procedure TDtTstDb.Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+function TDtTstDb.Select_Triggers(asResult: TStringList; sTable: string; bDetails: Boolean; sTriggerName: string) : Boolean;
 var
   sSql: string;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
   sTriggerInfo: string;
 begin
+  Result := False;
 
-  asResult.Clear();
+  if Assigned(asResult) then asResult.Clear();
 
   // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
   oQry := TSQLQuery.Create(nil);
   try
 
     // SRC: https://stackoverflow.com/questions/26578880/how-to-print-firebird-triggers
-    sSql := 'SELECT RDB$TRIGGER_NAME AS trigger_name,';
+    sSql := 'SELECT RDB$TRIGGER_NAME AS trigger_name';
 
-    if sTable.IsEmpty() and bDetails then
+    if sTable.IsEmpty() then //and bDetails then
     begin
-      sSql := sSql + ' RDB$RELATION_NAME AS table_name,';
+      sSql := sSql + ', ';
+      sSql := sSql + ' RDB$RELATION_NAME AS table_name';
     end;
 
     {
@@ -503,6 +505,7 @@ begin
 
     if bDetails then
     begin
+      sSql := sSql + ', ';
       sSql := sSql + '  CASE RDB$TRIGGER_TYPE' +
               '   WHEN 1 THEN ''BEFORE''' +
               '   WHEN 2 THEN ''AFTER''' +
@@ -532,6 +535,17 @@ begin
       sSql := sSql + ' WHERE RDB$RELATION_NAME = ' + '''' + FIXOBJNAME(sTable) + '''';
     end;
 
+    if not sTriggerName.IsEmpty() then
+    begin
+      if sTable.IsEmpty() then
+        sSql := sSql + ' WHERE'
+      else
+        sSql := sSql + ' AND';
+
+      sSql := sSql + ' RDB$TRIGGER_NAME = ' + '''' + FIXOBJNAME(sTriggerName) + '''';
+
+    end;
+
     oQry.SQLConnection := m_oCon;
 
     oQry.SQL.Add(m_oLog.LogSQL(sSql));
@@ -543,31 +557,36 @@ begin
       while not oQry.Eof do
       begin
 
-        sTriggerInfo := TRIM(oQry.FieldByName('trigger_name').AsString);
-
-        if bDetails then
+        if Assigned(asResult) then
         begin
+          sTriggerInfo := TRIM(oQry.FieldByName('trigger_name').AsString);
 
-          sTriggerInfo := sTriggerInfo + ' ( ';
-
-          if sTable.IsEmpty() then
+          if bDetails then
           begin
-            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('table_name').AsString) + ', ';
+
+            sTriggerInfo := sTriggerInfo + ' ( ';
+
+            if sTable.IsEmpty() then
+            begin
+              sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('table_name').AsString) + ', ';
+            end;
+
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_type').AsString) + ', ';
+
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_event').AsString) + ', ';
+
+            sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_enabled').AsString); // + ', ';
+
+            //sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_comment').AsString) + ', ';
+
+            sTriggerInfo := sTriggerInfo + ' ) ';
+
           end;
 
-          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_type').AsString) + ', ';
-
-          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_event').AsString) + ', ';
-
-          sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_enabled').AsString); // + ', ';
-
-          //sTriggerInfo := sTriggerInfo + TRIM(oQry.FieldByName('trigger_comment').AsString) + ', ';
-
-          sTriggerInfo := sTriggerInfo + ' ) ';
-
+          asResult.Add(sTriggerInfo);
         end;
 
-        asResult.Add(sTriggerInfo);
+        Result := True;
 
         oQry.Next;
       end;

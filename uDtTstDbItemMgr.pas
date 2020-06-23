@@ -214,22 +214,35 @@ begin
                                         ' POSITION 0' + CHR(13) + CHR(10) +
                                         ' AS' + CHR(13) + CHR(10) +
                                         ' BEGIN' + CHR(13) + CHR(10) +
+                                        { INSERTING - ID }
                                         ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
                                         ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
                                         FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
                                         '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
+                                        { INSERTING - USRCRE, TSPCRE}
                                         ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) +
                                         ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) + ' = current_user;' + CHR(13) + CHR(10) +
                                         ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
                                         ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
-                                        ' NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
-                                        ' NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
+                                        { INSERTING OR UPDATING - USRUPD, TSPUPD }
+                                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
+                                        ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                                        ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                                        ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
                                         ' END!!',
                                         '!!');
 
     if not ContainsText(sOutput, csISQL_SUCCESS) then
     begin
       raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+    end;
+
+    // ATTN!!! Syntax error could be only cathed this way!!!
+    if not Select_Triggers(nil {asResult}, csDB_TBL_USR_ITEMTYPE, False {bDetails}, csDB_TBL_USR_ITEMTYPE + '_BI' {sTriggerName}) then
+    begin
+      raise Exception.Create('ERROR: Triggier "' + FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + '_BI' + '" does not exist just after its Creation!');
     end;
 
     if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');

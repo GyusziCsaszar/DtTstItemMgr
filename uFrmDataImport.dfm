@@ -122,6 +122,10 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 4
+        ColWidths = (
+          64)
+        RowHeights = (
+          24)
       end
     end
     object grpCsv: TGroupBox

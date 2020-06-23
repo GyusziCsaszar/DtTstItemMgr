@@ -55,6 +55,8 @@ type
     { Private declarations }
     m_oApp: TDtTstApp;
 
+    m_sTable: string;
+
     m_oStreamCSV: TStreamReader;
     m_cDelimCSV: char;
     m_asRowCSV: TStringList;
@@ -91,7 +93,7 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstConsts, uDtTstUtils, uDtTstWin, uFrmProgress,
+  { DtTst Units: } uDtTstConsts, uDtTstUtils, uDtTstWin, uDtTstAppDb, uFrmProgress, uDtTstDbSql,
   System.IOUtils, StrUtils, System.Math;
 
 constructor TFrmDataImport.Create(AOwner: TComponent; oApp: TDtTstApp);
@@ -137,9 +139,11 @@ end;
 procedure TFrmDataImport.Init(sTable: string; asCols: TStringList);
 begin
 
-  lblCaption.Caption := 'Importing from CSV File into table ' + sTable;
+  m_sTable := sTable;
 
-  edTblNm.Text := sTable;
+  lblCaption.Caption := 'Importing from CSV File into table ' + m_sTable;
+
+  edTblNm.Text := m_sTable;
 
   cbbTblCol.Items.AddStrings(asCols);
 
@@ -550,10 +554,57 @@ end;
 procedure TFrmDataImport.ProcessCSV(bChkOnly: Boolean);
 var
   frmPrs: TFrmProgress;
+  dbSql: TDtTstDbSql;
+  asTblCols: TStringList;
+  aiCsvColIndices: TArray<Integer>;
+  asCsvVals: TStringList;
+  iRow, iCol: integer;
 begin
+
+  dbSql := nil;
+  asTblCols := nil;
+  aiCsvColIndices := nil;
+  asCsvVals := nil;
 
   frmPrs := TFrmProgress.Create(self, m_oApp);
   try
+
+    if not bChkOnly then
+    begin
+      dbSql := TDtTstDbSql.Create(m_oApp as TDtTstAppDb);
+
+      asTblCols := TStringList.Create;
+      for iRow := 1 to sgrdDef.RowCount - 1 do
+      begin
+        asTblCols.Add(sgrdDef.Cells[0, iRow]);
+      end;
+
+      aiCsvColIndices := TArray<Integer>.Create();
+      SetLength(aiCsvColIndices, sgrdDef.RowCount);
+      for iRow := 1 to sgrdDef.RowCount - 1 do
+      begin
+
+        aiCsvColIndices[iRow - 1] := -1;
+
+        for iCol := 0 to sgrd.ColCount - 1 do
+        begin
+          if sgrd.Cells[iCol, 0] = sgrdDef.Cells[1, iRow] then
+          begin
+            aiCsvColIndices[iRow - 1] := iCol;
+            Break;
+          end;
+        end;
+
+        if aiCsvColIndices[iRow - 1] = -1 then
+        begin
+          raise Exception.Create('CSV Column "' + sgrdDef.Cells[1, iRow] + '" not found!');
+        end;
+
+      end;
+
+      asCsvVals := TStringList.Create;
+
+    end;
 
     frmPrs.Show();
     if bChkOnly then
@@ -605,6 +656,33 @@ begin
 
       Application.ProcessMessages;
 
+      if not bChkOnly then
+      begin
+
+        asCsvVals.Clear;
+
+        for iCol := 0 to asTblCols.Count - 1 do
+        begin
+          if aiCsvColIndices[iCol] >= m_asRowCSV.Count then
+            asCsvVals.Add('')
+          else
+            asCsvVals.Add(m_asRowCSV[aiCsvColIndices[iCol]]);
+        end;
+
+        try
+
+          dbSql.InsertOrUpdate(m_sTable, asTblCols, asCsvVals);
+
+        except
+          on exc : Exception do
+          begin
+            m_oApp.LOG.LogERROR(exc);
+            ErrorMsgDlg('ERROR: Inserting CSV Data Row #' + IntToStr(m_iCsvDataRow) + '!' + CHR(10) + CHR(10) + 'Error: ' + exc.ClassName + ' - ' + exc.Message);
+          end;
+        end;
+
+      end;
+
       if m_oStreamCSV.EndOfStream then Break;
     end;
 
@@ -616,14 +694,27 @@ begin
     frmPrs.Done();
     while frmPrs.Visible do Application.ProcessMessages;
 
+    if not bChkOnly then
+    begin
+      Close();
+    end;
+
   finally
 
     sgrd.RowCount := 1;
-    sgrd.ColCount := 1;
-    sgrd.Cells[0, 0] := 'N/A';
+  //sgrd.ColCount := 1;
+  //sgrd.Cells[0, 0] := 'N/A';
 
     frmPrs.Close();
     FreeAndNil(frmPrs);
+
+    FreeAndNil(asTblCols);
+
+    //FreeAndNil(aiCsvColIndices); //MUST NOT!!!
+
+    FreeAndNil(asCsvVals);
+
+    FreeAndNil(dbSql);
   end;
 
 end;

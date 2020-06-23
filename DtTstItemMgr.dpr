@@ -13,7 +13,8 @@ uses
   uFrmProgress in 'uFrmProgress.pas' {FrmProgress},
   uFrmDataImport in 'uFrmDataImport.pas' {FrmDataImport},
   uDtTstApp in 'uDtTstApp.pas',
-  uDtTstAppDb in 'uDtTstAppDb.pas';
+  uDtTstAppDb in 'uDtTstAppDb.pas',
+  uDtTstDbSql in 'uDtTstDbSql.pas';
 
 {$R *.res}
 

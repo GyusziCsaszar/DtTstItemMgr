@@ -893,7 +893,7 @@ begin
       asItems := TStringList.Create();
       try
 
-        m_oApp.DB.Select_Triggers(asItems, sTable {sTable}, True {bDetails});
+        m_oApp.DB.Select_Triggers(asItems, sTable {sTable}, True {bDetails}, '' {sTriggerName});
 
         iIdx := iIdx + 1;
         lbResult.Items.Insert(iIdx, '  [Triggers]');

@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 119;
-  csVERSION_TITLE       = 'v1.19';
+  ciVERSION             = 120;
+  csVERSION_TITLE       = 'v1.20';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
