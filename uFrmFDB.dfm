@@ -222,12 +222,13 @@ object FrmFDB: TFrmFDB
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = []
+      SelectedColor = clInactiveCaption
       SoftTop = True
       Style = tsSoftTabs
       Tabs.Strings = (
         'LOG'
         'SQL Editor')
-      TabIndex = 0
+      TabIndex = 1
       Visible = False
       OnChange = tsDevChange
     end
@@ -241,7 +242,6 @@ object FrmFDB: TFrmFDB
       TabOrder = 16
       Visible = False
       OnDblClick = lbLogDblClick
-      ExplicitHeight = 57
     end
     object moSql: TMemo
       Left = 14
@@ -252,7 +252,6 @@ object FrmFDB: TFrmFDB
       ScrollBars = ssBoth
       TabOrder = 17
       Visible = False
-      ExplicitHeight = 43
     end
     object btnSqlOpen: TButton
       Left = 127
@@ -343,7 +342,6 @@ object FrmFDB: TFrmFDB
       ParentFont = False
       TabOrder = 6
       Visible = False
-      ExplicitTop = 312
     end
   end
   object panAdminMode: TPanel

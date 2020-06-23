@@ -56,6 +56,9 @@ type
     procedure SetConnectPassword(sValue: string);
     property ConnectPassword: string read GetConnectPassword write SetConnectPassword;
 
+    function GetConnected(): Boolean;
+    property Connected: Boolean read GetConnected;
+
     procedure Connect(oCon: TSQLConnection);
     procedure AfterConnect(); virtual;
 
@@ -340,6 +343,16 @@ end;
 procedure TDtTstDb.SetConnectPassword(sValue: string);
 begin
   m_sConnectPassword := sValue;
+end;
+
+function TDtTstDb.GetConnected(): Boolean;
+begin
+  Result := False;
+
+  if Assigned(m_oCon) then
+  begin
+    Result := m_oCon.Connected;
+  end;
 end;
 
 procedure TDtTstDb.Connect(oCon: TSQLConnection);

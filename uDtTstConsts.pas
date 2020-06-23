@@ -9,8 +9,17 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 121;
-  csVERSION_TITLE       = 'v1.21';
+  ciVERSION             = 122;
+  csVERSION_TITLE       = 'v1.22';
+
+  { App - Menu }
+  ccBtn                     = '0';
+  ccGrp                     = '1';
+  // -----------------------------
+  ccBtnID_RefreshMetadata   = '0';
+  ccBtnID_DropTable         = '1';
+  ccBtnID_DropColumn        = '2';
+  ccBtnID_ImportTable       = '3';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';

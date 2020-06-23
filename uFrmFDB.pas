@@ -144,7 +144,7 @@ begin
   begin
 
     // ATTN: Force event handler...
-  //tsDev.TabIndex := 1; tsDev.TabIndex := 0;
+    //tsDev.TabIndex := 1; tsDev.TabIndex := 0;
     tsDev.TabIndex := 0; tsDev.TabIndex := 1;
 
   end;
@@ -501,6 +501,71 @@ begin
   m_oApp.LOG.LogUI('TFrmFDB.chbAutoConnectClick END');
 end;
 
+procedure TFrmFDB.tsDevChange(Sender: TObject; NewTab: Integer;
+  var AllowChange: Boolean);
+begin
+
+  if not m_oApp.ADMIN_MODE then Exit;
+
+  lbLog.Visible := (NewTab = 0);
+
+  btnSqlOpen        .Visible := (NewTab = 1);
+  btnSqlOpenSample  .Visible := (NewTab = 1);
+  btnIsqlExec       .Visible := (NewTab = 1);
+  btnIsqlExecSample .Visible := (NewTab = 1);
+  edTerm            .Visible := (NewTab = 1);
+  moSql             .Visible := (NewTab = 1);
+
+end;
+
+procedure TFrmFDB.btnSqlOpenClick(Sender: TObject);
+var
+  sSql: string;
+begin
+  if not moSql.Lines.Text.IsEmpty() then
+  begin
+
+    sSql := moSql.Lines.Text;
+
+    if StartsText('SELECT ', TRIM(sSql.ToUpper())) then
+    begin
+
+      {
+      OpenSql('SQL Editor', sSql);
+      }
+
+      // Syntax Check...
+      (m_oApp as TDtTstAppDb).DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
+
+      if QuestionMsgDlg('To open Select query this window needs to close!' + CHR(10) + CHR(10) +
+                        'Do you want to continue?') then
+      begin
+
+        SQL_OpenSelect := sSql;
+
+        ModalResult := mrOk;
+
+      end;
+
+    end
+    else
+    begin
+      (m_oApp as TDtTstAppDb).DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
+    end;
+
+  end;
+end;
+
+procedure TFrmFDB.btnSqlOpenSampleClick(Sender: TObject);
+begin
+
+  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE';
+
+  // ATTN: DO NOT!!! Closes form when sql is select!
+  //if btnSqlOpen.Enabled then btnSqlOpen.Click();
+
+end;
+
 procedure TFrmFDB.btnLoginClick(Sender: TObject);
 var
   sDbInfo: string;
@@ -561,128 +626,66 @@ begin
 
 end;
 
-procedure TFrmFDB.btnSqlOpenClick(Sender: TObject);
-var
-  sSql: string;
-begin
-  if not moSql.Lines.Text.IsEmpty() then
-  begin
-
-    sSql := moSql.Lines.Text;
-
-    if StartsText('SELECT ', TRIM(sSql.ToUpper())) then
-    begin
-
-      {
-      OpenSql('SQL Editor', sSql);
-      }
-
-      // Syntax Check...
-      (m_oApp as TDtTstAppDb).DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
-
-      if QuestionMsgDlg('To open Select query this window needs to close!' + CHR(10) + CHR(10) +
-                        'Do you want to continue?') then
-      begin
-
-        SQL_OpenSelect := sSql;
-
-        ModalResult := mrOk;
-
-      end;
-
-    end
-    else
-    begin
-      (m_oApp as TDtTstAppDb).DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
-    end;
-
-  end;
-end;
-
-procedure TFrmFDB.btnSqlOpenSampleClick(Sender: TObject);
-begin
-
-  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE';
-
-  // ATTN: DO NOT!!! Closes form when sql is select!
-  //if btnSqlOpen.Enabled then btnSqlOpen.Click();
-
-end;
-
 function TFrmFDB.ShowModal(oConAnsi, oConUtf8: TSQLConnection) : integer;
+var
+  lbLog_Old: TListBox;
 begin
   Result     := mrCancel;
 
+  m_oConAnsi := oConAnsi;
+  m_oConUtf8 := oConUtf8;
+
+  m_oCon     := nil;
+
+  panAdminMode          .Visible := m_oApp.ADMIN_MODE;
+  lblDb                 .Visible := m_oApp.ADMIN_MODE;
+  cbbDb                 .Visible := m_oApp.ADMIN_MODE;
+  btnDbOpen             .Visible := m_oApp.ADMIN_MODE;
+  chbServerCharsetUtf8  .Visible := m_oApp.ADMIN_MODE;
+  panDbInfo             .Visible := m_oApp.ADMIN_MODE;
+  grpIsql               .Visible := m_oApp.ADMIN_MODE;
+  chbIsqlVisible        .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlCreateDb       .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlShowDb         .Visible := m_oApp.ADMIN_MODE;
+  chbDoDbUpdate         .Visible := m_oApp.ADMIN_MODE;
+  btnCrePrdTbls         .Visible := m_oApp.ADMIN_MODE;
+  btnCreTblSample       .Visible := m_oApp.ADMIN_MODE;
+  tsDev                 .Visible := m_oApp.ADMIN_MODE;
+  moSql                 .Visible := m_oApp.ADMIN_MODE;
+  btnSqlOpen            .Visible := m_oApp.ADMIN_MODE;
+  btnSqlOpenSample      .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlExec           .Visible := m_oApp.ADMIN_MODE;
+  btnIsqlExecSample     .Visible := m_oApp.ADMIN_MODE;
+  edTerm                .Visible := m_oApp.ADMIN_MODE;
+
+  //if m_oApp.ADMIN_MODE then
+  begin
+    edUser.Text := (m_oApp as TDtTstAppDb).DB.ConnectUser;
+    edPw  .Text := (m_oApp as TDtTstAppDb).DB.ConnectPassword;
+  end;
+
+  if chbAutoLogin.Checked then
+  begin
+
+    btnLogin.Click();
+
+    if not btnLogin.Enabled then
+    begin
+      Result := mrOk;
+      Exit;
+    end;
+
+  end;
+
+  lbLog_Old := m_oApp.LOG.m_lbLogView;
   m_oApp.LOG.m_lbLogView := lbLog;
   try
-
-    m_oConAnsi := oConAnsi;
-    m_oConUtf8 := oConUtf8;
-
-    m_oCon     := nil;
-
-    panAdminMode          .Visible := m_oApp.ADMIN_MODE;
-    lblDb                 .Visible := m_oApp.ADMIN_MODE;
-    cbbDb                 .Visible := m_oApp.ADMIN_MODE;
-    btnDbOpen             .Visible := m_oApp.ADMIN_MODE;
-    chbServerCharsetUtf8  .Visible := m_oApp.ADMIN_MODE;
-    panDbInfo             .Visible := m_oApp.ADMIN_MODE;
-    grpIsql               .Visible := m_oApp.ADMIN_MODE;
-    chbIsqlVisible        .Visible := m_oApp.ADMIN_MODE;
-    btnIsqlCreateDb       .Visible := m_oApp.ADMIN_MODE;
-    btnIsqlShowDb         .Visible := m_oApp.ADMIN_MODE;
-    chbDoDbUpdate         .Visible := m_oApp.ADMIN_MODE;
-    btnCrePrdTbls         .Visible := m_oApp.ADMIN_MODE;
-    btnCreTblSample       .Visible := m_oApp.ADMIN_MODE;
-    tsDev                 .Visible := m_oApp.ADMIN_MODE;
-    moSql                 .Visible := m_oApp.ADMIN_MODE;
-    btnSqlOpen            .Visible := m_oApp.ADMIN_MODE;
-    btnSqlOpenSample      .Visible := m_oApp.ADMIN_MODE;
-    btnIsqlExec           .Visible := m_oApp.ADMIN_MODE;
-    btnIsqlExecSample     .Visible := m_oApp.ADMIN_MODE;
-    edTerm                .Visible := m_oApp.ADMIN_MODE;
-
-    //if m_oApp.ADMIN_MODE then
-    begin
-      edUser.Text := (m_oApp as TDtTstAppDb).DB.ConnectUser;
-      edPw  .Text := (m_oApp as TDtTstAppDb).DB.ConnectPassword;
-    end;
-
-    if chbAutoLogin.Checked then
-    begin
-
-      btnLogin.Click();
-
-      if not btnLogin.Enabled then
-      begin
-        Result := mrOk;
-        Exit;
-      end;
-
-    end;
 
     Result := inherited ShowModal();
 
   finally
-      m_oApp.LOG.m_lbLogView := nil;
+    m_oApp.LOG.m_lbLogView := lbLog_Old;
   end;
-end;
-
-procedure TFrmFDB.tsDevChange(Sender: TObject; NewTab: Integer;
-  var AllowChange: Boolean);
-begin
-
-  if not m_oApp.ADMIN_MODE then Exit;
-
-  lbLog.Visible := (NewTab = 0);
-
-  btnSqlOpen        .Visible := (NewTab = 1);
-  btnSqlOpenSample  .Visible := (NewTab = 1);
-  btnIsqlExec       .Visible := (NewTab = 1);
-  btnIsqlExecSample .Visible := (NewTab = 1);
-  edTerm            .Visible := (NewTab = 1);
-  moSql             .Visible := (NewTab = 1);
-
 end;
 
 end.
