@@ -94,6 +94,7 @@ object FrmFDB: TFrmFDB
       Top = 176
       Width = 75
       Height = 25
+      Cancel = True
       Caption = 'Close'
       TabOrder = 3
       OnClick = btnCloseClick

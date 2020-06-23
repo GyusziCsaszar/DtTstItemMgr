@@ -18,12 +18,18 @@ object FrmMain: TFrmMain
     614)
   PixelsPerInch = 96
   TextHeight = 13
-  object lblRs: TLabel
+  object lblTop: TLabel
     Left = 528
-    Top = 44
-    Width = 22
-    Height = 13
-    Caption = 'N/A:'
+    Top = 17
+    Width = 21
+    Height = 16
+    Caption = 'N/A'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = [fsUnderline]
+    ParentFont = False
     ParentShowHint = False
     ShowHint = True
   end
@@ -43,10 +49,31 @@ object FrmMain: TFrmMain
   object lblLog: TLabel
     Left = 528
     Top = 431
-    Width = 183
-    Height = 13
+    Width = 218
+    Height = 16
     Anchors = [akLeft, akBottom]
     Caption = 'LOG (DblClk = Copy line to Clipboard!)'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = [fsUnderline]
+    ParentFont = False
+  end
+  object lblBottom: TLabel
+    Left = 528
+    Top = 237
+    Width = 21
+    Height = 16
+    Caption = 'N/A'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = [fsUnderline]
+    ParentFont = False
+    ParentShowHint = False
+    ShowHint = True
   end
   object panLeft: TPanel
     Left = 0
@@ -56,7 +83,7 @@ object FrmMain: TFrmMain
     Anchors = [akLeft, akTop, akBottom]
     Color = clWindow
     ParentBackground = False
-    TabOrder = 7
+    TabOrder = 6
     object chbAutoLogin: TCheckBox
       Left = 8
       Top = 5
@@ -88,11 +115,11 @@ object FrmMain: TFrmMain
     end
   end
   object db_grid_Top: TDBGrid
-    Left = 528
-    Top = 69
-    Width = 380
-    Height = 156
-    Anchors = [akLeft, akTop, akRight, akBottom]
+    Left = 539
+    Top = 43
+    Width = 369
+    Height = 177
+    Anchors = [akLeft, akTop, akRight]
     DataSource = ds_cds_Top
     TabOrder = 0
     TitleFont.Charset = DEFAULT_CHARSET
@@ -102,10 +129,10 @@ object FrmMain: TFrmMain
     TitleFont.Style = []
   end
   object db_grid_Bottom: TDBGrid
-    Left = 528
-    Top = 69
-    Width = 380
-    Height = 156
+    Left = 539
+    Top = 264
+    Width = 369
+    Height = 153
     Anchors = [akLeft, akTop, akRight, akBottom]
     DataSource = ds_sds_Bottom
     TabOrder = 1
@@ -128,34 +155,24 @@ object FrmMain: TFrmMain
     OnDrawItem = lbObjectsDrawItem
     OnMeasureItem = lbObjectsMeasureItem
   end
-  object btnRsRefresh: TButton
-    Left = 847
-    Top = 38
-    Width = 61
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Refresh'
-    TabOrder = 3
-    OnClick = btnRsRefreshClick
-  end
   object btnRsInsert: TButton
     Left = 790
-    Top = 38
+    Top = 8
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
     Caption = 'Insert'
-    TabOrder = 4
+    TabOrder = 3
     OnClick = btnRsInsertClick
   end
   object btnRsDelete: TButton
-    Left = 727
-    Top = 38
+    Left = 851
+    Top = 8
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
     Caption = 'Delete'
-    TabOrder = 5
+    TabOrder = 4
     OnClick = btnRsDeleteClick
   end
   object panDbInfo: TPanel
@@ -176,7 +193,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 6
+    TabOrder = 5
   end
   object panAdminMode: TPanel
     Left = 300
@@ -195,34 +212,13 @@ object FrmMain: TFrmMain
     Font.Style = []
     ParentBackground = False
     ParentFont = False
-    TabOrder = 8
-  end
-  object tsViews: TTabSet
-    Left = 528
-    Top = 16
-    Width = 380
-    Height = 22
-    Anchors = [akLeft, akTop, akRight]
-    DitherBackground = False
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    SelectedColor = clInactiveCaption
-    SoftTop = True
-    Style = tsSoftTabs
-    Tabs.Strings = (
-      'Query, Provider and Client DataSet'
-      'Simple DataSet')
-    TabIndex = 0
-    OnChange = tsViewsChange
+    TabOrder = 7
   end
   object lbLog: TListBox
-    Left = 528
-    Top = 448
-    Width = 380
-    Height = 132
+    Left = 539
+    Top = 456
+    Width = 369
+    Height = 124
     Anchors = [akLeft, akRight, akBottom]
     Color = clInfoBk
     Font.Charset = DEFAULT_CHARSET
@@ -232,7 +228,7 @@ object FrmMain: TFrmMain
     Font.Style = []
     ItemHeight = 13
     ParentFont = False
-    TabOrder = 10
+    TabOrder = 8
     OnDblClick = lbLogDblClick
   end
   object lbTasks: TListBox
@@ -242,25 +238,15 @@ object FrmMain: TFrmMain
     Height = 509
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akBottom]
-    TabOrder = 11
+    TabOrder = 9
     OnClick = lbTasksClick
-    OnDblClick = lbTasksDblClick
     OnDrawItem = lbTasksDrawItem
+    OnKeyDown = lbTasksKeyDown
+    OnKeyPress = lbTasksKeyPress
+    OnKeyUp = lbTasksKeyUp
     OnMeasureItem = lbTasksMeasureItem
-  end
-  object db_grid_Details: TDBGrid
-    Left = 528
-    Top = 240
-    Width = 380
-    Height = 185
-    Anchors = [akLeft, akRight, akBottom]
-    DataSource = ds_sds_Details
-    TabOrder = 12
-    TitleFont.Charset = DEFAULT_CHARSET
-    TitleFont.Color = clWindowText
-    TitleFont.Height = -11
-    TitleFont.Name = 'Tahoma'
-    TitleFont.Style = []
+    OnMouseDown = lbTasksMouseDown
+    OnMouseUp = lbTasksMouseUp
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'
@@ -323,7 +309,7 @@ object FrmMain: TFrmMain
     Params = <>
     ProviderName = 'dsp_Top'
     AfterPost = cds_TopAfterPost
-    Left = 732
+    Left = 740
     Top = 111
   end
   object ds_cds_Top: TDataSource
@@ -339,14 +325,13 @@ object FrmMain: TFrmMain
     DataSet.Params = <>
     Params = <>
     AfterPost = sds_BottomAfterPost
-    Left = 548
-    Top = 174
+    Left = 556
+    Top = 302
   end
   object ds_sds_Bottom: TDataSource
     DataSet = sds_Bottom
-    OnDataChange = ds_sds_BottomDataChange
     Left = 844
-    Top = 174
+    Top = 302
   end
   object con_Firebird_UTF8: TSQLConnection
     DriverName = 'Firebird'
@@ -398,20 +383,5 @@ object FrmMain: TFrmMain
     OnTimer = tmrStartTimer
     Left = 16
     Top = 80
-  end
-  object sds_Details: TSimpleDataSet
-    Aggregates = <>
-    Connection = con_Firebird_ANSI
-    DataSet.MaxBlobSize = -1
-    DataSet.Params = <>
-    Params = <>
-    AfterPost = sds_DetailsAfterPost
-    Left = 552
-    Top = 328
-  end
-  object ds_sds_Details: TDataSource
-    DataSet = sds_Details
-    Left = 848
-    Top = 328
   end
 end

@@ -27,8 +27,6 @@ type
     edCsvRowCnt: TEdit;
     chbTrimCells: TCheckBox;
     edCsvErrMark: TEdit;
-    lblTblNm: TLabel;
-    edTblNm: TEdit;
     lblTblCol: TLabel;
     cbbTblCol: TComboBox;
     lblTblCsvCol: TLabel;
@@ -40,6 +38,7 @@ type
     sgrdDef: TStringGrid;
     btnTblColReset: TButton;
     tmrStart: TTimer;
+    chbTblCsvTRIM: TCheckBox;
     procedure btnCsvOpenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnCsvPreviewClick(Sender: TObject);
@@ -177,9 +176,15 @@ begin
   m_asColInfos.Clear();
   if Assigned(asColInfos) then m_asColInfos.AddStrings(asColInfos);
 
-  lblCaption.Caption := 'Importing from CSV File into table ' + sCaption;
 
-  edTblNm.Text := m_sTableOrView;
+  if m_oApp.ADMIN_MODE then
+  begin
+    lblCaption.Caption := 'Importing from CSV File into table ' + sCaption + ' (' + sTableOrView + ')';
+  end
+  else
+  begin
+    lblCaption.Caption := 'Importing from CSV File into table ' + sCaption;
+  end;
 
   cbbTblCol.Items.AddStrings(asCols);
 
@@ -894,8 +899,21 @@ begin
 
           { CSV Value CORRECTION }
 
-          sCsvVal := sCsvVal.Replace(CHR( 9), '\t', [rfReplaceAll]);
-          sCsvVal := sCsvVal.Replace(CHR(13), '\r', [rfReplaceAll]);
+          if chbTblCsvTRIM.Checked then
+          begin
+            sCsvVal := TRIM(sCsvVal);
+            {
+          //sCsvVal := sCsvVal.Replace(CHR( 9), '', [rfReplaceAll]);
+            sCsvVal := sCsvVal.Replace(CHR(13), '', [rfReplaceAll]);
+            sCsvVal := sCsvVal.Replace(CHR(10), '', [rfReplaceAll]);
+            }
+          end
+          else
+          begin
+          //sCsvVal := sCsvVal.Replace(CHR( 9), '\t', [rfReplaceAll]);
+            sCsvVal := sCsvVal.Replace(CHR(13), '\r', [rfReplaceAll]);
+            sCsvVal := sCsvVal.Replace(CHR(10), '\n', [rfReplaceAll]);
+          end;
 
           { CHECK - INTEGER }
           if asDbTypes[iCol] = 'INTEGER' then

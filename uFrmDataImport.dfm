@@ -45,102 +45,96 @@ object FrmDataImport: TFrmDataImport
       430)
     object grpTbl: TGroupBox
       Left = 12
-      Top = 207
+      Top = 183
       Width = 733
-      Height = 179
+      Height = 203
       Anchors = [akLeft, akRight, akBottom]
       Caption = 'Database Table'
       TabOrder = 0
       Visible = False
       DesignSize = (
         733
-        179)
-      object lblTblNm: TLabel
-        Left = 16
-        Top = 24
-        Width = 30
-        Height = 13
-        Caption = 'Table:'
-      end
+        203)
       object lblTblCol: TLabel
-        Left = 179
+        Left = 16
         Top = 24
         Width = 39
         Height = 13
         Caption = 'Column:'
       end
       object lblTblCsvCol: TLabel
-        Left = 367
-        Top = 24
+        Left = 16
+        Top = 48
         Width = 61
         Height = 13
         Caption = 'CSV Column:'
       end
-      object edTblNm: TEdit
-        Left = 52
-        Top = 21
-        Width = 109
-        Height = 21
-        ReadOnly = True
-        TabOrder = 0
-        Text = 'N/A'
-      end
       object cbbTblCol: TComboBox
-        Left = 223
-        Top = 21
+        Left = 83
+        Top = 18
         Width = 130
+        Height = 21
+        Style = csDropDownList
+        TabOrder = 0
+      end
+      object cbbTblCsvCol: TComboBox
+        Left = 83
+        Top = 45
+        Width = 129
         Height = 21
         Style = csDropDownList
         TabOrder = 1
       end
-      object cbbTblCsvCol: TComboBox
-        Left = 433
-        Top = 21
-        Width = 129
-        Height = 21
-        Style = csDropDownList
-        TabOrder = 2
-      end
       object btnTblColAdd: TButton
-        Left = 584
-        Top = 19
+        Left = 286
+        Top = 27
         Width = 55
         Height = 25
         Caption = 'Add'
-        TabOrder = 3
+        TabOrder = 2
         OnClick = btnTblColAddClick
       end
       object sgrdDef: TStringGrid
         Left = 16
-        Top = 56
+        Top = 72
         Width = 701
-        Height = 109
+        Height = 117
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
         FixedCols = 0
         RowCount = 1
         FixedRows = 0
-        TabOrder = 4
+        TabOrder = 3
         ColWidths = (
           64)
         RowHeights = (
           24)
       end
       object btnTblColReset: TButton
-        Left = 658
-        Top = 19
+        Left = 354
+        Top = 27
         Width = 59
         Height = 25
         Caption = 'Clear'
-        TabOrder = 5
+        TabOrder = 4
         OnClick = btnTblColResetClick
+      end
+      object chbTblCsvTRIM: TCheckBox
+        Left = 232
+        Top = 31
+        Width = 48
+        Height = 17
+        Caption = 'TRIM'
+        Checked = True
+        State = cbChecked
+        TabOrder = 5
       end
     end
     object grpCsv: TGroupBox
       Left = 12
       Top = 13
       Width = 733
-      Height = 188
+      Height = 164
       Anchors = [akLeft, akTop, akRight, akBottom]
       Caption = 'CSV file:'
       ParentBackground = False
@@ -148,9 +142,9 @@ object FrmDataImport: TFrmDataImport
       TabOrder = 1
       DesignSize = (
         733
-        188)
+        164)
       object lblCsvPath: TLabel
-        Left = 16
+        Left = 376
         Top = 24
         Width = 26
         Height = 13
@@ -158,38 +152,42 @@ object FrmDataImport: TFrmDataImport
       end
       object lblCsvDelim: TLabel
         Left = 16
-        Top = 55
-        Width = 45
+        Top = 24
+        Width = 33
         Height = 13
-        Caption = 'Delimiter:'
+        Caption = 'Delim.:'
       end
       object lblCsvRowCnt: TLabel
-        Left = 112
-        Top = 55
-        Width = 98
-        Height = 13
+        Left = 176
+        Top = 19
+        Width = 65
+        Height = 30
+        AutoSize = False
         Caption = 'Preview Row Count:'
+        WordWrap = True
       end
       object lblCsvErrMark: TLabel
-        Left = 472
-        Top = 55
-        Width = 70
-        Height = 13
-        Caption = 'Cell ERR mark:'
+        Left = 296
+        Top = 19
+        Width = 41
+        Height = 25
+        AutoSize = False
+        Caption = 'ERR mark:'
+        WordWrap = True
       end
       object edCsvPath: TEdit
-        Left = 48
+        Left = 408
         Top = 21
-        Width = 587
+        Width = 178
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         TabOrder = 0
         OnChange = edCsvPathChange
       end
       object btnCsvOpen: TButton
-        Left = 642
+        Left = 592
         Top = 19
-        Width = 75
+        Width = 34
         Height = 25
         Anchors = [akTop, akRight]
         Caption = '...'
@@ -198,7 +196,7 @@ object FrmDataImport: TFrmDataImport
       end
       object btnCsvPreview: TButton
         Left = 642
-        Top = 50
+        Top = 19
         Width = 75
         Height = 25
         Anchors = [akTop, akRight]
@@ -208,9 +206,9 @@ object FrmDataImport: TFrmDataImport
       end
       object sgrd: TStringGrid
         Left = 16
-        Top = 80
+        Top = 55
         Width = 701
-        Height = 91
+        Height = 92
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
         FixedCols = 0
@@ -223,8 +221,8 @@ object FrmDataImport: TFrmDataImport
           24)
       end
       object edCsvDelim: TEdit
-        Left = 67
-        Top = 53
+        Left = 55
+        Top = 21
         Width = 30
         Height = 21
         Alignment = taCenter
@@ -234,8 +232,8 @@ object FrmDataImport: TFrmDataImport
         OnChange = edCsvDelimChange
       end
       object chbFstRowIsHeader: TCheckBox
-        Left = 310
-        Top = 54
+        Left = 98
+        Top = 14
         Width = 62
         Height = 17
         Caption = 'Header'
@@ -245,9 +243,9 @@ object FrmDataImport: TFrmDataImport
         OnClick = chbFstRowIsHeaderClick
       end
       object edCsvRowCnt: TEdit
-        Left = 216
-        Top = 53
-        Width = 73
+        Left = 247
+        Top = 21
+        Width = 33
         Height = 21
         NumbersOnly = True
         TabOrder = 6
@@ -255,8 +253,8 @@ object FrmDataImport: TFrmDataImport
         OnChange = edCsvRowCntChange
       end
       object chbTrimCells: TCheckBox
-        Left = 383
-        Top = 54
+        Left = 98
+        Top = 32
         Width = 72
         Height = 17
         Caption = 'Trim Cells'
@@ -264,11 +262,10 @@ object FrmDataImport: TFrmDataImport
         OnClick = chbTrimCellsClick
       end
       object edCsvErrMark: TEdit
-        Left = 548
-        Top = 52
-        Width = 88
+        Left = 332
+        Top = 21
+        Width = 29
         Height = 21
-        Anchors = [akLeft, akTop, akRight]
         TabOrder = 8
         Text = '#'
         OnChange = edCsvErrMarkChange
@@ -301,6 +298,7 @@ object FrmDataImport: TFrmDataImport
       Width = 75
       Height = 25
       Anchors = [akRight, akBottom]
+      Cancel = True
       Caption = 'Close'
       TabOrder = 4
       OnClick = btnCloseClick

@@ -9,12 +9,13 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 127;
-  csVERSION_TITLE       = 'v1.27';
+  ciVERSION             = 128;
+  csVERSION_TITLE       = 'v1.28';
 
   { App - Strings }
-  csITEM                = 'ITEM';
-  csITEM_TYPE           = 'ITEM TYPE';
+  csITEM                = '(#1) ITEM';
+  csITEM_TYPE           = '(#2) ITEM TYPE';
+  csITEM_GROUP          = '(#3) ITEM GROUP';
 
   { App - Menu }
   ccMnuBtn                     = '0';
@@ -46,8 +47,11 @@ const
   ccMnuBtnID_Drop_Column       = '7';
   ccMnuBtnID_Drop_View         = '8';
   //
-  ccMnuBtnID_Import_Item_Type  = '9';
-  ccMnuBtnID_Import_Item       = 'A';
+  ccMnuBtnID_GrdRefresh        = '9';
+  // { Product }
+  ccMnuBtnID_Import_Item_Type  = 'A';
+  ccMnuBtnID_Import_Item       = 'B';
+  ccMnuBtnID_Import_Item_Group = 'C';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -124,19 +128,24 @@ const
   { Database - Product ItemMgr }
 //ciDB_VERSION_PRD            = 100;
 //ciDB_VERSION_PRD            = 101; // CRE ItemType
-  ciDB_VERSION_PRD            = 102; // CRE Item
+//ciDB_VERSION_PRD            = 102; // CRE Item
+  ciDB_VERSION_PRD            = 103; // CRE ItemGroup
   // ------------------------------------
-  csDB_TBL_USR_ITEMTYPE             = 'ItemType';
-  ciDB_FLD_USR_ITEMTYPE_NAME_Length = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
-  csDB_FLD_USR_ITEMTYPE_NAME        = 'ItemType_Name';
+  csDB_TBL_USR_ITEMGROUP              = 'ItemGroup';
+  ciDB_FLD_USR_ITEMGROUP_NAME_Length  = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEMGROUP_NAME         = 'ItemGroup_Name'; // ATTN: Keep UNIQUE NAME
   // ------------------------------------
-  csDB_TBL_USR_ITEM                 = 'Item';
-  ciDB_FLD_USR_ITEM_ITEMNR_Length   = 10; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
-  csDB_FLD_USR_ITEM_ITEMNR          = 'Item_NR';
-  ciDB_FLD_USR_ITEM_NAME_Length     = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
-  csDB_FLD_USR_ITEM_NAME            = 'Item_Name';
-  csDB_FLD_USR_ITEM_ITEMTYPE_ID     = 'ItemType_ID';
-  csDB_FLD_USR_ITEM_AMO             = 'Item_Amount';
+  csDB_TBL_USR_ITEMTYPE               = 'ItemType';
+  ciDB_FLD_USR_ITEMTYPE_NAME_Length   = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEMTYPE_NAME          = 'ItemType_Name';  // ATTN: Keep UNIQUE NAME
+  // ------------------------------------
+  csDB_TBL_USR_ITEM                   = 'Item';
+  ciDB_FLD_USR_ITEM_ITEMNR_Length     = 10; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEM_ITEMNR            = 'Item_NR';
+  ciDB_FLD_USR_ITEM_NAME_Length       = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEM_NAME              = 'Item_Name';
+  csDB_FLD_USR_ITEM_ITEMTYPE_ID       = 'ItemType_ID';    // ATTN: Keep UNIQUE NAME
+  csDB_FLD_USR_ITEM_AMO               = 'Item_Amount';
 
 implementation
 

@@ -16,7 +16,7 @@ type
     con_Firebird_ANSI: TSQLConnection;
     qry_Top: TSQLQuery;
     db_grid_Top: TDBGrid;
-    lblRs: TLabel;
+    lblTop: TLabel;
     dsp_Top: TDataSetProvider;
     cds_Top: TClientDataSet;
     ds_cds_Top: TDataSource;
@@ -24,7 +24,6 @@ type
     ds_sds_Bottom: TDataSource;
     db_grid_Bottom: TDBGrid;
     lbObjects: TListBox;
-    btnRsRefresh: TButton;
     btnRsInsert: TButton;
     btnRsDelete: TButton;
     con_Firebird_UTF8: TSQLConnection;
@@ -32,28 +31,21 @@ type
     lblCaption: TLabel;
     panLeft: TPanel;
     panAdminMode: TPanel;
-    tsViews: TTabSet;
     lbLog: TListBox;
     lbTasks: TListBox;
     tmrStart: TTimer;
     chbAutoLogin: TCheckBox;
     chbMetadataTablesOnly: TCheckBox;
     chbShowLog: TCheckBox;
-    db_grid_Details: TDBGrid;
-    sds_Details: TSimpleDataSet;
-    ds_sds_Details: TDataSource;
     lblLog: TLabel;
+    lblBottom: TLabel;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure lbObjectsDblClick(Sender: TObject);
-    procedure btnRsRefreshClick(Sender: TObject);
     procedure btnRsInsertClick(Sender: TObject);
     procedure btnRsDeleteClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure tsViewsChange(Sender: TObject; NewTab: Integer;
-      var AllowChange: Boolean);
     procedure lbTasksClick(Sender: TObject);
-    procedure lbTasksDblClick(Sender: TObject);
     procedure lbTasksDrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
     procedure lbTasksMeasureItem(Control: TWinControl; Index: Integer;
@@ -67,18 +59,27 @@ type
     procedure chbAutoLoginClick(Sender: TObject);
     procedure chbMetadataTablesOnlyClick(Sender: TObject);
     procedure ds_cds_TopDataChange(Sender: TObject; Field: TField);
-    procedure sds_DetailsAfterPost(DataSet: TDataSet);
-    procedure ds_sds_BottomDataChange(Sender: TObject; Field: TField);
     procedure chbShowLogClick(Sender: TObject);
     procedure lbLogDblClick(Sender: TObject);
+    procedure lbTasksMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure lbTasksMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure lbTasksKeyPress(Sender: TObject; var Key: Char);
+    procedure lbTasksKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure lbTasksKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
+    m_bTasksMouseDown: Boolean;
     m_oApp: TDtTstAppDb;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
+
+    procedure DoGrid_Refresh();
 
     procedure OpenSql(sTable, sSql: string);
 
@@ -141,6 +142,8 @@ begin
   Application.Title := csCOMPANY + ' ' + csPRODUCT_TITLE + ' ' + csVERSION_TITLE;
 
   con_Firebird := nil;
+
+  m_bTasksMouseDown := False;
 
   m_oApp := TDtTstAppDb.Create(TPath.ChangeExtension(Application.ExeName, csLOG_UTF8_EXT), //csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
@@ -210,9 +213,6 @@ begin
   panAdminMode.Visible := m_oApp.ADMIN_MODE;
   panDbInfo   .Visible := m_oApp.ADMIN_MODE;
 
-  // ATTN: Force event handler...
-  tsViews.TabIndex := 1; tsViews.TabIndex := 0;
-
   // Registry...
   chbAutoLogin         .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin'   , False);
   chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
@@ -254,27 +254,6 @@ begin
   sds_Bottom.ApplyUpdates(0);
 
   m_oApp.LOG.LogUI('TFrmMain.sds_BottomAfterPost END');
-end;
-
-procedure TFrmMain.sds_DetailsAfterPost(DataSet: TDataSet);
-begin
-  m_oApp.LOG.LogUI('TFrmMain.sds_DetailsAfterPost BEGIN');
-
-  sds_Details.ApplyUpdates(0);
-
-  m_oApp.LOG.LogUI('TFrmMain.sds_DetailsAfterPost END');
-end;
-
-procedure TFrmMain.tsViewsChange(Sender: TObject; NewTab: Integer;
-  var AllowChange: Boolean);
-begin
-
-  //if not m_oApp.ADMIN_MODE then Exit;
-
-  db_grid_Top.Visible    := (NewTab = 0);
-
-  db_grid_Bottom.Visible := (NewTab = 1);
-
 end;
 
 procedure TFrmMain.btnRsDeleteClick(Sender: TObject);
@@ -359,15 +338,11 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.btnRsInsertClick END');
 end;
 
-procedure TFrmMain.btnRsRefreshClick(Sender: TObject);
+procedure TFrmMain.DoGrid_Refresh();
 begin
-  m_oApp.LOG.LogUI('TFrmMain.btnRsRefreshClick BEGIN');
 
-  if db_grid_Top.Visible then
+  if cds_Top.Active then
   begin
-
-    if not cds_Top.Active then exit;
-
     try
 
       cds_Top.Active := False;
@@ -386,12 +361,10 @@ begin
         ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
       end;
     end;
+  end;
 
-  end
-  else // if db_grid_Bottom.Visible then
+  if sds_Bottom.Active then
   begin
-
-    if not sds_Bottom.Active then exit;
 
     try
 
@@ -409,31 +382,12 @@ begin
     end;
 
   end;
-
-  if not sds_Details.Active then exit;
-
-  try
-
-    sds_Details.Active := False;
-
-    sds_Details.Active := True;
-    m_oApp.LOG.LogINFO('Simple DataSet is Active!');
-
-  except
-    on exc : Exception do
-    begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-    end;
-  end;
-
-  m_oApp.LOG.LogUI('TFrmMain.btnRsRefreshClick END');
 end;
 
 procedure TFrmMain.OpenSql(sTable, sSql: string);
 begin
   try
-    lblRs.Caption := 'N/A';
+    lblTop.Caption := 'N/A';
 
     cds_Top.Active := False;
     qry_Top.Active := False;
@@ -448,7 +402,7 @@ begin
       cds_Top.Active := True;
       m_oApp.LOG.LogINFO('Client DataSet is Active!');
 
-      lblRs.Caption := sTable;
+      lblTop.Caption := sTable;
 
     end;
   except
@@ -460,6 +414,8 @@ begin
   end;
 
   try
+    lblBottom.Caption := 'N/A';
+
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
 
@@ -468,29 +424,9 @@ begin
 
       sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL(sSQL);
       sds_Bottom.Active := True;
-      m_oApp.LOG.LogINFO('Simple DataSet (sds_Bottom) is Active!');
+      m_oApp.LOG.LogINFO('Simple DataSet is Active!');
 
-    end;
-  except
-    on exc : Exception do
-    begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-    end;
-  end;
-
-  try
-    sds_Details.Active := False;
-    sds_Details.DataSet.CommandText := '';
-
-    if not sSQL.IsEmpty() then
-    begin
-
-      sds_Details.DataSet.CommandText := m_oApp.LOG.LogSQL('select ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                                    ' from ' + csDB_TBL_USR_ITEMTYPE +
-                                    ' WHERE ' + csDB_FLD_ADM_X_ID + ' = ' + '0');
-      sds_Details.Active := True;
-      m_oApp.LOG.LogINFO('Simple DataSet (sds_Details) is Active!');
+      lblBottom.Caption := sTable;
 
     end;
   except
@@ -504,23 +440,23 @@ end;
 
 procedure TFrmMain.ds_cds_TopDataChange(Sender: TObject; Field: TField);
 var
-  sID: string;
+  sID, sName: string;
 begin
 
   // NOTE:
   {
   // SRC: http://www.delphigroups.info/2/ab/367701.html
-  sds_Details.IndexName := csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_ADM_X_ID;
-  sds_Details.SetRangeStart();
-  sds_Details.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
-  sds_Details.KeyExclusive := True;
-  sds_Details.SetRangeEnd();
-  sds_Details.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
-  sds_Details.KeyExclusive := True;
-  sds_Details.ApplyRange();
+  sds_Bottom.IndexName := csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_ADM_X_ID;
+  sds_Bottom.SetRangeStart();
+  sds_Bottom.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
+  sds_Bottom.KeyExclusive := True;
+  sds_Bottom.SetRangeEnd();
+  sds_Bottom.FieldByName(csDB_FLD_ADM_X_ID).AsInteger := 1;
+  sds_Bottom.KeyExclusive := True;
+  sds_Bottom.ApplyRange();
   }
 
-  if sds_Details.Active then
+  if sds_Bottom.Active then
   begin
 
     if ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMTYPE_ID) <> nil then
@@ -531,42 +467,31 @@ begin
       // NULL value...
       if sID.IsEmpty() then sID := '0';
 
-      sds_Details.Active := False;
+      sds_Bottom.Active := False;
 
-      sds_Details.DataSet.CommandText := m_oApp.LOG.LogSQL('select ' + csDB_FLD_USR_ITEMTYPE_NAME +
+      sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL('select ' + csDB_FLD_USR_ITEMTYPE_NAME +
                                       ' from ' + csDB_TBL_USR_ITEMTYPE +
                                       ' WHERE ' + csDB_FLD_ADM_X_ID + ' = ' + sID);
 
-      sds_Details.Active := True;
+      sds_Bottom.Active := True;
 
-    end;
-  end;
-end;
+      lblBottom.Caption := csITEM_TYPE + ' of ' + lblTop.Caption;
 
-procedure TFrmMain.ds_sds_BottomDataChange(Sender: TObject; Field: TField);
-var
-  sID: string;
-begin
-
-  if sds_Details.Active then
-  begin
-
-    if ds_sds_Bottom.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMTYPE_ID) <> nil then
+    end
+    else if ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEMTYPE_NAME) <> nil then
     begin
 
-      sID := ds_sds_Bottom.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMTYPE_ID).AsString;
+      sName := ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMTYPE_NAME).AsString;
 
-      // NULL value...
-      if sID.IsEmpty() then sID := '0';
+      sds_Bottom.Active := False;
 
-      sds_Details.Active := False;
+      sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL('select * ' +
+                                      ' from V_' + csDB_TBL_USR_ITEM +
+                                      ' WHERE ' + csDB_FLD_USR_ITEMTYPE_NAME + ' = ' + '''' + sName + '''');
 
-      sds_Details.DataSet.CommandText := m_oApp.LOG.LogSQL('select ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                                      ' from ' + csDB_TBL_USR_ITEMTYPE +
-                                      ' WHERE ' + csDB_FLD_ADM_X_ID + ' = ' + sID);
+      sds_Bottom.Active := True;
 
-      sds_Details.Active := True;
-
+      lblBottom.Caption := csITEM + ' of ' + lblTop.Caption;
     end;
   end;
 end;
@@ -650,7 +575,6 @@ begin
     // ATTN: Required!!!
     qry_Top    .SQLConnection := con_Firebird;
     sds_Bottom .   Connection := con_Firebird;
-    sds_Details.   Connection := con_Firebird;
 
     m_oApp.LOG.LogINFO('SQL Connection is Connected!');
 
@@ -1058,10 +982,20 @@ begin
                        ' FROM ' + csDB_TBL_USR_ITEM +
                        ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
 
+    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View)' + '|' +
+                       'SELECT *' +
+                       ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
+                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+
     lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|' +
                        'SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
                        ' FROM ' + csDB_TBL_USR_ITEMTYPE +
                        ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
+
+    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + '|' +
+                       'SELECT ' + csDB_FLD_USR_ITEMGROUP_NAME +
+                       ' FROM ' + csDB_TBL_USR_ITEMGROUP +
+                       ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NAME, 0));
 
     lbObjects.Items.Add(MnuSPC());
   end;
@@ -1216,7 +1150,10 @@ begin
         Rect.Top    := Rect.Top    + 3;
         Rect.Bottom := Rect.Bottom - 2;
 
-        DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH );
+        if m_bTasksMouseDown and (odSelected in State) then
+          DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH or DFCS_PUSHED )
+        else
+          DrawFrameControl( (Control as TListBox).Canvas.Handle, Rect, DFC_BUTTON, DFCS_BUTTONPUSH );
 
         X := Rect.Left + 10;
         Y := Rect.Top  + 6;
@@ -1368,22 +1305,95 @@ begin
   m_oApp.LOG.LogUI('TFrmMain.lbObjectsDblClick END');
 end;
 
+procedure TFrmMain.lbTasksMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseDown BEGIN');
+
+  m_bTasksMouseDown := True;
+  lbTasks.Repaint;
+
+  {
+  DoTasksClick();
+  }
+
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseDown END');
+end;
+
+procedure TFrmMain.lbTasksMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseUp BEGIN');
+
+  m_bTasksMouseDown := False;
+  lbTasks.Repaint;
+
+  DoTasksClick();
+
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksMouseUp END');
+end;
+
+procedure TFrmMain.lbTasksKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyDown BEGIN');
+
+  if Key = VK_SPACE then
+  begin
+
+    m_bTasksMouseDown := True;
+    lbTasks.Repaint;
+
+    {
+    DoTasksClick();
+    }
+
+  end;
+
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyDown END');
+end;
+
+procedure TFrmMain.lbTasksKeyPress(Sender: TObject; var Key: Char);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyPress BEGIN');
+
+  {
+  if Key = ' ' then //VK_SPACE then
+  begin
+    DoTasksClick();
+  end;
+  }
+
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyPress END');
+end;
+
+procedure TFrmMain.lbTasksKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyUp BEGIN');
+
+  if Key = VK_SPACE then
+  begin
+
+    m_bTasksMouseDown := False;
+    lbTasks.Repaint;
+
+    DoTasksClick();
+
+  end;
+
+  m_oApp.LOG.LogUI('TFrmMain.lbTasksKeyUp END');
+end;
+
 procedure TFrmMain.lbTasksClick(Sender: TObject);
 begin
+  {
   m_oApp.LOG.LogUI('TFrmMain.lbOptionsClick BEGIN');
 
   DoTasksClick();
 
   m_oApp.LOG.LogUI('TFrmMain.lbOptionsClick END');
-end;
-
-procedure TFrmMain.lbTasksDblClick(Sender: TObject);
-begin
-  m_oApp.LOG.LogUI('TFrmMain.lbOptionsDblClick BEGIN');
-
-  // TODO...
-
-  m_oApp.LOG.LogUI('TFrmMain.lbOptionsDblClick END');
+  }
 end;
 
 procedure TFrmMain.DoDetailsClick(cID_Object: char; sCaption_Object: string);
@@ -1633,6 +1643,7 @@ var
   cID: char;
   sCaption: string;
   asParts: TStringList;
+  bKnown: Boolean;
 begin
 
   lbTasks.Items.Clear();
@@ -1645,11 +1656,16 @@ begin
 
     Split('|', sCaption, asParts);
 
+    bKnown := True;
+
+    Menu_AddTask_Group(                               'View'                , 0 );
+    Menu_AddTask_Button(ccMnuBtnID_GrdRefresh         , 'Refresh'               );
+
     case cID of
 
       ccMnuGrpID_Database: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Refresh            , 'Refresh Metadata'      );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
@@ -1657,18 +1673,18 @@ begin
 
       ccMnuItmID_View: begin
 
-        Menu_AddTask_Group(                               'Tasks (Admin)'       , 0 );
+        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Drop_View          , 'DROP View'            );
 
       end;
 
       ccMnuItmID_Table: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
-        Menu_AddTask_Group(                               'Tasks (Import)'      , 0 );
+        Menu_AddTask_Group(                               'Import'              , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Import_Table       , 'Import (CSV)'          );
-        Menu_AddTask_Group(                               'Tasks (Admin)'       , 0 );
+        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Delete_From_Table  , 'DELETE from Table'     );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Table         , 'DROP Table'            );
 
@@ -1676,46 +1692,65 @@ begin
 
       ccMnuItmID_Table_Column: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
-        Menu_AddTask_Group(                               'Tasks (Admin)'       , 0 );
+        Menu_AddTask_Group(                               'Caution!!!'          , 1 );
         Menu_AddTask_Button(ccMnuBtnID_Drop_Column        , 'DROP Column'           );
 
       end;
 
       ccMnuItmID_Table_Trigger: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
       end;
 
       ccMnuItmID_Table_Constraint: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Details            , 'Details'               );
 
       end;
 
       ccMnuItmID_Query: begin
 
-        Menu_AddTask_Group(                               'Tasks'               , 0 );
+        Menu_AddTask_Group(                               'Data'                , 0 );
         Menu_AddTask_Button(ccMnuBtnID_Open               , 'Open'                  );
 
         if asParts[1] = csITEM_TYPE then
         begin
-          Menu_AddTask_Group(                             'Tasks (Import)'      , 0 );
+          Menu_AddTask_Group(                             'Import'              , 1 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item_Type , 'Import (CSV)'          );
         end
         else if asParts[1] = csITEM then
         begin
-          Menu_AddTask_Group(                             'Tasks (Import)'      , 0 );
+          Menu_AddTask_Group(                             'Import'              , 1 );
           Menu_AddTask_Button(ccMnuBtnID_Import_Item      , 'Import (CSV)'          );
+        end
+        else if asParts[1] = csITEM_GROUP then
+        begin
+          Menu_AddTask_Group(                             'Import'              , 1 );
+          Menu_AddTask_Button(ccMnuBtnID_Import_Item_Group, 'Import (CSV)'          );
         end;
 
       end;
 
+      else begin
+        bKnown := False;
+      end;
+
     end;
+
+    if bKnown then
+    begin
+
+      // TODO...
+
+    end;
+
+    // ATTN: FIX: for BUG: Click on lb lower area Clicked on last Button!!!
+    lbTasks.Items.Add(MnuSPC());
 
   finally
     FreeAndNil(asParts);
@@ -1776,6 +1811,10 @@ begin
         DoDropColumn(cID_Object, sCaption_Object);
       end;
 
+      ccMnuBtnID_GrdRefresh : begin
+        DoGrid_Refresh();
+      end;
+
       { Product }
 
       ccMnuBtnID_Import_Item_Type : begin
@@ -1804,6 +1843,19 @@ begin
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
 
         DoImportTable(asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
+
+      end;
+
+      ccMnuBtnID_Import_Item_Group : begin
+
+        asParts := TStringList.Create();
+
+        Split('|', sCaption_Object, asParts);
+
+        asCols := TStringList.Create();
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_NAME);
+
+        DoImportTable(asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
 
       end;
 
