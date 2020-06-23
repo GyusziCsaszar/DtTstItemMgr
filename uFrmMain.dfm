@@ -102,7 +102,6 @@ object FrmMain: TFrmMain
     ItemHeight = 13
     TabOrder = 4
     OnDblClick = lbResultDblClick
-    ExplicitHeight = 369
   end
   object btnRefreshBottom: TButton
     Left = 848
@@ -192,7 +191,6 @@ object FrmMain: TFrmMain
     TabOrder = 13
     WordWrap = True
     OnClick = btnCreTblSampleClick
-    ExplicitTop = 569
   end
   object btnDrpTbl: TButton
     Left = 6
@@ -205,7 +203,6 @@ object FrmMain: TFrmMain
     TabOrder = 14
     WordWrap = True
     OnClick = btnDrpTblClick
-    ExplicitTop = 539
   end
   object edDbInfo: TEdit
     Left = 241
@@ -293,7 +290,6 @@ object FrmMain: TFrmMain
       'SQL Editor')
     TabIndex = 0
     OnChange = tsDevChange
-    ExplicitHeight = 80
   end
   object lbLog: TListBox
     Left = 309

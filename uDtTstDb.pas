@@ -65,8 +65,10 @@ type
 
     function FIXOBJNAME(sTable: string) : string;
 
-    procedure DB_SelectGenerators(asResult: TStringList);
-    procedure DB_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+    procedure USR_SelectGenerators(asResult: TStringList);
+    procedure USR_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+
+    procedure USR_Update(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
     function ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean; virtual;
 
@@ -78,7 +80,7 @@ type
     procedure META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
 
-    procedure META_AddIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+    procedure META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
     procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
     procedure META_DropTable(sTable: string);
@@ -381,7 +383,7 @@ begin
 
 end;
 
-procedure TDtTstDb.DB_SelectGenerators(asResult: TStringList);
+procedure TDtTstDb.USR_SelectGenerators(asResult: TStringList);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -426,7 +428,7 @@ begin
   end;
 end;
 
-procedure TDtTstDb.DB_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
+procedure TDtTstDb.USR_SelectTriggers(asResult: TStringList; sTable: string; bDetails: Boolean);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -524,6 +526,52 @@ begin
       end;
 
     except
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.USR_Update(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
+var
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    //oQry.Prepared := True;
+
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      oQry.ExecSQL(False);
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
 
       raise;
 
@@ -733,7 +781,7 @@ begin
   oTable.AddColumn(oCol);
 end;
 
-procedure TDtTstDb.META_AddIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+procedure TDtTstDb.META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 var
   oIdx: TDBXMetaDataIndex;
 begin

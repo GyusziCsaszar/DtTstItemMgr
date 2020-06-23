@@ -57,6 +57,7 @@ object FrmProgress: TFrmProgress
       Top = 240
       Width = 75
       Height = 25
+      Anchors = [akRight, akBottom]
       Caption = 'Close'
       Enabled = False
       Font.Charset = DEFAULT_CHARSET
@@ -73,6 +74,7 @@ object FrmProgress: TFrmProgress
       Top = 240
       Width = 75
       Height = 25
+      Anchors = [akRight, akBottom]
       Caption = 'Cancel'
       Enabled = False
       Font.Charset = DEFAULT_CHARSET

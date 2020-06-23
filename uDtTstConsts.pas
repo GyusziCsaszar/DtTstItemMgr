@@ -9,9 +9,9 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 114;
-  csVERSION_TITLE       = 'v1.14';
-  ciDB_VERSION          = 101;
+  ciVERSION             = 115;
+  csVERSION_TITLE       = 'v1.15';
+  ciDB_VERSION          = 102;
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -55,6 +55,10 @@ const
   csDB_FLD_ADM_USERS_ID       = 'ID';
   csDB_FLD_ADM_USERS_USER     = 'UserName'; //'User';
   csDB_FLD_ADM_USERS_LSTLOGIN = 'LastLoginTSP';
+  // ------------------------------------
+  csDB_TBL_ADM_TABLES         = 'admTables';
+  csDB_FLD_ADM_TABLES_ID      = 'ID';
+  csDB_FLD_ADM_TABLES_NAME    = 'TableName';
 
   { Firebird }
   csISQL_FILE_IN              = '_Isql_IN.sql';

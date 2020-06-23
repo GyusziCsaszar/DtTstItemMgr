@@ -672,7 +672,7 @@ begin
     asItems := TStringList.Create();
     try
 
-      m_oDb.DB_SelectTriggers(asItems, sTable {sTable}, True {bDetails});
+      m_oDb.USR_SelectTriggers(asItems, sTable {sTable}, True {bDetails});
 
       iIdx := iIdx + 1;
       lbResult.Items.Insert(iIdx, '  [Triggers]');
@@ -712,7 +712,7 @@ begin
   asItems := TStringList.Create();
   try
 
-    m_oDb.DB_SelectGenerators(asItems);
+    m_oDb.USR_SelectGenerators(asItems);
 
     for sItem in asItems do
     begin
