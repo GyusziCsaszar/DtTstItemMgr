@@ -16,7 +16,7 @@ type
     m_oLog: TDtTstLog;
   protected
     { ATTN: Copy BELOW members in descendants!!! }
-    m_sIsqlPath: string;
+    m_sIsqlPathPRI, m_sIsqlPathSEC: string;
     m_iIsqlOptions: integer;
     m_bUTF8: Boolean;
     m_asConnectStrings: TStringList;
@@ -33,10 +33,16 @@ type
     constructor Create(oLog: TDtTstLog; sIniPath: string);
     destructor Destroy(); override;
 
-    function GetIsqlPath() : string;
-    property IsqlPath: string read GetIsqlPath;
+    function GetIsqlPathChecked() : string;
+    property IsqlPathChecked: string read GetIsqlPathChecked;
+    function GetIsqlPathPRI() : string;
+    property IsqlPathPRI: string read GetIsqlPathPRI;
+    function GetIsqlPathSEC() : string;
+    property IsqlPathSEC: string read GetIsqlPathSEC;
+
     function GetIsqlOptions() : integer;
     property IsqlOptions: integer read getIsqlOptions;
+
     function GetUTF8() : Boolean;
     property UTF8: Boolean read GetUTF8;
     procedure GetConnectStrings(cbb: TComboBox; asConnectStrings: TStringList);
@@ -44,9 +50,11 @@ type
     procedure SetConnectString(sValue: string);
     property ConnectString: string read GetConnectString write SetConnectString;
     function GetConnectUser() : string;
-    property ConnectUser: string read GetConnectUser;
+    procedure SetConnectUser(sValue: string);
+    property ConnectUser: string read GetConnectUser write SetConnectUser;
     function GetConnectPassword() : string;
-    property ConnectPassword: string read GetConnectPassword;
+    procedure SetConnectPassword(sValue: string);
+    property ConnectPassword: string read GetConnectPassword write SetConnectPassword;
 
     procedure Connect(oCon: TSQLConnection);
     procedure AfterConnect(); virtual;
@@ -131,7 +139,8 @@ begin
   m_oLog := oLog;
 
   { ATTN: Copy BELOW members in descendants!!! }
-  m_sIsqlPath               := '';
+  m_sIsqlPathPRI            := '';
+  m_sIsqlPathSEC            := '';
   m_iIsqlOptions            := -1;
   m_bUTF8                   := False;
   m_asConnectStrings        := TStringList.Create();
@@ -195,8 +204,9 @@ begin
         iVal := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_UTF8, 0);
         m_bUTF8 := (iVal <> 0);
 
-        m_sIsqlPath    := fIni.ReadString( csINI_SEC_DB, csINI_VAL_DB_ISQLPATH, '');
-        m_iIsqlOptions := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_ISQLOPTS, -1);
+        m_sIsqlPathPRI := fIni.ReadString( csINI_SEC_DB, csINI_VAL_DB_ISQLPATH,     '');
+        m_sIsqlPathSEC := fIni.ReadString( csINI_SEC_DB, csINI_VAL_DB_ISQLPATH_ALT, '');
+        m_iIsqlOptions := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_ISQLOPTS,     -1);
 
       finally
         FreeAndNil(fIni);
@@ -218,9 +228,59 @@ begin
   inherited Destroy();
 end;
 
-function TDtTstDb.GetIsqlPath() : string;
+function TDtTstDb.GetIsqlPathChecked() : string;
 begin
-  Result := m_sIsqlPath;
+  Result := '';
+
+  if not m_sIsqlPathPRI.IsEmpty() then
+  begin
+    if not TPath.IsRelativePath(m_sIsqlPathPRI) then
+    begin
+      if FileExists(m_sIsqlPathPRI) then
+      begin
+        Result := m_sIsqlPathPRI;
+        Exit;
+      end;
+    end
+    else
+    begin
+      Result := m_sIsqlPathPRI;
+      Exit;
+    end;
+  end;
+
+  if not m_sIsqlPathSEC.IsEmpty() then
+  begin
+    if not TPath.IsRelativePath(m_sIsqlPathSEC) then
+    begin
+      if FileExists(m_sIsqlPathSEC) then
+      begin
+        Result := m_sIsqlPathSEC;
+        Exit;
+      end;
+    end
+    else
+    begin
+      Result := m_sIsqlPathSEC;
+      Exit;
+    end;
+  end;
+
+  if Result.IsEmpty() then
+  begin
+    raise Exception.Create('ERROR: No Firebird Isql tool Path specified!');
+  end;
+
+end;
+
+function TDtTstDb.GetIsqlPathPRI() : string;
+begin
+  Result := m_sIsqlPathPRI;
+end;
+
+function TDtTstDb.GetIsqlPathSEC() : string;
+begin
+  Result := m_sIsqlPathSEC;
 end;
 
 function TDtTstDb.GetIsqlOptions() : integer;
@@ -267,9 +327,19 @@ begin
   Result := m_sConnectUser;
 end;
 
+procedure TDtTstDb.SetConnectUser(sValue: string);
+begin
+  m_sConnectUser := sValue;
+end;
+
 function TDtTstDb.GetConnectPassword() : string;
 begin
   Result := m_sConnectPassword;
+end;
+
+procedure TDtTstDb.SetConnectPassword(sValue: string);
+begin
+  m_sConnectPassword := sValue;
 end;
 
 procedure TDtTstDb.Connect(oCon: TSQLConnection);
@@ -1035,7 +1105,7 @@ begin
     if Assigned(frmPrs) then Application.ProcessMessages;
 
     sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                            IsqlPath,
+                            IsqlPathChecked,
                             ConnectString,
                             ConnectUser, ConnectPassword,
                             True {bGetOutput},
@@ -1220,7 +1290,7 @@ begin
                                     '!!');
     }
     sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                            IsqlPath,
+                            IsqlPathChecked,
                             ConnectString,
                             ConnectUser, ConnectPassword,
                             True {bGetOutput},

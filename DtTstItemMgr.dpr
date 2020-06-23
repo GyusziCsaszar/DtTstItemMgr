@@ -14,7 +14,8 @@ uses
   uFrmDataImport in 'uFrmDataImport.pas' {FrmDataImport},
   uDtTstApp in 'uDtTstApp.pas',
   uDtTstAppDb in 'uDtTstAppDb.pas',
-  uDtTstDbSql in 'uDtTstDbSql.pas';
+  uDtTstDbSql in 'uDtTstDbSql.pas',
+  uFrmFDB in 'uFrmFDB.pas' {FrmFDB};
 
 {$R *.res}
 

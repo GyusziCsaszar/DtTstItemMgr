@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 120;
-  csVERSION_TITLE       = 'v1.20';
+  ciVERSION             = 121;
+  csVERSION_TITLE       = 'v1.21';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -31,6 +31,7 @@ const
     csINI_VAL_LOG_LEVEL       = 'Level';
   csINI_SEC_DB                = 'Database';
     csINI_VAL_DB_ISQLPATH     = 'IsqlPath';
+    csINI_VAL_DB_ISQLPATH_ALT = 'IsqlPathAlternate';
     csINI_VAL_DB_ISQLOPTS     = 'IsqlOptions';
     csINI_VAL_DB_UTF8         = 'ServerCharsetUTF8';
     csINI_VAL_DB_CONSTR_CNT   = 'ConnectStringCOUNT';
@@ -38,6 +39,8 @@ const
     csINI_VAL_DB_CONSTR       = 'ConnectString';
     csINI_VAL_DB_USR          = 'User';
     csINI_VAL_DB_PW           = 'Password';
+  csINI_SEC_APP               = 'Database'; // BUG: Not worked with any other value!!!
+    csINI_VAL_APP_ADMIN_MODE  = 'AdminMode';
 
   { Firebird }
   csISQL_FILE_IN              = '_Isql_IN.sql';

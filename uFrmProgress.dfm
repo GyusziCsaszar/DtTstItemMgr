@@ -28,19 +28,19 @@ object FrmProgress: TFrmProgress
   object panLower: TPanel
     Left = 0
     Top = 56
-    Width = 457
+    Width = 459
     Height = 273
     Anchors = [akLeft, akTop, akRight, akBottom]
     Color = clWindow
     ParentBackground = False
     TabOrder = 0
     DesignSize = (
-      457
+      459
       273)
     object lbHistory: TListBox
       Left = 24
       Top = 24
-      Width = 409
+      Width = 411
       Height = 201
       Anchors = [akLeft, akTop, akRight, akBottom]
       Font.Charset = DEFAULT_CHARSET
@@ -51,9 +51,10 @@ object FrmProgress: TFrmProgress
       ItemHeight = 13
       ParentFont = False
       TabOrder = 0
+      ExplicitWidth = 409
     end
     object btnClose: TButton
-      Left = 358
+      Left = 360
       Top = 240
       Width = 75
       Height = 25
@@ -68,9 +69,10 @@ object FrmProgress: TFrmProgress
       ParentFont = False
       TabOrder = 1
       OnClick = btnCloseClick
+      ExplicitLeft = 358
     end
     object btnCancel: TButton
-      Left = 277
+      Left = 279
       Top = 240
       Width = 75
       Height = 25
@@ -85,12 +87,13 @@ object FrmProgress: TFrmProgress
       ParentFont = False
       TabOrder = 2
       Visible = False
+      ExplicitLeft = 277
     end
   end
   object pbPrs: TProgressBar
     Left = 0
     Top = 43
-    Width = 457
+    Width = 459
     Height = 17
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 1

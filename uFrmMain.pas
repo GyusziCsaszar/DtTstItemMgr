@@ -14,7 +14,6 @@ uses
 type
   TFrmMain = class(TForm)
     con_Firebird_ANSI: TSQLConnection;
-    btnConnect: TButton;
     qry_Top: TSQLQuery;
     db_grid_Top: TDBGrid;
     lblTop: TLabel;
@@ -34,31 +33,16 @@ type
     btnDeleteBottom: TButton;
     btnDeleteTop: TButton;
     chbMetadataTablesOnly: TCheckBox;
-    lblDb: TLabel;
-    cbbDb: TComboBox;
-    btnCreTblSample: TButton;
     btnDrpTbl: TButton;
-    lblDbInfo: TLabel;
-    edDbInfo: TEdit;
-    btnCrePrdTbls: TButton;
-    chbServerCharsetUtf8: TCheckBox;
     con_Firebird_UTF8: TSQLConnection;
-    chbDoDbUpdate: TCheckBox;
-    btnIsql: TButton;
-    chbIsqlVisible: TCheckBox;
-    tsDev: TTabSet;
-    lbLog: TListBox;
-    btnSqlOpen: TButton;
-    moSql: TMemo;
-    btnSqlOpenSample: TButton;
-    btnIsqlExec: TButton;
-    btnIsqlExecSample: TButton;
-    edTerm: TEdit;
-    btnDbOpen: TButton;
     btnDrpCol: TButton;
     btnImpTbl: TButton;
-    chbAutoConnect: TCheckBox;
-    procedure btnConnectClick(Sender: TObject);
+    panDbInfo: TPanel;
+    lblCaption: TLabel;
+    panLeft: TPanel;
+    panAdminMode: TPanel;
+    chbAutoLogin: TCheckBox;
+    tsViews: TTabSet;
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
     procedure btnGetMetadataClick(Sender: TObject);
@@ -71,21 +55,12 @@ type
     procedure btnDeleteBottomClick(Sender: TObject);
     procedure chbMetadataTablesOnlyClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure btnCreTblSampleClick(Sender: TObject);
     procedure btnDrpTblClick(Sender: TObject);
-    procedure btnCrePrdTblsClick(Sender: TObject);
-    procedure btnIsqlClick(Sender: TObject);
-    procedure tsDevChange(Sender: TObject; NewTab: Integer;
-      var AllowChange: Boolean);
-    procedure btnSqlOpenClick(Sender: TObject);
-    procedure lbLogDblClick(Sender: TObject);
-    procedure btnSqlOpenSampleClick(Sender: TObject);
-    procedure btnIsqlExecClick(Sender: TObject);
-    procedure btnIsqlExecSampleClick(Sender: TObject);
-    procedure btnDbOpenClick(Sender: TObject);
     procedure btnDrpColClick(Sender: TObject);
     procedure btnImpTblClick(Sender: TObject);
-    procedure chbAutoConnectClick(Sender: TObject);
+    procedure chbAutoLoginClick(Sender: TObject);
+    procedure tsViewsChange(Sender: TObject; NewTab: Integer;
+      var AllowChange: Boolean);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -98,9 +73,8 @@ type
     function GetSelectedMetaItem(var rsItem: string; var rsType: string) : Boolean;
 
     procedure OpenSql(sTable, sSql: string);
-    procedure IsqlOpen(sStatements, sTerm: string);
 
-    procedure AttachDbItemManager(bForceUpdate: Boolean);
+    procedure DoDbConnect();
   end;
 
 var
@@ -111,8 +85,9 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbItemMgr, uFrmProgress, uFrmDataImport,
-  System.IOUtils, Vcl.Clipbrd, StrUtils;
+  { DtTst Units: } uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbItemMgr,
+  { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB,
+  System.IOUtils, StrUtils;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
@@ -129,16 +104,13 @@ begin
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
-  m_oApp.LOG.m_lbLogView := lbLog;
+  //m_oApp.LOG.m_lbLogView := lbLog;
 
   m_oApp.LOG.LogLIFE('TFrmMain.Create');
 
   try
 
     m_oApp.SetDb(TDtTstDb.Create(m_oApp.LOG, TPath.ChangeExtension(Application.ExeName, csINI_EXT)));
-
-    // ATTN!!!
-    chbServerCharsetUtf8.Checked := m_oApp.DB.UTF8;
 
   except
     on exc : Exception do
@@ -166,7 +138,8 @@ begin
 
   // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
 
-  self.Caption := Application.Title;
+  self      .Caption := Application.Title;
+  lblCaption.Caption := Application.Title;
 
   // First LogINFO...
   m_oApp.LOG.LogVERSION('App Path: '  + Application.ExeName);
@@ -175,163 +148,22 @@ begin
   m_oApp.LOG.LogVERSION('App.DB Info: ADM_VER = ' + IntToStr(ciDB_VERSION_ADM) +
                       ', PRD = ' + csPRODUCT + ', PRD.VER = ' + IntToStr(ciDB_VERSION_PRD) );
 
-  // DB Info from INI file...
-  cbbDb.Text := '';
-  cbbDb.Items.Clear();
-
   if not Assigned(m_oApp.DB) then
   begin
     Close();
     Exit();
   end;
 
-  m_oApp.DB.GetConnectStrings(cbbDb, nil {asConnectStrings});
-
-  btnCreTblSample.Caption := btnCreTblSample.Caption + ' "' + csDB_TBL_SAMPLE + '"';
-
-  // ATTN: Force event handler...
-  tsDev.TabIndex := 1; tsDev.TabIndex := 0;
+  panAdminMode.Visible := m_oApp.ADMIN_MODE;
+  panDbInfo   .Visible := m_oApp.ADMIN_MODE;
 
   // Registry...
-  chbAutoConnect       .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'AutoConnect'   , False);
+  chbAutoLogin         .Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin'   , False);
   chbMetadataTablesOnly.Checked := LoadBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'MetaTablesOnly', False);
 
-  // Auto Start...
-  if chbAutoConnect.Checked then
-  begin
-    if (not TComboBox_Text(cbbDb).IsEmpty()) and (btnConnect.Enabled) then btnConnect.Click;
-  end;
+  DoDbConnect();
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
-end;
-
-procedure TFrmMain.btnDbOpenClick(Sender: TObject);
-// SRC: http://www.delphibasics.co.uk/RTL.asp?Name=topendialog
-var
-  frmOf: TOpenDialog;
-begin
-
-  frmOf := TOpenDialog.Create(self);
-  try
-
-    // Set up the starting directory to be the current one
-    //frmOf.InitialDir := GetCurrentDir();
-
-    // Only allow existing files to be selected
-    frmOf.Options := [ofFileMustExist];
-
-    // Allow only .xyz files to be selected
-    frmOf.Filter := csFBRD_FDB_FILE_FILTER + '|All Files (*.*)|*.*';
-
-    // Select .xyz as the starting filter type
-    frmOf.FilterIndex := 1;
-
-    // Display the open file dialog
-    if not frmOf.Execute then
-    begin
-      Exit;
-    end;
-
-    cbbDb.Text := 'localhost:' + frmOf.FileName;
-
-  finally
-    FreeAndNil(frmOf);
-  end;
-end;
-
-procedure TFrmMain.btnIsqlClick(Sender: TObject);
-var
-  sStatements, sTerm: string;
-begin
-  m_oApp.LOG.LogUI('TFrmMain.btnIsql BEGIN');
-
-  sTerm := '';
-  sStatements := '';
-
-  IsqlOpen(sStatements, sTerm);
-
-  m_oApp.LOG.LogUI('TFrmMain.btnIsql END');
-end;
-
-procedure TFrmMain.IsqlOpen(sStatements, sTerm: string);
-var
-  sOutput: string;
-  frmPrs: TFrmProgress;
-begin
-
-  if m_oApp.DB.IsqlPath.IsEmpty() then
-  begin
-    ErrorMsgDlg('No isql Path is specified!');
-    exit;
-  end;
-
-  try
-
-    frmPrs := TFrmProgress.Create(self, m_oApp);
-    try
-
-      frmPrs.Show();
-      frmPrs.Init('Calling Firebird Isql tool');
-      frmPrs.SetProgressToMax();
-
-      frmPrs.AddStep('Starting Firebird Isql tool');
-
-      sOutput := ISQL_Execute(m_oApp.LOG, TPath.GetDirectoryName(Application.ExeName),
-                              m_oApp.DB.IsqlPath,
-                              cbbDb.Text,
-                              m_oApp.DB.ConnectUser, m_oApp.DB.ConnectPassword,
-                              True {bGetOutput},
-                              chbIsqlVisible.Checked {bVisible},
-                              sStatements,
-                              sTerm);
-
-      frmPrs.AddStepEnd('Done!');
-
-      InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
-
-    finally
-      frmPrs.Close();
-      FreeAndNil(frmPrs);
-    end;
-
-  except
-    on exc : Exception do
-    begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-    end;
-  end;
-end;
-
-procedure TFrmMain.btnCreTblSampleClick(Sender: TObject);
-var
-  oDb: TDtTstDb;
-begin
-  m_oApp.LOG.LogUI('TFrmMain.btnCreTblSampleClick BEGIN');
-
-  // try SRC: https://stackoverflow.com/questions/6601147/how-to-correctly-write-try-finally-except-statements
-  try
-    try
-      oDb := TDtTstDb.Create(m_oApp.LOG, '');
-
-      oDb.META_CreateTable_SAMPLE(con_Firebird.DBXConnection);
-
-      InfoMsgDlg('You have created table "' + csDB_TBL_SAMPLE + '"!');
-
-    finally
-      FreeAndNil(oDb);
-    end;
-  except
-    on exc : Exception do
-    begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-    end;
-  end;
-
-  if btnGetMetadata.Enabled then btnGetMetadata.Click;
-
-  m_oApp.LOG.LogUI('TFrmMain.btnCreTblSampleClick END');
 end;
 
 procedure TFrmMain.btnDrpColClick(Sender: TObject);
@@ -493,6 +325,16 @@ begin
   sds_Bottom.ApplyUpdates(0);
 
   m_oApp.LOG.LogUI('TFrmMain.sds_BottomAfterPost END');
+end;
+
+procedure TFrmMain.tsViewsChange(Sender: TObject; NewTab: Integer;
+  var AllowChange: Boolean);
+begin
+
+  //if not m_oApp.ADMIN_MODE then Exit;
+
+  // TODO...
+
 end;
 
 procedure TFrmMain.btnDeleteTopClick(Sender: TObject);
@@ -787,13 +629,13 @@ begin
   end;
 end;
 
-procedure TFrmMain.chbAutoConnectClick(Sender: TObject);
+procedure TFrmMain.chbAutoLoginClick(Sender: TObject);
 begin
-  m_oApp.LOG.LogUI('TFrmMain.chbMetadataTablesOnlyClick BEGIN');
+  m_oApp.LOG.LogUI('TFrmMain.chbAutoConnectClick BEGIN');
 
-  SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\UI', 'AutoConnect', chbAutoConnect.Checked);
+  SaveBooleanReg(csCOMPANY, csPRODUCT, 'Settings\DB', 'AutoLogin', chbAutoLogin.Checked);
 
-  m_oApp.LOG.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
+  m_oApp.LOG.LogUI('TFrmMain.chbAutoConnectClick END');
 end;
 
 procedure TFrmMain.chbMetadataTablesOnlyClick(Sender: TObject);
@@ -955,103 +797,42 @@ begin
     lbResult.Items.Add('[Queries]');
   end;
 
-  lbResult.Items.Add('SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME + ' FROM ' + csDB_TBL_USR_ITEMTYPE);
+  lbResult.Items.Add('SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
+                     ' FROM ' + csDB_TBL_USR_ITEMTYPE +
+                     ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME);
 
   m_oApp.LOG.LogUI('TFrmMain.btnGetMetadataClick END');
 end;
 
-procedure TFrmMain.btnCrePrdTblsClick(Sender: TObject);
+procedure TFrmMain.DoDbConnect();
 var
-  sDbInfo: string;
-begin
-  m_oApp.LOG.LogUI('TFrmMain.btnInitDtTstDbClick BEGIN');
-
-  if (not Assigned(con_Firebird)) or (not con_Firebird.Connected) then
-  begin
-    WarningMsgDlg('No Database is open!');
-    Exit;
-  end;
-
-  if not m_oApp.DB.ADM_DbInfProduct.IsEmpty() then
-  begin
-    if m_oApp.DB.ADM_DbInfProduct = csPRODUCT_FULL then
-    begin
-      WarningMsgDlg('Database already contains Tables for Product "' + csPRODUCT_FULL + '"!');
-    end
-    else
-    begin
-      ErrorMsgDlg('Database contains Tables for DIFFERENT Product "' + m_oApp.DB.ADM_DbInfProduct + '"!' +
-                  CHR(10) + CHR(10) + 'No mixed Products are allowed in a single Database!');
-    end;
-
-    Exit;
-  end;
-
-  if m_oApp.DB.GetTableCount() > 0 then
-  begin
-    if not QuestionMsgDlg('Database already has ' + IntToStr(m_oApp.DB.GetTableCount()) + ' Table(s) and is not Empty!' +
-          CHR(10) + CHR(10) + 'Do you want to create Tables for Product "' + csCOMPANY + csPRODUCT + '"?') then
-    begin
-      Exit;
-    end;
-  end;
-
-  try
-
-    // ROLLBACK...
-    {
-    // NOTE: DbUpdate to v100 by adding single table admDbInfo...
-    m_oDb.ADM_CreateTable_DBINFO();
-
-    sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oDb.ADM_DbInfVersion_ADM) +
-                ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
-
-    edDbInfo.Text := sDbInfo;
-    }
-
-    AttachDbItemManager(True {bForceUpdate});
-
-  except
-    on exc : Exception do
-    begin
-      m_oApp.LOG.LogERROR(exc);
-      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
-    end;
-  end;
-
-  btnGetMetadata.Click();
-
-  m_oApp.LOG.LogUI('TFrmMain.btnInitDtTstDbClick END');
-end;
-
-procedure TFrmMain.btnConnectClick(Sender: TObject);
-var
-  sDbInfo: string;
+  frmFdb: TFrmFDB;
+  sSqlOpenSelect, sDbInfo: string;
 begin
   m_oApp.LOG.LogUI('TFrmMain.btnConnectClick BEGIN');
 
+  sSqlOpenSelect := '';
+
+  frmFdb := TFrmFDB.Create(self, m_oApp);
   try
-    if chbServerCharSetUtf8.Checked then
+
+    if frmFdb.ShowModal(con_Firebird_ANSI, con_Firebird_UTF8) <> mrOk then
     begin
-      con_Firebird := con_Firebird_UTF8;
-    end
-    else
-    begin
-      con_Firebird := con_Firebird_ANSI;
+      Close();
+      Exit;
     end;
 
-    m_oApp.DB.ConnectString := cbbDb.Text;
-    m_oApp.DB.Connect(con_Firebird);
+    sSqlOpenSelect := frmFdb.SQL_OpenSelect;
 
-    sDbInfo := 'LoginUsername = "' + m_oApp.DB.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oApp.DB.ADM_DbInfVersion_ADM) +
-                ', Product = "' + m_oApp.DB.ADM_DbInfProduct + '" )';
+    con_Firebird := frmFdb.CON;
 
-    edDbInfo.Text := sDbInfo;
+    panDbInfo.Caption := frmFdb.GetDbInfo();
 
-    // ATTN: Do not force!!! Attach only known DB here!!!
-    AttachDbItemManager(False {bForce});
+  finally
+    FreeAndNil(frmFdb);
+  end;
+
+  try
 
     // ATTN: Required!!!
     qry_Top.SQLConnection := con_Firebird;
@@ -1074,20 +855,16 @@ begin
     m_oLog.LogINFO('Simple DataSet is Active!');
     }
 
-    btnDbOpen           .Enabled := False;
-    cbbDb               .Enabled := False;
-    chbServerCharSetUtf8.Enabled := False;
-    btnConnect          .Enabled := False;
-
-    btnCrePrdTbls  .Enabled := (m_oApp.DB.ADM_DbInfProduct <> csPRODUCT_FULL);
     btnGetMetadata .Enabled := True;
-    btnCreTblSample.Enabled := True;
     btnDrpTbl      .Enabled := True;
     btnDrpCol      .Enabled := True;
 
-    btnSqlOpen     .Enabled := True;
-
     btnGetMetadata.Click();
+
+    if not sSqlOpenSelect.IsEmpty() then
+    begin
+      OpenSql('SQL Editor', sSqlOpenSelect);
+    end;
 
   except
     on exc : Exception do
@@ -1098,135 +875,6 @@ begin
   end;
 
   m_oApp.LOG.LogUI('TFrmMain.btnConnectClick END');
-end;
-
-procedure TFrmMain.AttachDbItemManager(bForceUpdate: Boolean);
-var
-  oDbItemMgr: TDtTstDbItemMgr;
-  sDbInfo: string;
-  frmPrs: TFrmProgress;
-begin
-
-  // ATTN: In case of (one-and-only) Known DB
-  //       OR FORCED (!)...
-  if bForceUpdate or (m_oApp.DB.ADM_DbInfProduct = csPRODUCT_FULL) then
-  begin
-
-    // Replace oDb with oDbItemMgr...
-    oDbItemMgr := TDtTstDbItemMgr.Create(m_oApp.LOG, m_oApp.DB);
-
-    m_oApp.SetDb(oDbItemMgr);
-
-    if chbDoDbUpdate.Checked then
-    begin
-
-      frmPrs := TFrmProgress.Create(self, m_oApp);
-      try
-
-        oDbItemMgr.ADM_DoDbUpdates(frmPrs);
-
-        frmPrs.Done();
-        while frmPrs.Visible do Application.ProcessMessages;
-
-      finally
-        frmPrs.Close();
-        FreeAndNil(frmPrs);
-      end;
-
-    end;
-
-    sDbInfo := 'LoginUsername = "' + m_oApp.DB.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oApp.DB.ADM_DbInfVersion_ADM) +
-                ', Product = "' + m_oApp.DB.ADM_DbInfProduct + '"' +
-                ', Product Version = ' + IntToStr(m_oApp.DB.ADM_DbInfVersion_PRD) +
-                ', UserID = ' + IntToStr(oDbItemMgr.ADM_UserID) + ' )';
-    sDbInfo := sDbInfo + ', DtTstDbItemMgr(  )';
-
-    edDbInfo.Text := sDbInfo;
-
-  end;
-
-end;
-
-procedure TFrmMain.tsDevChange(Sender: TObject; NewTab: Integer;
-  var AllowChange: Boolean);
-begin
-
-  lbLog.Visible := (NewTab = 0);
-
-  btnSqlOpen        .Visible := (NewTab = 1);
-  btnSqlOpenSample  .Visible := (NewTab = 1);
-  btnIsqlExec       .Visible := (NewTab = 1);
-  btnIsqlExecSample .Visible := (NewTab = 1);
-  edTerm            .Visible := (NewTab = 1);
-  moSql             .Visible := (NewTab = 1);
-
-end;
-
-procedure TFrmMain.lbLogDblClick(Sender: TObject);
-begin
-  if lbLog.ItemIndex >= 0 then
-  begin
-    Clipboard.AsText := lbLog.Items[lbLog.ItemIndex];
-  end;
-end;
-
-procedure TFrmMain.btnSqlOpenClick(Sender: TObject);
-var
-  sSql: string;
-begin
-  if not moSql.Lines.Text.IsEmpty() then
-  begin
-
-    sSql := moSql.Lines.Text;
-
-    if ContainsText(sSql.ToUpper(), 'SELECT ') then
-    begin
-      OpenSql('SQL Editor', sSql);
-    end
-    else
-    begin
-      m_oApp.DB.ExecuteSQL(nil {nil = DO Transaction}, sSql);
-    end;
-
-  end;
-end;
-
-procedure TFrmMain.btnSqlOpenSampleClick(Sender: TObject);
-begin
-  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE';
-  if btnSqlOpen.Enabled then btnSqlOpen.Click();
-end;
-
-procedure TFrmMain.btnIsqlExecClick(Sender: TObject);
-begin
-  if not moSql.Lines.Text.IsEmpty() then
-  begin
-
-    if edTerm.Text = '' then edTerm.Text := ';';
-
-    if edTerm.Text <> ';' then
-    begin
-      if not QuestionMsgDlg('The default Isql TERM ";" has changed to "' + edTerm.Text + '"!' + CHR(13) + CHR(10) +
-                            CHR(13) + CHR(10) + 'Do you want to conitune?') then
-      begin
-        Exit;
-      end;
-    end;
-
-    IsqlOpen(moSql.Lines.Text, edTerm.Text);
-  end;
-end;
-
-procedure TFrmMain.btnIsqlExecSampleClick(Sender: TObject);
-begin
-  edTerm.Text := '!!';
-  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE!!';
-
-  if btnIsqlExec.Enabled then btnIsqlExec.Click();
-
-  edTerm.Text := ';';
-  moSql.Lines.Text := 'select current_timestamp from RDB$DATABASE;';
 end;
 
 end.

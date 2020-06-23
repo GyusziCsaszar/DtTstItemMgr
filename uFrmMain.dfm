@@ -20,49 +20,49 @@ object FrmMain: TFrmMain
   TextHeight = 13
   object lblTop: TLabel
     Left = 300
-    Top = 65
+    Top = 72
     Width = 203
     Height = 13
     Caption = 'N/A (Query, Provider and Client DataSet):'
   end
   object lblBottom: TLabel
     Left = 300
-    Top = 293
+    Top = 341
     Width = 105
     Height = 13
     Caption = 'N/A (Simple DataSet):'
   end
-  object lblDb: TLabel
-    Left = 16
-    Top = 8
-    Width = 219
-    Height = 13
-    Caption = 'Firebird Database Connect Strings (from INI):'
+  object lblCaption: TLabel
+    Left = 8
+    Top = 9
+    Width = 72
+    Height = 25
+    Caption = 'Product'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -21
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
   end
-  object lblDbInfo: TLabel
-    Left = 162
-    Top = 34
-    Width = 73
-    Height = 13
-    Caption = 'Database Info:'
-  end
-  object btnConnect: TButton
-    Left = 63
-    Top = 56
-    Width = 100
-    Height = 32
-    Caption = 'Connect'
-    TabOrder = 0
-    OnClick = btnConnectClick
+  object panLeft: TPanel
+    Left = 0
+    Top = 43
+    Width = 49
+    Height = 575
+    Anchors = [akLeft, akTop, akBottom]
+    Color = clWindow
+    ParentBackground = False
+    TabOrder = 15
   end
   object db_grid_Top: TDBGrid
     Left = 300
-    Top = 84
+    Top = 91
     Width = 609
-    Height = 193
+    Height = 237
     Anchors = [akLeft, akTop, akRight]
     DataSource = ds_cds_Top
-    TabOrder = 1
+    TabOrder = 0
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
     TitleFont.Height = -11
@@ -71,12 +71,12 @@ object FrmMain: TFrmMain
   end
   object db_grid_Bottom: TDBGrid
     Left = 300
-    Top = 312
+    Top = 360
     Width = 609
-    Height = 193
-    Anchors = [akLeft, akTop, akRight]
+    Height = 220
+    Anchors = [akLeft, akTop, akRight, akBottom]
     DataSource = ds_sds_Bottom
-    TabOrder = 2
+    TabOrder = 1
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
     TitleFont.Height = -11
@@ -85,324 +85,192 @@ object FrmMain: TFrmMain
   end
   object btnGetMetadata: TButton
     Left = 8
-    Top = 133
+    Top = 71
     Width = 130
-    Height = 25
+    Height = 43
     Caption = 'Get Metadata'
     Enabled = False
-    TabOrder = 3
+    TabOrder = 2
     OnClick = btnGetMetadataClick
   end
   object lbResult: TListBox
     Left = 8
-    Top = 164
+    Top = 120
     Width = 273
-    Height = 351
+    Height = 429
     Anchors = [akLeft, akTop, akBottom]
     ItemHeight = 13
-    TabOrder = 4
+    TabOrder = 3
     OnDblClick = lbResultDblClick
   end
   object btnRefreshBottom: TButton
     Left = 848
-    Top = 287
+    Top = 335
+    Width = 61
+    Height = 25
+    Anchors = [akTop, akRight]
+    Caption = 'Refresh'
+    TabOrder = 4
+    OnClick = btnRefreshBottomClick
+  end
+  object btnRefreshTop: TButton
+    Left = 848
+    Top = 66
     Width = 61
     Height = 25
     Anchors = [akTop, akRight]
     Caption = 'Refresh'
     TabOrder = 5
-    OnClick = btnRefreshBottomClick
-  end
-  object btnRefreshTop: TButton
-    Left = 848
-    Top = 59
-    Width = 61
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Refresh'
-    TabOrder = 6
     OnClick = btnRefreshTopClick
   end
   object btnInsertBottom: TButton
     Left = 791
-    Top = 287
+    Top = 335
+    Width = 51
+    Height = 25
+    Anchors = [akTop, akRight]
+    Caption = 'Insert'
+    TabOrder = 6
+    OnClick = btnInsertBottomClick
+  end
+  object btnInsertTop: TButton
+    Left = 791
+    Top = 66
     Width = 51
     Height = 25
     Anchors = [akTop, akRight]
     Caption = 'Insert'
     TabOrder = 7
-    OnClick = btnInsertBottomClick
-  end
-  object btnInsertTop: TButton
-    Left = 791
-    Top = 59
-    Width = 51
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Insert'
-    TabOrder = 8
     OnClick = btnInsertTopClick
   end
   object btnDeleteBottom: TButton
     Left = 728
-    Top = 287
+    Top = 335
+    Width = 57
+    Height = 25
+    Anchors = [akTop, akRight]
+    Caption = 'Delete'
+    TabOrder = 8
+    OnClick = btnDeleteBottomClick
+  end
+  object btnDeleteTop: TButton
+    Left = 728
+    Top = 66
     Width = 57
     Height = 25
     Anchors = [akTop, akRight]
     Caption = 'Delete'
     TabOrder = 9
-    OnClick = btnDeleteBottomClick
-  end
-  object btnDeleteTop: TButton
-    Left = 728
-    Top = 59
-    Width = 57
-    Height = 25
-    Anchors = [akTop, akRight]
-    Caption = 'Delete'
-    TabOrder = 10
     OnClick = btnDeleteTopClick
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 144
-    Top = 141
+    Top = 94
     Width = 150
     Height = 17
     Caption = 'List Tables Only (On/Off)'
-    TabOrder = 11
+    TabOrder = 10
     OnClick = chbMetadataTablesOnlyClick
   end
-  object cbbDb: TComboBox
-    Left = 311
-    Top = 5
-    Width = 598
-    Height = 21
-    Anchors = [akLeft, akTop, akRight]
-    TabOrder = 12
-  end
-  object btnCreTblSample: TButton
-    Left = 8
-    Top = 555
-    Width = 273
-    Height = 25
-    Anchors = [akLeft, akBottom]
-    Caption = 'Create Table'
-    Enabled = False
-    TabOrder = 13
-    WordWrap = True
-    OnClick = btnCreTblSampleClick
-  end
   object btnDrpTbl: TButton
-    Left = 8
-    Top = 583
-    Width = 81
+    Left = 119
+    Top = 555
+    Width = 74
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'Drop Table'
     Enabled = False
-    TabOrder = 14
+    TabOrder = 11
     WordWrap = True
     OnClick = btnDrpTblClick
   end
-  object edDbInfo: TEdit
-    Left = 241
-    Top = 31
-    Width = 668
-    Height = 21
-    Anchors = [akLeft, akTop, akRight]
-    ReadOnly = True
-    TabOrder = 15
-    Text = '<none>'
-  end
-  object btnCrePrdTbls: TButton
-    Left = 8
-    Top = 94
-    Width = 273
-    Height = 31
-    Caption = 'Create Product Tables'
-    Enabled = False
-    TabOrder = 16
-    WordWrap = True
-    OnClick = btnCrePrdTblsClick
-  end
-  object chbServerCharsetUtf8: TCheckBox
-    Left = 16
-    Top = 33
-    Width = 140
-    Height = 17
-    Caption = 'Server CharSet = UTF8'
-    TabOrder = 17
-  end
-  object chbDoDbUpdate: TCheckBox
-    Left = 179
-    Top = 53
-    Width = 97
-    Height = 17
-    Caption = 'Do DB Update'
-    Checked = True
-    State = cbChecked
-    TabOrder = 18
-  end
-  object btnIsql: TButton
-    Left = 8
-    Top = 56
-    Width = 45
-    Height = 17
-    Caption = 'ISQL'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -9
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    ParentFont = False
-    TabOrder = 19
-    OnClick = btnIsqlClick
-  end
-  object chbIsqlVisible: TCheckBox
-    Left = 8
-    Top = 73
-    Width = 49
-    Height = 18
-    Caption = 'Visible'
-    Checked = True
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -9
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    ParentFont = False
-    State = cbChecked
-    TabOrder = 20
-  end
-  object tsDev: TTabSet
-    Left = 300
-    Top = 514
-    Width = 609
-    Height = 92
-    Anchors = [akLeft, akTop, akRight, akBottom]
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    Tabs.Strings = (
-      'LOG'
-      'SQL Editor')
-    TabIndex = 0
-    OnChange = tsDevChange
-  end
-  object lbLog: TListBox
-    Left = 309
-    Top = 535
-    Width = 587
-    Height = 58
-    Anchors = [akLeft, akTop, akRight, akBottom]
-    ItemHeight = 13
-    TabOrder = 22
-    OnDblClick = lbLogDblClick
-  end
-  object moSql: TMemo
-    Left = 310
-    Top = 560
-    Width = 587
-    Height = 33
-    Anchors = [akLeft, akTop, akRight, akBottom]
-    ScrollBars = ssBoth
-    TabOrder = 23
-  end
-  object btnSqlOpen: TButton
-    Left = 309
-    Top = 533
-    Width = 75
-    Height = 25
-    Caption = 'Open Query'
-    Enabled = False
-    TabOrder = 24
-    OnClick = btnSqlOpenClick
-  end
-  object btnSqlOpenSample: TButton
-    Left = 382
-    Top = 533
-    Width = 57
-    Height = 25
-    Caption = 'Sample'
-    TabOrder = 25
-    OnClick = btnSqlOpenSampleClick
-  end
-  object btnIsqlExec: TButton
-    Left = 464
-    Top = 533
-    Width = 75
-    Height = 25
-    Caption = 'Isql Exec'
-    TabOrder = 26
-    OnClick = btnIsqlExecClick
-  end
-  object btnIsqlExecSample: TButton
-    Left = 536
-    Top = 533
-    Width = 57
-    Height = 25
-    Caption = 'Sample'
-    TabOrder = 27
-    OnClick = btnIsqlExecSampleClick
-  end
-  object edTerm: TEdit
-    Left = 599
-    Top = 535
-    Width = 50
-    Height = 21
-    Hint = 'Firebird Isql SET TERM ?'
-    Alignment = taCenter
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clRed
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold]
-    ParentFont = False
-    ParentShowHint = False
-    ShowHint = True
-    TabOrder = 28
-    Text = ';'
-  end
-  object btnDbOpen: TButton
-    Left = 241
-    Top = 3
-    Width = 64
-    Height = 25
-    Caption = 'Open...'
-    TabOrder = 29
-    OnClick = btnDbOpenClick
-  end
   object btnDrpCol: TButton
-    Left = 95
-    Top = 583
-    Width = 75
+    Left = 199
+    Top = 555
+    Width = 82
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'Drop Column'
     Enabled = False
-    TabOrder = 30
+    TabOrder = 12
     OnClick = btnDrpColClick
   end
   object btnImpTbl: TButton
     Left = 8
-    Top = 524
-    Width = 137
+    Top = 555
+    Width = 105
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'Import Table (.CSV)'
-    TabOrder = 31
+    TabOrder = 13
     OnClick = btnImpTblClick
   end
-  object chbAutoConnect: TCheckBox
-    Left = 179
-    Top = 71
+  object panDbInfo: TPanel
+    Left = 0
+    Top = 586
+    Width = 919
+    Height = 29
+    Alignment = taLeftJustify
+    Anchors = [akLeft, akRight, akBottom]
+    BevelEdges = []
+    BevelInner = bvRaised
+    BorderStyle = bsSingle
+    Color = clInfoBk
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentBackground = False
+    ParentFont = False
+    TabOrder = 14
+  end
+  object panAdminMode: TPanel
+    Left = 24
+    Top = 36
+    Width = 217
+    Height = 29
+    BevelEdges = []
+    BevelInner = bvRaised
+    BorderStyle = bsSingle
+    Caption = 'Database Administration Mode'
+    Color = clInfoBk
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentBackground = False
+    ParentFont = False
+    TabOrder = 16
+  end
+  object chbAutoLogin: TCheckBox
+    Left = 144
+    Top = 74
     Width = 97
     Height = 17
-    Caption = 'Auto Connect'
-    TabOrder = 32
-    OnClick = chbAutoConnectClick
+    Caption = 'Auto Login'
+    TabOrder = 17
+    OnClick = chbAutoLoginClick
+  end
+  object tsViews: TTabSet
+    Left = 300
+    Top = 16
+    Width = 609
+    Height = 33
+    Anchors = [akLeft, akTop, akRight]
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    SoftTop = True
+    Style = tsSoftTabs
+    Tabs.Strings = (
+      'View A'
+      'View B')
+    TabIndex = 0
+    OnChange = tsViewsChange
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'
@@ -453,12 +321,12 @@ object FrmMain: TFrmMain
     Params = <>
     SQLConnection = con_Firebird_ANSI
     Left = 332
-    Top = 96
+    Top = 103
   end
   object dsp_Top: TDataSetProvider
     DataSet = qry_Top
     Left = 420
-    Top = 97
+    Top = 104
   end
   object cds_Top: TClientDataSet
     Aggregates = <>
@@ -466,12 +334,12 @@ object FrmMain: TFrmMain
     ProviderName = 'dsp_Top'
     AfterPost = cds_TopAfterPost
     Left = 500
-    Top = 96
+    Top = 103
   end
   object ds_cds_Top: TDataSource
     DataSet = cds_Top
     Left = 724
-    Top = 96
+    Top = 103
   end
   object sds_Bottom: TSimpleDataSet
     Aggregates = <>
@@ -481,12 +349,12 @@ object FrmMain: TFrmMain
     Params = <>
     AfterPost = sds_BottomAfterPost
     Left = 332
-    Top = 326
+    Top = 374
   end
   object ds_sds_Bottom: TDataSource
     DataSet = sds_Bottom
     Left = 724
-    Top = 326
+    Top = 374
   end
   object con_Firebird_UTF8: TSQLConnection
     DriverName = 'Firebird'

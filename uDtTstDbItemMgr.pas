@@ -35,7 +35,8 @@ begin
   m_oLog.LogLIFE('TDtTstDbItemMgr.Create');
 
   { ATTN: Copy BELOW members in descendants!!! }
-  m_sIsqlPath               := oDbToClone.IsqlPath;
+  m_sIsqlPathPRI            := oDbToClone.IsqlPathPRI;
+  m_sIsqlPathSEC            := oDbToClone.IsqlPathSEC;
   m_iIsqlOptions            := oDbToClone.IsqlOptions;
   m_bUTF8                   := oDbToClone.UTF8;
   m_asConnectStrings        := TStringList.Create();
@@ -204,7 +205,7 @@ begin
     if Assigned(frmPrs) then Application.ProcessMessages;
 
     sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                            IsqlPath,
+                            IsqlPathChecked,
                             ConnectString,
                             ConnectUser, ConnectPassword,
                             True {bGetOutput},

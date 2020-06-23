@@ -67,7 +67,7 @@ begin
       sSql := sSql + ' ' + str;
     end;
 
-    sSql := sSql + ') VALUES (';
+    sSql := sSql + ' ) VALUES ( ';
 
     iIdx := -1;
     for str in asValues do
@@ -78,9 +78,9 @@ begin
       sSql := sSql + ' ' + ':VAL' + IntToStr(iIdx + 1);
     end;
 
-    sSql := sSql + ')';
+    sSql := sSql + ' )';
 
-    sSql := sSql + ' MATCHING (';
+    sSql := sSql + ' MATCHING ( ';
 
     iIdx := -1;
     for str in asColNames do
@@ -91,7 +91,7 @@ begin
       sSql := sSql + ' ' + str;
     end;
 
-    sSql := sSql + ')';
+    sSql := sSql + ' )';
 
     // TODO...
     {

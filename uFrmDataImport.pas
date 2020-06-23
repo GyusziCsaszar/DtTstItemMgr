@@ -107,12 +107,12 @@ begin
 
   LoadFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
 
-  m_oApp.LOG.LogLIFE('TFrmProgress.Create');
+  m_oApp.LOG.LogLIFE('TFrmDataImport.Create');
 end;
 
 destructor TFrmDataImport.Destroy();
 begin
-  m_oApp.LOG.LogLIFE('TFrmProgress.Destroy');
+  m_oApp.LOG.LogLIFE('TFrmDataImport.Destroy');
 
   SaveFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmDataImport');
 
