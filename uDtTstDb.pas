@@ -24,8 +24,10 @@ type
     m_sConnectUser: string;
     m_sConnectPassword: string;
     m_oCon: TSQLConnection;
-    m_iADM_DbInfVersion: integer;
+    m_iADM_DbInfVersion_ADM: integer;
     m_sADM_DbInfProduct: string;
+    m_iADM_UserID: integer;
+    m_iADM_DbInfVersion_PRD: integer;
     { ATTN: Copy ABOVE members in descendants!!! }
   public
     constructor Create(oLog: TDtTstLog; sIniPath: string);
@@ -55,8 +57,12 @@ type
     function GetLoginUser() : string;
     property LoginUser: string read GetLoginUser;
 
-    function ADM_GetDbInfVersion() : integer;
-    property ADM_DbInfVersion: integer read ADM_GetDbInfVersion;
+    function ADM_GetDbInfVersion_PRD() : integer;
+    property ADM_DbInfVersion_PRD: integer read ADM_GetDbInfVersion_PRD;
+    function ADM_GetUserID() : integer;
+    property ADM_UserID: integer read ADM_GetUserID;
+    function ADM_GetDbInfVersion_ADM() : integer;
+    property ADM_DbInfVersion_ADM: integer read ADM_GetDbInfVersion_ADM;
     function ADM_GetDbInfProduct() : string;
     property ADM_DbInfProduct: string read ADM_GetDbInfProduct;
 
@@ -70,15 +76,28 @@ type
 
     procedure USR_Update(oCon: TSQLConnection {nil = DO Transaction}; sSql: string);
 
-    function ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean; virtual;
+    procedure ADM_DoDbUpdates(frmPrs: TFrmProgress);
+    function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean; virtual;
 
-    procedure ADM_Increment_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction});
-    procedure ADM_Update_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
-    procedure ADM_CreateTable_DBINFO();
+    procedure ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
+    procedure ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
+
+    procedure ADM_CreateTable_TABLES(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+    procedure ADM_CreateTable_USERS(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+
+    procedure ADM_UpdateOrInsert_NewTable(oCon: TSQLConnection {nil = DO Transaction}; sTable: string);
+
+    procedure ADM_Increment_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction});
+    procedure ADM_Update_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
+    procedure ADM_AlterTable_DBINFO_AddProductVersion(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+    procedure ADM_CreateTable_DBINFO(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 
     procedure META_AddColumn_TimeStamp(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
+
+    procedure META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+    procedure META_CreateGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
     procedure META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
 
@@ -94,8 +113,8 @@ type
 implementation
 
 uses
-  { DtTst Units: } uDtTstConsts,
-  SysUtils, IniFiles;
+  { DtTst Units: } uDtTstConsts, uDtTstFirebird,
+  SysUtils, StrUtils, IniFiles, Vcl.Forms;
 
 constructor TDtTstDb.Create(oLog: TDtTstLog; sIniPath: string);
 var
@@ -106,16 +125,18 @@ begin
   m_oLog := oLog;
 
   { ATTN: Copy BELOW members in descendants!!! }
-  m_sIsqlPath           := '';
-  m_iIsqlOptions        := -1;
-  m_bUTF8               := False;
-  m_asConnectStrings    := TStringList.Create();
-  m_sConnectString      := '';
-  m_sConnectUser        := '';
-  m_sConnectPassword    := '';
-  m_oCon                := nil;
-  m_iADM_DbInfVersion   := 0;
-  m_sADM_DbInfProduct   := '';
+  m_sIsqlPath               := '';
+  m_iIsqlOptions            := -1;
+  m_bUTF8                   := False;
+  m_asConnectStrings        := TStringList.Create();
+  m_sConnectString          := '';
+  m_sConnectUser            := '';
+  m_sConnectPassword        := '';
+  m_oCon                    := nil;
+  m_iADM_DbInfVersion_ADM   := 0;
+  m_sADM_DbInfProduct       := '';
+  m_iADM_UserID             := 0;
+  m_iADM_DbInfVersion_PRD   := 0;
   { ATTN: Copy ABOVE members in descendants!!! }
 
   inherited Create();
@@ -271,7 +292,7 @@ begin
   m_oLog.LogVERSION('TDtTstDb.Connect - DONE - Database = "' + m_sConnectString + '"');
 
   m_oLog.LogVERSION('TDtTstDb.Connect - DONE - ' + csDB_TBL_ADM_DBINF +
-                    '( Version = ' + IntToStr(ADM_DbInfVersion) +
+                    '( Version = ' + IntToStr(ADM_DbInfVersion_ADM) +
                     ', Product = "' + ADM_DbInfProduct + '" )' + '")' );
 
 end;
@@ -281,8 +302,8 @@ var
   oQry: TSQLQuery;
 begin
 
-  m_iADM_DbInfVersion := -1;
-  m_sADM_DbInfProduct := '';
+  m_iADM_DbInfVersion_ADM := -1;
+  m_sADM_DbInfProduct     := '';
 
   if TableExists(csDB_TBL_ADM_DBINF) then
   begin
@@ -293,14 +314,24 @@ begin
       oQry.SQLConnection := m_oCon;
 
       oQry.SQL.Text := m_oLog.LogSQL('SELECT * FROM ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
-                                     ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) + ' = 1;');
+                                     ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1;');
       oQry.Open();
 
       if not oQry.IsEmpty() then
       begin
-        m_iADM_DbInfVersion := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_VER)).AsInteger;
-        m_sADM_DbInfProduct := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD)).AsString;
-      end;
+        m_iADM_DbInfVersion_ADM := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_VER    )).AsInteger;
+        m_sADM_DbInfProduct     := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD    )).AsString;
+
+        if ADM_DbInfVersion_ADM > 102 then
+        begin
+          m_iADM_DbInfVersion_PRD := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD_VER)).AsInteger;
+        end
+        else
+        begin
+          m_iADM_DbInfVersion_PRD := 0;
+        end;
+
+       end;
 
     finally
       oQry.Close();
@@ -326,9 +357,19 @@ begin
   end;
 end;
 
-function TDtTstDb.ADM_GetDbInfVersion() : integer;
+function TDtTstDb.ADM_GetDbInfVersion_PRD() : integer;
 begin
-  Result := m_iADM_DbInfVersion;
+  Result := m_iADM_DbInfVersion_PRD;
+end;
+
+function TDtTstDb.ADM_GetUserID() : integer;
+begin
+  Result := m_iADM_UserID;
+end;
+
+function TDtTstDb.ADM_GetDbInfVersion_ADM() : integer;
+begin
+  Result := m_iADM_DbInfVersion_ADM;
 end;
 
 function TDtTstDb.ADM_GetDbInfProduct() : string;
@@ -583,18 +624,707 @@ begin
   end;
 end;
 
-function TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress) : Boolean;
+procedure TDtTstDb.ADM_DoDbUpdates(frmPrs: TFrmProgress);
+var
+  oProvider: TDBXDataExpressMetaDataProvider;
 begin
+
+  oProvider := META_GetProvider(m_oCon.DBXConnection);
+  try
+
+    while True do
+    begin
+
+        if ADM_DoDbUpdates_internal(oProvider, frmPrs) then
+        begin
+          Break; // Database is Up-To-Date!!!
+        end;
+
+    end;
+
+  finally
+    FreeAndNil(oProvider);
+  end;
+
+end;
+
+function TDtTstDb.ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress) : Boolean;
+begin
+  Result := False; // Indicated that there are more Database Updates pending...
+
+  if ADM_DbInfVersion_ADM <> ciDB_VERSION_ADM then
+  begin
+
+    if ADM_DbInfVersion_ADM > ciDB_VERSION_ADM then
+    begin
+      raise Exception.Create('Database ADM Version (' + IntToStr(ADM_DbInfVersion_ADM) +
+                 ') is newer than the Application''s supported Database ADM Version (' +
+                 IntToStr(ciDB_VERSION_ADM) + ')!');
+    end;
+
+    if Assigned(frmPrs) and (not frmPrs.Visible) then
+    begin
+
+      frmPrs.Show();
+      frmPrs.Init('Database Update');
+      frmPrs.SetProgressMinMax(ADM_DbInfVersion_ADM, ciDB_VERSION_ADM);
+
+      Application.ProcessMessages;
+
+    end;
+
+    //if ADM_DbInfVersion < ciDB_VERSION then
+    begin
+
+      case ADM_DbInfVersion_ADM of
+
+         -1,
+          0: begin
+
+          if Assigned(frmPrs) then frmPrs.AddStepHeader('Updating to ADM Version v1.00');
+
+          ADM_CreateTable_DBINFO(oProvider, frmPrs);
+
+          if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion_ADM);
+          if Assigned(frmPrs) then Application.ProcessMessages;
+
+        end;
+
+        100: begin
+
+          if Assigned(frmPrs) then frmPrs.AddStepHeader('Updating to ADM Version v1.01');
+
+          ADM_CreateTable_USERS(oProvider, frmPrs);
+
+          if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion_ADM);
+          if Assigned(frmPrs) then Application.ProcessMessages;
+
+        end;
+
+        101: begin
+
+          if Assigned(frmPrs) then frmPrs.AddStepHeader('Updating to ADM Version v1.02');
+
+          ADM_CreateTable_TABLES(oProvider, frmPrs);
+
+          if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion_ADM);
+          if Assigned(frmPrs) then Application.ProcessMessages;
+
+        end;
+
+        102: begin
+
+          if Assigned(frmPrs) then frmPrs.AddStepHeader('Updating to ADM Version v1.03');
+
+          ADM_AlterTable_DBINFO_AddProductVersion(oProvider, frmPrs);
+
+          if Assigned(frmPrs) then frmPrs.SetProgressPos(ADM_DbInfVersion_ADM);
+          if Assigned(frmPrs) then Application.ProcessMessages;
+
+        end;
+
+      end;
+
+      if ADM_DbInfVersion_ADM < ciDB_VERSION_ADM then
+      begin
+        Exit; // There are more Database Updates pending...
+      end;
+
+    end;
+  end;
+
   Result := True; // Indicates that Database is Up-To-Date!!!
 end;
 
-procedure TDtTstDb.ADM_Increment_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction});
+procedure TDtTstDb.META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
 begin
-  ADM_Update_DBINFO_VER( oCon {nil = DO Transaction}, m_iADM_DbInfVersion + 1);
-  m_iADM_DbInfVersion := m_iADM_DbInfVersion + 1;
+
+  if FIXOBJNAME(sTable) = FIXOBJNAME(csDB_TBL_ADM_USERS) then
+  begin
+
+    // ATTN: Deleting Table also deletes its Triggers!!!
+    // oProvider.Execute(m_oLog.LogSQL('DROP TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + '_BI'));
+
+    META_DropGenerator(oProvider, csDB_TBL_ADM_USERS, csDB_FLD_ADM_X_ID);
+
+    // NOTE: admUsers table added in v101!
+    ADM_Update_DBINFO_VER_ADM(nil {nil = DO Transaction}, 100);
+
+  end
+  else if FIXOBJNAME(sTable) = FIXOBJNAME(csDB_TBL_ADM_TABLES) then
+  begin
+
+    // ATTN: Deleting Table also deletes its Triggers!!!
+    // oProvider.Execute(m_oLog.LogSQL('DROP TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) + '_BI'));
+
+    META_DropGenerator(oProvider, csDB_TBL_ADM_TABLES, csDB_FLD_ADM_X_ID);
+
+    // NOTE: admUsers table added in v101!
+    ADM_Update_DBINFO_VER_ADM(nil {nil = DO Transaction}, 101);
+
+  end;
+
 end;
 
-procedure TDtTstDb.ADM_Update_DBINFO_VER(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
+procedure TDtTstDb.ADM_UpdateOrInsert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    // BUG: Increments ID field!!!
+    {
+    sSql := 'UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 ' (' + FIXOBJNAME(csDB_FLD_ADM_TSPCRE) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_LSTLOGIN) +
+                 ') VALUES ((SELECT current_timestamp FROM RDB$DATABASE)' +
+                 ', (SELECT GEN_ID(' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', 1) FROM RDB$DATABASE)' +
+                 ', :USR' +
+                 ', (SELECT current_timestamp FROM RDB$DATABASE))' +
+                 ' MATCHING (' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) + ')' +
+                 ' RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID);
+    }
+    // BUG: Increments ID field!!! + No OLD.ID is avalilable!!!
+    {
+    sSql := 'UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 ' (' + FIXOBJNAME(csDB_FLD_ADM_TSPCRE) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_LSTLOGIN) +
+                 ') VALUES ((SELECT current_timestamp FROM RDB$DATABASE)' +
+                 ', IIF(OLD.ID IS NULL,(SELECT GEN_ID(' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', 1) FROM RDB$DATABASE),OLD.ID)' +
+                 ', :USR' +
+                 ', (SELECT current_timestamp FROM RDB$DATABASE))' +
+                 ' MATCHING (' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) + ')' +
+                 ' RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID);
+    }
+    // FIX: Before Insert Trigger!!!
+    sSql := 'UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 ' (' {+ FIXOBJNAME(csDB_FLD_ADM_TSPCRE) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', '} + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_LSTLOGIN) +
+                 ') VALUES (' {+ '(SELECT current_timestamp FROM RDB$DATABASE)' +
+                 ', (SELECT GEN_ID(' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', 1) FROM RDB$DATABASE)' +
+                 ', '} + ':USR' +
+                 ', (SELECT current_timestamp FROM RDB$DATABASE))' +
+                 ' MATCHING (' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) + ')' +
+                 ' RETURNING ' + FIXOBJNAME(csDB_FLD_ADM_X_ID);
+
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    // ATTN: To write UTF8 string, nothing extra is required!!!
+    {
+    // Is this required to write UTF8 String???
+    //oQry.Params.ParamByName('PRD').DataType := ftWideString;
+    //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
+    }
+
+    oQry.Params.ParamByName('USR').AsString   := LoginUser;
+
+    //oQry.Prepared := True;
+
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      //oQry.ExecSQL(False);
+      oQry.Open();
+
+      m_iADM_UserID := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_X_ID)).AsInteger;
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.ADM_Insert_LoginUser(oCon: TSQLConnection {nil = DO Transaction});
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    {
+    sSql := 'INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 ' (' + FIXOBJNAME(csDB_FLD_ADM_TSPCRE) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_LSTLOGIN) +
+                 ') VALUES ((SELECT current_timestamp FROM RDB$DATABASE)' +
+                 ', (SELECT GEN_ID(' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', 1) FROM RDB$DATABASE)' +
+                 ', :USR' +
+                 ', (SELECT current_timestamp FROM RDB$DATABASE))';
+    }
+    // CHG: ID will be assigned in Before Insert Trigger!!!
+    sSql := 'INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 ' (' {+ FIXOBJNAME(csDB_FLD_ADM_TSPCRE) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', '} + FIXOBJNAME(csDB_FLD_ADM_USERS_USER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_USERS_LSTLOGIN) +
+                 ') VALUES ( ' {+ '(SELECT current_timestamp FROM RDB$DATABASE)' +
+                 ', (SELECT GEN_ID(' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                 '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                 ', 1) FROM RDB$DATABASE)' +
+                 ', '} + ':USR' +
+                 ', (SELECT current_timestamp FROM RDB$DATABASE))';
+
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSQL));
+
+    // ATTN: To write UTF8 string, nothing extra is required!!!
+    {
+    // Is this required to write UTF8 String???
+    //oQry.Params.ParamByName('PRD').DataType := ftWideString;
+    //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
+    }
+
+    oQry.Params.ParamByName('USR').AsString   := LoginUser;
+
+    //oQry.Prepared := True;
+
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      oQry.ExecSQL(False);
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.ADM_CreateTable_TABLES(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+var
+  oTable: TDBXMetaDataTable;
+  oTD: TTransactionDesc;
+  sOutput: string;
+begin
+
+  oTable := TDBXMetaDataTable.Create;
+  try
+
+    { Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_TABLES);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_TABLES);
+
+    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPCRE       , False {bNullable});
+
+    META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_TABLES_NAME    , False {bNullable}, 31);
+
+    oProvider.CreateTable(oTable);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Generator }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_ADM_TABLES +  '_' + csDB_FLD_ADM_X_ID);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    META_CreateGenerator(oProvider, csDB_TBL_ADM_TABLES, csDB_FLD_ADM_X_ID);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Trigger }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_ADM_TABLES + '_BI');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                            IsqlPath,
+                            ConnectString,
+                            ConnectUser, ConnectPassword,
+                            True {bGetOutput},
+                            (IsqlOptions = 1) {bVisible},
+                            'CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) + CHR(13) + CHR(10) +
+                                        ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                                        ' POSITION 0' + CHR(13) + CHR(10) +
+                                        ' AS' + CHR(13) + CHR(10) +
+                                        ' BEGIN' + CHR(13) + CHR(10) +
+                                        ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
+                                        FIXOBJNAME(csDB_TBL_ADM_TABLES) +
+                                        '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
+                                        ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = (SELECT current_timestamp FROM RDB$DATABASE);' + CHR(13) + CHR(10) +
+                                        ' END!!',
+                                        '!!');
+
+    if not ContainsText(sOutput, csISQL_SUCCESS) then
+    begin
+      raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+    end;
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+  finally
+    FreeAndNil(oTable);
+  end;
+
+  { Indices }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating index ' + csDB_TBL_ADM_TABLES + '_' + csDB_FLD_ADM_X_ID);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_PrimaryKey(oProvider, csDB_TBL_ADM_TABLES, csDB_FLD_ADM_X_ID);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { ROWS }
+
+  m_oCon.StartTransaction(oTD);
+  try
+
+    { Users Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Inserting table ' + csDB_TBL_ADM_USERS + ' into table ' + csDB_TBL_ADM_TABLES);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    // ATTN: USERS table already created, now we add to TABLES...
+    ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_ADM_USERS);
+
+    // NOTE: Updating to original (???) creation timestamp...
+    USR_Update(m_oCon {nil = DO Transaction}, 'UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) +
+               ' SET ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+               ' = (SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' FROM ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+               ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1)' +
+               ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_TABLES_NAME) + ' = ''' + csDB_TBL_ADM_USERS + '''');
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Tables Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Inserting table ' + csDB_TBL_ADM_TABLES + ' into table ' + csDB_TBL_ADM_TABLES);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_ADM_TABLES);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { DB Version Increment }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Incrementing database version number');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_Increment_DBINFO_VER_ADM(m_oCon {nil = DO Transaction} );
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    m_oCon.Commit(oTD);
+
+  except
+    m_oCon.Rollback(oTD);
+  end;
+
+end;
+
+procedure TDtTstDb.ADM_CreateTable_USERS(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+var
+  oTable: TDBXMetaDataTable;
+  oTD: TTransactionDesc;
+  sOutput: string;
+begin
+
+  oTable := TDBXMetaDataTable.Create;
+  try
+
+    { Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_USERS);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_USERS);
+
+    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPCRE       , False {bNullable});
+
+    META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_USERS_USER     , False {bNullable}, 31);
+
+    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_USERS_LSTLOGIN , False {bNullable});
+
+    oProvider.CreateTable(oTable);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Generator }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_ADM_USERS +  '_' + csDB_FLD_ADM_X_ID);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    META_CreateGenerator(oProvider, csDB_TBL_ADM_USERS, csDB_FLD_ADM_X_ID);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Trigger }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_ADM_USERS + '_BI');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    // BUG: Failed!
+    {
+    // SRC: https://docs.telerik.com/data-access/developers-guide/database-specifics/firebird/database-specifics-firebird-auto-inc-columns
+    oProvider.Execute(m_oLog.LogSQL('CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                    ' ACTIVE BEFORE INSERT' +
+                                    ' POSITION 0' +
+                                    ' AS' +
+                                    ' BEGIN' +
+                                    '  IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                                    ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ' = GEN_ID(' +
+                                    FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                    '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ', 1);' +
+                                    ' END;'));
+    }
+    // FIX: TERM has to be set!!! - BUG: SET TERM is only available in ISQL!!!
+    {
+    oProvider.Execute(m_oLog.LogSQL('SET TERM !! ; CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                    ' ACTIVE BEFORE INSERT' +
+                                    ' POSITION 0' +
+                                    ' AS' +
+                                    ' BEGIN' +
+                                    '  IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                                    ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ' = GEN_ID(' +
+                                    FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                    '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ', 1);' +
+                                    ' END !! SET TERM ; !!'));
+    }
+    // BUG: admUsers.admCreTsp is updated by UPDATE OR INSERT!!!
+    {
+    sOutput := IsqlExec(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                        IsqlPath,
+                        ConnectString,
+                        ConnectUser, ConnectPassword,
+                        True {bGetOutput,
+                        (IsqlOptions = 1) {bVisible,
+                        'CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + CHR(13) + CHR(10) +
+                                    ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                                    ' POSITION 0' + CHR(13) + CHR(10) +
+                                    ' AS' + CHR(13) + CHR(10) +
+                                    ' BEGIN' + CHR(13) + CHR(10) +
+                                    ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) +
+                                    ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ' = GEN_ID(' +
+                                    FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                    '_' + FIXOBJNAME(csDB_FLD_ADM_USERS_ID) + ', 1);' + CHR(13) + CHR(10) +
+                                    ' END!!',
+                                    '!!');
+    }
+    sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                            IsqlPath,
+                            ConnectString,
+                            ConnectUser, ConnectPassword,
+                            True {bGetOutput},
+                            (IsqlOptions = 1) {bVisible},
+                            'CREATE TRIGGER ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + '_BI FOR ' + FIXOBJNAME(csDB_TBL_ADM_USERS) + CHR(13) + CHR(10) +
+                                        ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                                        ' POSITION 0' + CHR(13) + CHR(10) +
+                                        ' AS' + CHR(13) + CHR(10) +
+                                        ' BEGIN' + CHR(13) + CHR(10) +
+                                        ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
+                                        FIXOBJNAME(csDB_TBL_ADM_USERS) +
+                                        '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
+                                        ' IF (NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+                                        ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = (SELECT current_timestamp FROM RDB$DATABASE);' + CHR(13) + CHR(10) +
+                                        ' END!!',
+                                        '!!');
+
+    if not ContainsText(sOutput, csISQL_SUCCESS) then
+    begin
+      raise Exception.Create('Isql returned error: "' + sOutput + '"!');
+    end;
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+  finally
+    FreeAndNil(oTable);
+  end;
+
+  { Indices }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating index ' + csDB_TBL_ADM_USERS + '_' + csDB_FLD_ADM_X_ID);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_PrimaryKey(oProvider, csDB_TBL_ADM_USERS, csDB_FLD_ADM_X_ID);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { ROWS }
+
+  m_oCon.StartTransaction(oTD);
+  try
+
+    { Current User }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Inserting user into table ' + csDB_TBL_ADM_USERS);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_Insert_LoginUser(m_oCon {nil = DO Transaction} );
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { DB Version Increment }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Incrementing database version number');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_Increment_DBINFO_VER_ADM(m_oCon {nil = DO Transaction} );
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    m_oCon.Commit(oTD);
+
+  except
+    m_oCon.Rollback(oTD);
+  end;
+
+end;
+
+procedure TDtTstDb.ADM_UpdateOrInsert_NewTable(oCon: TSQLConnection {nil = DO Transaction}; sTable: string);
+var
+  sSql: string;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    sSql := 'UPDATE OR INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) +
+                 ' (' + FIXOBJNAME(csDB_FLD_ADM_TABLES_NAME) +
+                 ') VALUES (' + ':TNM' + ')' +
+                 ' MATCHING (' + FIXOBJNAME(csDB_FLD_ADM_TABLES_NAME) + ')';
+
+    if Assigned(oCon) then
+      oQry.SQLConnection := oCon
+    else
+      oQry.SQLConnection := m_oCon;
+
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL(sSql));
+
+    // ATTN: To write UTF8 string, nothing extra is required!!!
+    {
+    // Is this required to write UTF8 String???
+    //oQry.Params.ParamByName('PRD').DataType := ftWideString;
+    //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
+    }
+
+    oQry.Params.ParamByName('TNM').AsString   := sTable;
+
+    //oQry.Prepared := True;
+
+    if not Assigned(oCon) then
+      m_oCon.StartTransaction(oTD);
+
+    try
+
+      oQry.ExecSQL(False);
+
+      if not Assigned(oCon) then
+        m_oCon.Commit(oTD);
+
+    except
+
+      if not Assigned(oCon) then
+        m_oCon.Rollback(oTD);
+
+      raise;
+
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.ADM_Increment_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction});
+begin
+  ADM_Update_DBINFO_VER_ADM( oCon {nil = DO Transaction}, m_iADM_DbInfVersion_ADM + 1);
+  m_iADM_DbInfVersion_ADM := m_iADM_DbInfVersion_ADM + 1;
+end;
+
+procedure TDtTstDb.ADM_Update_DBINFO_VER_ADM(oCon: TSQLConnection {nil = DO Transaction}; iVersion: integer);
 var
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
@@ -614,7 +1344,7 @@ begin
     oQry.SQL.Add(m_oLog.LogSQL('UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
                  ' SET ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
                  ' = :VER' +
-                 ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) + ' = 1' ));
+                 ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1' ));
 
     oQry.Params.ParamByName('VER').AsInteger  := iVersion;
 
@@ -645,101 +1375,190 @@ begin
   end;
 end;
 
-procedure TDtTstDb.ADM_CreateTable_DBINFO();
+procedure TDtTstDb.ADM_AlterTable_DBINFO_AddProductVersion(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 var
-  oProvider: TDBXDataExpressMetaDataProvider;
   oTable: TDBXMetaDataTable;
   oQry: TSQLQuery;
   oTD: TTransactionDesc;
 begin
 
-  oProvider := META_GetProvider(m_oCon.DBXConnection);
+  oTable := TDBXMetaDataTable.Create;
   try
 
-    oTable := TDBXMetaDataTable.Create;
-    try
+    { Table }
 
-      { Table }
+    if Assigned(frmPrs) then frmPrs.AddStep('Altering table ' + csDB_TBL_ADM_TABLES + ', adding column ' + csDB_FLD_ADM_DBINF_PRD_VER);
+    if Assigned(frmPrs) then Application.ProcessMessages;
 
-      oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
+    oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
 
-      META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_ID , False {bNullable});
+    META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_PRD_VER, False {bNullable});
 
-      META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_VER, False {bNullable});
+    oProvider.AlterTable(oTable);
 
-      META_AddColumn_VARCHAR(oTable, csDB_FLD_ADM_DBINF_PRD, False {bNullable}, 32);
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
 
-      oProvider.CreateTable(oTable);
+    { Generator }
 
-      { Generator }
+    // NONE...
 
-      // NONE...
+    { Trigger }
 
-      { Trigger }
-
-      // NONE...
-
-    finally
-      FreeAndNil(oTable);
-    end;
-
-    // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
-    oQry := TSQLQuery.Create(nil);
-    try
-
-      oQry.SQLConnection := m_oCon;
-      oQry.ParamCheck := True;
-      // oQry.PrepareStatement;
-      oQry.SQL.Add(m_oLog.LogSQL('INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
-                   ' (' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) +
-                   ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
-                   ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD) +
-                   ') VALUES (:ID, :VER, :PRD)'));
-
-      oQry.Params.ParamByName('ID').AsInteger   := 1;
-
-      oQry.Params.ParamByName('VER').AsInteger  := 100;
-
-      // ATTN: To write UTF8 string, nothing extra is required!!!
-      {
-      // Is this required to write UTF8 String???
-      //oQry.Params.ParamByName('PRD').DataType := ftWideString;
-      //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
-      }
-
-      oQry.Params.ParamByName('PRD').AsString   := csPRODUCT_FULL;
-
-      //oQry.Prepared := True;
-
-      m_oCon.StartTransaction(oTD);
-      try
-
-        oQry.ExecSQL(False);
-
-        m_oCon.Commit(oTD);
-
-        m_iADM_DbInfVersion := 100;
-        m_sADM_DbInfProduct := csPRODUCT_FULL;
-
-      except
-        m_oCon.Rollback(oTD);
-      end;
-
-    finally
-      oQry.Close();
-      FreeAndNil(oQry);
-    end;
+    // NONE...
 
   finally
-    FreeAndNil(oProvider);
+    FreeAndNil(oTable);
+  end;
+
+  { Indices }
+
+  // NONE...
+
+  { ROWS }
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    { Initial Product Version Value }
+
+    oQry.SQLConnection := m_oCon;
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL('UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+                 ' SET ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD_VER) +
+                 ' = :PRDVER WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1'));
+
+    oQry.Params.ParamByName('PRDVER').AsInteger  := 100;
+
+    //oQry.Prepared := True;
+
+    m_oCon.StartTransaction(oTD);
+    try
+
+      oQry.ExecSQL(False);
+
+      m_oCon.Commit(oTD);
+
+      m_iADM_DbInfVersion_PRD := 100;
+
+    except
+      m_oCon.Rollback(oTD);
+    end;
+
+    { DB Version Increment }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Incrementing database version number');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_Increment_DBINFO_VER_ADM(m_oCon {nil = DO Transaction} );
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
   end;
 
 end;
 
-procedure TDtTstDb.META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
+procedure TDtTstDb.ADM_CreateTable_DBINFO(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+var
+  oTable: TDBXMetaDataTable;
+  oQry: TSQLQuery;
+  oTD: TTransactionDesc;
 begin
 
-  // NOP...
+  oTable := TDBXMetaDataTable.Create;
+  try
+
+    { Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_ADM_USERS);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
+
+    META_AddColumn_INT32(  oTable, csDB_FLD_ADM_X_ID      , False {bNullable});
+
+    META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_VER , False {bNullable});
+
+    META_AddColumn_VARCHAR(oTable, csDB_FLD_ADM_DBINF_PRD , False {bNullable}, 32);
+
+    oProvider.CreateTable(oTable);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { Generator }
+
+    // NONE...
+
+    { Trigger }
+
+    // NONE...
+
+  finally
+    FreeAndNil(oTable);
+  end;
+
+  { Indices }
+
+  // NONE...
+
+  { ROWS }
+
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    { Initial ID, DB Version and Product Values }
+
+    oQry.SQLConnection := m_oCon;
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL('INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+                 ' (' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
+                 ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD) +
+                 ') VALUES (:ID, :VER, :PRD)'));
+
+    oQry.Params.ParamByName('ID').AsInteger   := 1;
+
+    oQry.Params.ParamByName('VER').AsInteger  := 100;
+
+    // ATTN: To write UTF8 string, nothing extra is required!!!
+    {
+    // Is this required to write UTF8 String???
+    //oQry.Params.ParamByName('PRD').DataType := ftWideString;
+    //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
+    }
+
+    oQry.Params.ParamByName('PRD').AsString   := csPRODUCT_FULL;
+
+    //oQry.Prepared := True;
+
+    m_oCon.StartTransaction(oTD);
+    try
+
+      oQry.ExecSQL(False);
+
+      m_oCon.Commit(oTD);
+
+      m_iADM_DbInfVersion_ADM := 100;
+      m_sADM_DbInfProduct     := csPRODUCT_FULL;
+
+    except
+      m_oCon.Rollback(oTD);
+    end;
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
 
 end;
 
@@ -779,6 +1598,25 @@ begin
   oCol.FixedLength := False; // To make VarChar...
 
   oTable.AddColumn(oCol);
+end;
+
+procedure TDtTstDb.META_DropGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+begin
+
+  oProvider.Execute(m_oLog.LogSQL('DROP GENERATOR ' + FIXOBJNAME(sTableName) +
+    '_' + FIXOBJNAME(sColumnName) + ';'));
+
+end;
+
+procedure TDtTstDb.META_CreateGenerator(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+begin
+
+  oProvider.Execute(m_oLog.LogSQL('CREATE GENERATOR ' + FIXOBJNAME(sTableName) +
+    '_' + FIXOBJNAME(sColumnName) + ';'));
+
+  oProvider.Execute(m_oLog.LogSQL('SET GENERATOR ' + FIXOBJNAME(sTableName) +
+    '_' + FIXOBJNAME(sColumnName) + ' TO 0;'));
+
 end;
 
 procedure TDtTstDb.META_CreateIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);

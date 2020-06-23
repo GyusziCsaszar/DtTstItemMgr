@@ -9,9 +9,8 @@ const
   csPRODUCT             = 'TstItemMgrı’˚€ÌÕ';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 115;
-  csVERSION_TITLE       = 'v1.15';
-  ciDB_VERSION          = 102;
+  ciVERSION             = 116;
+  csVERSION_TITLE       = 'v1.16';
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -40,30 +39,38 @@ const
     csINI_VAL_DB_USR          = 'User';
     csINI_VAL_DB_PW           = 'Password';
 
-  { Database - SAMPLE }
-  csDB_TBL_SAMPLE             = 'SAMPLETABLE';
-
-  { Database - Base }
-  csDB_TBL_ADM_DBINF          = 'admDbInfo';
-  csDB_FLD_ADM_DBINF_ID       = 'ID';
-  csDB_FLD_ADM_DBINF_VER      = 'Version';
-  csDB_FLD_ADM_DBINF_PRD      = 'Product';
-  // ------------------------------------
-  csDB_FLD_ADM_TSPCRE         = 'admCreTsp';
-  // ------------------------------------
-  csDB_TBL_ADM_USERS          = 'admUsers';
-  csDB_FLD_ADM_USERS_ID       = 'ID';
-  csDB_FLD_ADM_USERS_USER     = 'UserName'; //'User';
-  csDB_FLD_ADM_USERS_LSTLOGIN = 'LastLoginTSP';
-  // ------------------------------------
-  csDB_TBL_ADM_TABLES         = 'admTables';
-  csDB_FLD_ADM_TABLES_ID      = 'ID';
-  csDB_FLD_ADM_TABLES_NAME    = 'TableName';
-
   { Firebird }
   csISQL_FILE_IN              = '_Isql_IN.sql';
   csISQL_FILE_OUT             = '_Isql_OUT.txt';
   csISQL_SUCCESS              = 'ISQL_OK';
+  csFBRD_DBFILE_FILTER        = 'Firebird Database Files (*.FDB)|*.fdb';
+
+  { Database - SAMPLE }
+  csDB_TBL_SAMPLE             = 'SAMPLETABLE';
+
+  { Database - Base }
+//ciDB_VERSION_ADM            = 100; // CRE admDbInfo
+//ciDB_VERSION_ADM            = 101; // CRE admUsers,  INS User
+//ciDB_VERSION_ADM            = 102; // CRE admTables, INS Table admUsers
+  ciDB_VERSION_ADM            = 103; // ALT admDbInfo, CRE ProductVersion = 100
+  // ------------------------------------
+  csDB_FLD_ADM_X_ID           = 'ID';
+  csDB_FLD_ADM_X_USRCRE       = 'admCreUsr';
+  csDB_FLD_ADM_X_TSPCRE       = 'admCreTsp';
+  // ------------------------------------
+  csDB_TBL_ADM_DBINF          = 'admDbInfo';
+  csDB_FLD_ADM_DBINF_VER      = 'Version';
+  csDB_FLD_ADM_DBINF_PRD      = 'Product';
+  csDB_FLD_ADM_DBINF_PRD_VER  = 'ProductVersion';
+  // ------------------------------------
+  csDB_TBL_ADM_USERS          = 'admUsers';
+  csDB_FLD_ADM_USERS_USER     = 'UserName'; //'User';
+  csDB_FLD_ADM_USERS_LSTLOGIN = 'LastLoginTSP';
+  // ------------------------------------
+  csDB_TBL_ADM_TABLES         = 'admTables';
+  csDB_FLD_ADM_TABLES_NAME    = 'TableName';
+
+  { Database - Product ItemMgr }
 
 implementation
 

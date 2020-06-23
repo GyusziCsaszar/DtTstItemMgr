@@ -6,7 +6,7 @@ uses
   { DtTst Units: } uDtTstLog,
   SysUtils;
 
-function IsqlExec(oLog: TDtTstLog; sIoFolderPath, sIsqlPath, sDb, sUser, sPassword: string; bGetOutput, bVisible: Boolean; sStatements, sTerm: string) : string;
+function ISQL_Execute(oLog: TDtTstLog; sIoFolderPath, sIsqlPath, sDb, sUser, sPassword: string; bGetOutput, bVisible: Boolean; sStatements, sTerm: string) : string;
 
 implementation
 
@@ -14,7 +14,7 @@ uses
   { DtTst Units: } uDtTstConsts, uDtTstWin,
   StrUtils, System.IOUtils;
 
-function IsqlExec(oLog: TDtTstLog; sIoFolderPath, sIsqlPath, sDb, sUser, sPassword: string; bGetOutput, bVisible: Boolean; sStatements, sTerm: string) : string;
+function ISQL_Execute(oLog: TDtTstLog; sIoFolderPath, sIsqlPath, sDb, sUser, sPassword: string; bGetOutput, bVisible: Boolean; sStatements, sTerm: string) : string;
 var
   sPars: string;
   sInPath, sOutPath: string;
@@ -126,7 +126,7 @@ begin
       sPars := sPars + '-password ' + sPassword;
     end;
 
-    ExecuteApplication(sIsqlPath, sPars, bVisible);
+    CreateProcess_WAIT(sIsqlPath, sPars, bVisible);
 
     Result := TFile.ReadAllText(sOutPath);
 

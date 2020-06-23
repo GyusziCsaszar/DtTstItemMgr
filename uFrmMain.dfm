@@ -41,7 +41,7 @@ object FrmMain: TFrmMain
   end
   object lblDbInfo: TLabel
     Left = 162
-    Top = 32
+    Top = 34
     Width = 73
     Height = 13
     Caption = 'Database Info:'
@@ -173,9 +173,9 @@ object FrmMain: TFrmMain
     OnClick = chbMetadataTablesOnlyClick
   end
   object cbbDb: TComboBox
-    Left = 241
+    Left = 311
     Top = 5
-    Width = 668
+    Width = 598
     Height = 21
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 12
@@ -206,7 +206,7 @@ object FrmMain: TFrmMain
   end
   object edDbInfo: TEdit
     Left = 241
-    Top = 29
+    Top = 31
     Width = 668
     Height = 21
     Anchors = [akLeft, akTop, akRight]
@@ -227,7 +227,7 @@ object FrmMain: TFrmMain
   end
   object chbServerCharsetUtf8: TCheckBox
     Left = 16
-    Top = 31
+    Top = 33
     Width = 140
     Height = 17
     Caption = 'Server CharSet = UTF8'
@@ -364,6 +364,15 @@ object FrmMain: TFrmMain
     ShowHint = True
     TabOrder = 28
     Text = ';'
+  end
+  object btnDbOpen: TButton
+    Left = 241
+    Top = 3
+    Width = 64
+    Height = 25
+    Caption = 'Open...'
+    TabOrder = 29
+    OnClick = btnDbOpenClick
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'

@@ -54,6 +54,7 @@ type
     btnIsqlExec: TButton;
     btnIsqlExecSample: TButton;
     edTerm: TEdit;
+    btnDbOpen: TButton;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -78,6 +79,7 @@ type
     procedure btnSqlOpenSampleClick(Sender: TObject);
     procedure btnIsqlExecClick(Sender: TObject);
     procedure btnIsqlExecSampleClick(Sender: TObject);
+    procedure btnDbOpenClick(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -91,7 +93,7 @@ type
     procedure OpenSql(sTable, sSql: string);
     procedure IsqlOpen(sStatements, sTerm: string);
 
-    procedure AttachDbItemManager();
+    procedure AttachDbItemManager(bForceUpdate: Boolean);
   end;
 
 var
@@ -163,7 +165,8 @@ begin
   // First LogINFO...
   m_oLog.LogVERSION('App Path: '  + Application.ExeName);
   m_oLog.LogVERSION('App Title: ' + Application.Title);
-  m_oLog.LogVERSION('App Info: PRD = ' + csPRODUCT + ', VER = ' + IntToStr(ciVERSION) + ', DB(' + csPRODUCT + ').VER = ' + IntToStr(ciDB_VERSION));
+  m_oLog.LogVERSION('App Info: PRD = ' + csPRODUCT + ', VER = ' + IntToStr(ciVERSION));
+  m_oLog.LogVERSION('App.DB Info: ADM_VER = ' + IntToStr(ciDB_VERSION_ADM) + ', PRD = ' + csPRODUCT );
 
   // DB Info from INI file...
   cbbDb.Text := '';
@@ -183,6 +186,40 @@ begin
   tsDev.TabIndex := 1; tsDev.TabIndex := 0;
 
   m_oLog.LogUI('TFrmMain.FormShow END');
+end;
+
+procedure TFrmMain.btnDbOpenClick(Sender: TObject);
+// SRC: http://www.delphibasics.co.uk/RTL.asp?Name=topendialog
+var
+  frmOf: TOpenDialog;
+begin
+
+  frmOf := TOpenDialog.Create(self);
+  try
+
+    // Set up the starting directory to be the current one
+    //frmOf.InitialDir := GetCurrentDir();
+
+    // Only allow existing files to be selected
+    frmOf.Options := [ofFileMustExist];
+
+    // Allow only .xyz files to be selected
+    frmOf.Filter := csFBRD_DBFILE_FILTER + '|All Files (*.*)|*.*';
+
+    // Select .xyz as the starting filter type
+    frmOf.FilterIndex := 1;
+
+    // Display the open file dialog
+    if not frmOf.Execute then
+    begin
+      Exit;
+    end;
+
+    cbbDb.Text := 'localhost:' + frmOf.FileName;
+
+  finally
+    FreeAndNil(frmOf);
+  end;
 end;
 
 procedure TFrmMain.btnIsqlClick(Sender: TObject);
@@ -225,7 +262,7 @@ begin
 
   try
 
-    frmPrs := TFrmProgress.Create(self);
+    frmPrs := TFrmProgress.Create(self, m_oLog);
     try
 
       frmPrs.Show();
@@ -234,14 +271,14 @@ begin
 
       frmPrs.AddStep('Starting Firebird Isql tool');
 
-      sOutput := IsqlExec(m_oLog, TPath.GetDirectoryName(Application.ExeName),
-                          m_oDb.IsqlPath,
-                          cbbDb.Text,
-                          m_oDb.ConnectUser, m_oDb.ConnectPassword,
-                          True {bGetOutput},
-                          chbIsqlVisible.Checked {bVisible},
-                          sStatements,
-                          sTerm);
+      sOutput := ISQL_Execute(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                              m_oDb.IsqlPath,
+                              cbbDb.Text,
+                              m_oDb.ConnectUser, m_oDb.ConnectPassword,
+                              True {bGetOutput},
+                              chbIsqlVisible.Checked {bVisible},
+                              sStatements,
+                              sTerm);
 
       frmPrs.AddStepEnd('Done!');
 
@@ -705,7 +742,9 @@ begin
 
   lbResult.Items.Insert(3, '  Driver Func: ' + con_Firebird.GetDriverFunc);
 
-  iIdx := 3;
+  lbResult.Items.Insert(4, '  Server Charset: ' + con_Firebird.Params.Values['ServerCharset'] + ' // NOTE: Requested by client!');
+
+  iIdx := 4;
 
   iIdx := iIdx + 1;
   lbResult.Items.Insert(iIdx, '[Generators]');
@@ -770,16 +809,19 @@ begin
 
   try
 
-    // NOTE: DbUpdate to v100 by adding single table and ADM Generator...
+    // ROLLBACK...
+    {
+    // NOTE: DbUpdate to v100 by adding single table admDbInfo...
     m_oDb.ADM_CreateTable_DBINFO();
 
     sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
+    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oDb.ADM_DbInfVersion_ADM) +
                 ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
 
     edDbInfo.Text := sDbInfo;
+    }
 
-    AttachDbItemManager();
+    AttachDbItemManager(True {bForceUpdate});
 
   except
     on exc : Exception do
@@ -814,12 +856,13 @@ begin
     m_oDb.Connect(con_Firebird);
 
     sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
+    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oDb.ADM_DbInfVersion_ADM) +
                 ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
 
     edDbInfo.Text := sDbInfo;
 
-    AttachDbItemManager();
+    // ATTN: Do not force!!! Attach only known DB here!!!
+    AttachDbItemManager(False {bForce});
 
     // ATTN: Required!!!
     qry_Top.SQLConnection := con_Firebird;
@@ -866,15 +909,16 @@ begin
   m_oLog.LogUI('TFrmMain.btnConnectClick END');
 end;
 
-procedure TFrmMain.AttachDbItemManager();
+procedure TFrmMain.AttachDbItemManager(bForceUpdate: Boolean);
 var
   oDbItemMgr: TDtTstDbItemMgr;
   sDbInfo: string;
   frmPrs: TFrmProgress;
 begin
 
-  // ATTN: In case of (one-and-only) Known DB...
-  if m_oDb.ADM_DbInfProduct = csPRODUCT_FULL then
+  // ATTN: In case of (one-and-only) Known DB
+  //       OR FORCED (!)...
+  if bForceUpdate or (m_oDb.ADM_DbInfProduct = csPRODUCT_FULL) then
   begin
 
     // Replace oDb with oDbItemMgr...
@@ -885,18 +929,10 @@ begin
     if chbDoDbUpdate.Checked then
     begin
 
-      frmPrs := TFrmProgress.Create(self);
+      frmPrs := TFrmProgress.Create(self, m_oLog);
       try
 
-        while True do
-        begin
-
-            if oDbItemMgr.ADM_DoDbUpdates(frmPrs) then
-            begin
-              Break; // Database is Up-To-Date!!!
-            end;
-
-        end;
+        oDbItemMgr.ADM_DoDbUpdates(frmPrs);
 
         frmPrs.Done();
         while frmPrs.Visible do Application.ProcessMessages;
@@ -909,9 +945,11 @@ begin
     end;
 
     sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
-                ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
-    sDbInfo := sDbInfo + ', DtTstDbItemMgr( UserID = ' + IntToStr(oDbItemMgr.ADM_UserID) + ' )';
+    sDbInfo := sDbInfo + ', DtTstDb( ADM Version = ' + IntToStr(m_oDb.ADM_DbInfVersion_ADM) +
+                ', Product = "' + m_oDb.ADM_DbInfProduct + '"' +
+                ', Product Version = ' + IntToStr(m_oDb.ADM_DbInfVersion_PRD) +
+                ', UserID = ' + IntToStr(oDbItemMgr.ADM_UserID) + ' )';
+    sDbInfo := sDbInfo + ', DtTstDbItemMgr(  )';
 
     edDbInfo.Text := sDbInfo;
 

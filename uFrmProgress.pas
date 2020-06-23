@@ -4,7 +4,9 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls,
+  { DtTst Units: } uDtTstLog,
+  Vcl.ExtCtrls;
 
 type
   TFrmProgress = class(TForm)
@@ -18,8 +20,12 @@ type
     procedure btnCloseClick(Sender: TObject);
   private
     { Private declarations }
+    m_oLog: TDtTstLog;
   public
     { Public declarations }
+    constructor Create(AOwner: TComponent; oLog: TDtTstLog); reintroduce;
+    destructor Destroy(); override;
+
     procedure Init(sTitle: string);
     procedure SetProgressToMax();
     procedure SetProgressMinMax(iMin, iMax: integer);
@@ -40,6 +46,25 @@ implementation
 uses
   System.Math;
 
+constructor TFrmProgress.Create(AOwner: TComponent; oLog: TDtTstLog);
+begin
+
+  m_oLog := oLog;
+
+  inherited Create(AOwner);
+
+  m_oLog.LogLIFE('TFrmProgress.Create');
+end;
+
+destructor TFrmProgress.Destroy();
+begin
+  m_oLog.LogLIFE('TFrmProgress.Destroy');
+
+  m_oLog := nil; // ATTN: Do not Free here!
+
+  inherited Destroy();
+end;
+
 procedure TFrmProgress.FormShow(Sender: TObject);
 begin
   self.Caption := Application.Title;
@@ -52,14 +77,22 @@ end;
 
 procedure TFrmProgress.SetProgressToMax();
 begin
-  pbPrs.Position := pbPrs.Max;
+  try
+    pbPrs.Position := pbPrs.Max;
+  except
+    //NOP...
+  end;
 end;
 
 procedure TFrmProgress.SetProgressMinMax(iMin, iMax: integer);
 begin
-  pbPrs.Max       := iMax;
-  pbPrs.Min       := iMin;
-  pbPrs.Position  := iMin;
+  try
+    pbPrs.Max       := iMax;
+    pbPrs.Min       := iMin;
+    pbPrs.Position  := iMin;
+  except
+    //NOP...
+  end;
 end;
 
 procedure TFrmProgress.SetProgressPos(iPos: integer);
@@ -69,12 +102,20 @@ end;
 
 procedure TFrmProgress.AddStepHeader(sStepHeader: string);
 begin
+
   lbHistory.Items.Add('[ ' + sStepHeader + ' ]');
+
+  // NOTE: Scroll into view...
+  lbHistory.ItemIndex := lbHistory.Items.Count - 1;
 end;
 
 procedure TFrmProgress.AddStep(sStep: string);
 begin
+
   lbHistory.Items.Add('  ' + sStep + '...');
+
+  // NOTE: Scroll into view...
+  lbHistory.ItemIndex := lbHistory.Items.Count - 1;
 end;
 
 procedure TFrmProgress.AddStepEnd(sStepEnd: string);

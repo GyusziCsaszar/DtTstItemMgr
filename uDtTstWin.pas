@@ -5,7 +5,7 @@ interface
 uses
   Vcl.Forms;
 
-procedure ExecuteApplication(sPath, sParameters: string; bVisible: Boolean);
+procedure CreateProcess_WAIT(sPath, sParameters: string; bVisible: Boolean);
 
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 procedure SaveFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
@@ -22,7 +22,7 @@ uses
   System.SysUtils, System.Win.Registry,
   Winapi.Windows;
 
-procedure ExecuteApplication(sPath, sParameters: string; bVisible: Boolean);
+procedure CreateProcess_WAIT(sPath, sParameters: string; bVisible: Boolean);
 // SRC: https://stackoverflow.com/questions/17336227/how-can-i-wait-until-an-external-process-has-completed
 var
   struSI: TStartupInfo;
