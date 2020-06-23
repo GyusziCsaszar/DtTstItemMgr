@@ -1,7 +1,7 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'TstItemMgr'
+  Caption = 'DtTstItemMgr'
   ClientHeight = 602
   ClientWidth = 917
   Color = clBtnFace
@@ -66,10 +66,10 @@ object FrmMain: TFrmMain
     TabOrder = 0
   end
   object btnConnect: TButton
-    Left = 8
+    Left = 120
     Top = 56
-    Width = 273
-    Height = 28
+    Width = 100
+    Height = 32
     Caption = 'Connect'
     TabOrder = 1
     OnClick = btnConnectClick
@@ -104,7 +104,7 @@ object FrmMain: TFrmMain
   end
   object btnGetMetadata: TButton
     Left = 8
-    Top = 129
+    Top = 133
     Width = 130
     Height = 25
     Caption = 'Get Metadata'
@@ -114,7 +114,7 @@ object FrmMain: TFrmMain
   end
   object lbResult: TListBox
     Left = 8
-    Top = 160
+    Top = 164
     Width = 273
     Height = 281
     ItemHeight = 13
@@ -183,7 +183,7 @@ object FrmMain: TFrmMain
   end
   object chbMetadataTablesOnly: TCheckBox
     Left = 144
-    Top = 133
+    Top = 137
     Width = 150
     Height = 17
     Caption = 'List Tables Only (On/Off)'
@@ -211,7 +211,7 @@ object FrmMain: TFrmMain
   end
   object btnDrpTbl: TButton
     Left = 8
-    Top = 447
+    Top = 450
     Width = 81
     Height = 25
     Caption = 'Drop Table'
@@ -232,7 +232,7 @@ object FrmMain: TFrmMain
   end
   object btnInitDtTstDb: TButton
     Left = 8
-    Top = 90
+    Top = 94
     Width = 273
     Height = 31
     Caption = 'Create Database Tables for Product "DtTstItemMgr"'
@@ -248,6 +248,47 @@ object FrmMain: TFrmMain
     Height = 17
     Caption = 'Server CharSet = UTF8'
     TabOrder = 18
+  end
+  object chbDoDbUpdate: TCheckBox
+    Left = 17
+    Top = 62
+    Width = 97
+    Height = 17
+    Caption = 'Do DB Update'
+    Checked = True
+    State = cbChecked
+    TabOrder = 19
+  end
+  object btnIsql: TButton
+    Left = 236
+    Top = 56
+    Width = 45
+    Height = 17
+    Caption = 'ISQL'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -9
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 20
+    OnClick = btnIsqlClick
+  end
+  object chbIsqlVisible: TCheckBox
+    Left = 236
+    Top = 73
+    Width = 49
+    Height = 18
+    Caption = 'Visible'
+    Checked = True
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -9
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    State = cbChecked
+    TabOrder = 21
   end
   object con_Firebird_ANSI: TSQLConnection
     DriverName = 'Firebird'
@@ -291,7 +332,7 @@ object FrmMain: TFrmMain
       'RoleName=RoleName'
       'Trim Char=False')
     Left = 64
-    Top = 208
+    Top = 212
   end
   object qry_Top: TSQLQuery
     MaxBlobSize = -1
@@ -375,6 +416,6 @@ object FrmMain: TFrmMain
       'RoleName=RoleName'
       'Trim Char=False')
     Left = 176
-    Top = 208
+    Top = 212
   end
 end

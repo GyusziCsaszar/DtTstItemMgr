@@ -3,7 +3,7 @@ unit uDtTstDb;
 interface
 
 uses
-  { DtTs Units: } uDtTstLog,
+  { DtTst Units: } uDtTstLog,
   System.Classes, System.IOUtils, Vcl.StdCtrls,
   Data.Db, Data.SqlExpr,
   DbxCommon, DbxMetaDataProvider,
@@ -12,22 +12,32 @@ uses
 
 type
   TDtTstDb = class (TObject)
-  private
+  protected
     m_oLog: TDtTstLog;
+  protected
+    { ATTN: Copy BELOW members in descendants!!! }
+    m_sIsqlPath: string;
+    m_iIsqlOptions: integer;
     m_bUTF8: Boolean;
     m_asConnectStrings: TStringList;
     m_sConnectString: string;
     m_sConnectUser: string;
     m_sConnectPassword: string;
     m_oCon: TSQLConnection;
-    m_iDtTstDbInfVersion: integer;
-    m_sDtTstDbInfProduct: string;
+    m_iADM_DbInfVersion: integer;
+    m_sADM_DbInfProduct: string;
+    { ATTN: Copy ABOVE members in descendants!!! }
   public
     constructor Create(oLog: TDtTstLog; sIniPath: string);
     destructor Destroy(); override;
+
+    function GetIsqlPath() : string;
+    property IsqlPath: string read GetIsqlPath;
+    function GetIsqlOptions() : integer;
+    property IsqlOptions: integer read getIsqlOptions;
     function GetUTF8() : Boolean;
     property UTF8: Boolean read GetUTF8;
-    procedure GetConnectStrings(cbb: TComboBox);
+    procedure GetConnectStrings(cbb: TComboBox; asConnectStrings: TStringList);
     function GetConnectString() : string;
     procedure SetConnectString(sValue: string);
     property ConnectString: string read GetConnectString write SetConnectString;
@@ -39,36 +49,47 @@ type
     procedure Connect(oCon: TSQLConnection);
     procedure AfterConnect(); virtual;
 
+    function GetSQLConnection() : TSQLConnection;
+    property SQLConnection: TSQLConnection read GetSQLConnection;
+
     function GetLoginUser() : string;
     property LoginUser: string read GetLoginUser;
 
-    function GetDtTstDbInfVersion() : integer;
-    property DtTstDbInfVersion: integer read GetDtTstDbInfVersion;
-    function GetDtTstDbInfProduct() : string;
-    property DtTstDbInfProduct: string read GetDtTstDbInfProduct;
+    function ADM_GetDbInfVersion() : integer;
+    property ADM_DbInfVersion: integer read ADM_GetDbInfVersion;
+    function ADM_GetDbInfProduct() : string;
+    property ADM_DbInfProduct: string read ADM_GetDbInfProduct;
 
     function TableExists(sTable: string) : Boolean;
     function GetTableCount() : integer;
 
     function FIXOBJNAME(sTable: string) : string;
 
-    procedure META_CreateTable_DtTstDb_DBINFO();
+    function ADM_DoDbUpdates() : Boolean; virtual;
 
+    procedure ADM_Increment_DBINFO_VER();
+    procedure ADM_Update_DBINFO_VER(iVersion: integer);
+    procedure ADM_CreateTable_DBINFO();
+
+    procedure META_AddColumn_TimeStamp(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
     procedure META_AddColumn_VARCHAR(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean; iLen: integer);
 
+    procedure META_AddIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+
+    procedure META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); virtual;
     procedure META_DropTable(sTable: string);
 
     procedure META_CreateTable_SAMPLE(const AConnection: TDBXConnection);
 
-  private
+  protected
     function META_GetProvider(const AConnection: TDBXConnection) : TDBXDataExpressMetaDataProvider;
   end;
 
 implementation
 
 uses
-  { DtTs Units: } uDtTstConsts,
+  { DtTst Units: } uDtTstConsts,
   SysUtils, IniFiles;
 
 constructor TDtTstDb.Create(oLog: TDtTstLog; sIniPath: string);
@@ -79,14 +100,18 @@ var
 begin
   m_oLog := oLog;
 
-  m_bUTF8 := False;
-  m_asConnectStrings := TStringList.Create();
-  m_sConnectString := '';
-  m_sConnectUser := '';
-  m_sConnectPassword := '';
-  m_oCon := nil;
-  m_iDtTstDbInfVersion := 0;
-  m_sDtTstDbInfProduct := '';
+  { ATTN: Copy BELOW members in descendants!!! }
+  m_sIsqlPath           := '';
+  m_iIsqlOptions        := -1;
+  m_bUTF8               := False;
+  m_asConnectStrings    := TStringList.Create();
+  m_sConnectString      := '';
+  m_sConnectUser        := '';
+  m_sConnectPassword    := '';
+  m_oCon                := nil;
+  m_iADM_DbInfVersion   := 0;
+  m_sADM_DbInfProduct   := '';
+  { ATTN: Copy ABOVE members in descendants!!! }
 
   inherited Create();
 
@@ -97,7 +122,7 @@ begin
     if FileExists(sIniPath) then
     begin
       try
-        m_oLog.LogINFO('INI Path (for TDtTstDb): ' + sIniPath);
+        m_oLog.LogVERSION('INI Path (for TDtTstDb): ' + sIniPath);
 
         fIni := TIniFile.Create(sIniPath);
 
@@ -132,11 +157,14 @@ begin
           end;
         end;
 
-        m_sConnectUser := fIni.ReadString(csINI_SEC_DB, csINI_VAL_DB_USR, '');
-        m_sConnectPassword := fIni.ReadString(csINI_SEC_DB, csINI_VAL_DB_PW, '');
+        m_sConnectUser     := fIni.ReadString(csINI_SEC_DB, csINI_VAL_DB_USR, '');
+        m_sConnectPassword := fIni.ReadString(csINI_SEC_DB, csINI_VAL_DB_PW , '');
 
         iVal := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_UTF8, 0);
         m_bUTF8 := (iVal <> 0);
+
+        m_sIsqlPath    := fIni.ReadString( csINI_SEC_DB, csINI_VAL_DB_ISQLPATH, '');
+        m_iIsqlOptions := fIni.ReadInteger(csINI_SEC_DB, csINI_VAL_DB_ISQLOPTS, -1);
 
       finally
         FreeAndNil(fIni);
@@ -158,18 +186,38 @@ begin
   inherited Destroy();
 end;
 
+function TDtTstDb.GetIsqlPath() : string;
+begin
+  Result := m_sIsqlPath;
+end;
+
+function TDtTstDb.GetIsqlOptions() : integer;
+begin
+  Result := m_iIsqlOptions;
+end;
+
 function TDtTstDb.GetUTF8() : Boolean;
 begin
   Result := m_bUTF8;
 end;
 
-procedure TDtTstDb.GetConnectStrings(cbb: TComboBox);
+procedure TDtTstDb.GetConnectStrings(cbb: TComboBox; asConnectStrings: TStringList);
 begin
-  cbb.Text := '';
-  cbb.Items.Clear();
 
-  cbb.Items.AddStrings(m_asConnectStrings);
-  cbb.Text := m_sConnectString;
+  if Assigned(cbb) then
+  begin
+    cbb.Text := '';
+    cbb.Items.Clear();
+
+    cbb.Items.AddStrings(m_asConnectStrings);
+    cbb.Text := m_sConnectString;
+  end;
+
+  if Assigned(asConnectStrings) then
+  begin
+    asConnectStrings.Clear();
+    asConnectStrings.AddStrings(m_asConnectStrings);
+  end;
 end;
 
 function TDtTstDb.GetConnectString() : string;
@@ -214,6 +262,13 @@ begin
   m_oCon.Connected := True;
 
   AfterConnect();
+
+  m_oLog.LogVERSION('TDtTstDb.Connect - DONE - Database = "' + m_sConnectString + '"');
+
+  m_oLog.LogVERSION('TDtTstDb.Connect - DONE - ' + csDB_TBL_ADM_DBINF +
+                    '( Version = ' + IntToStr(ADM_DbInfVersion) +
+                    ', Product = "' + ADM_DbInfProduct + '" )' + '")' );
+
 end;
 
 procedure TDtTstDb.AfterConnect();
@@ -221,8 +276,8 @@ var
   oQry: TSQLQuery;
 begin
 
-  m_iDtTstDbInfVersion := -1;
-  m_sDtTstDbInfProduct := '';
+  m_iADM_DbInfVersion := -1;
+  m_sADM_DbInfProduct := '';
 
   if TableExists(csDB_TBL_ADM_DBINF) then
   begin
@@ -232,13 +287,14 @@ begin
 
       oQry.SQLConnection := m_oCon;
 
-      oQry.SQL.Text := 'SELECT * FROM ' + FIXOBJNAME(csDB_TBL_ADM_DBINF);
+      oQry.SQL.Text := m_oLog.LogSQL('SELECT * FROM ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+                                     ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) + ' = 1;');
       oQry.Open();
 
       if not oQry.IsEmpty() then
       begin
-        m_iDtTstDbInfVersion := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_VER)).AsInteger;
-        m_sDtTstDbInfProduct := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD)).AsString;
+        m_iADM_DbInfVersion := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_VER)).AsInteger;
+        m_sADM_DbInfProduct := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD)).AsString;
       end;
 
     finally
@@ -248,6 +304,11 @@ begin
 
   end;
 
+end;
+
+function TDtTstDb.GetSQLConnection() : TSQLConnection;
+begin
+  Result := m_oCon;
 end;
 
 function TDtTstDb.GetLoginUser() : string;
@@ -260,14 +321,14 @@ begin
   end;
 end;
 
-function TDtTstDb.GetDtTstDbInfVersion() : integer;
+function TDtTstDb.ADM_GetDbInfVersion() : integer;
 begin
-  Result := m_iDtTstDbInfVersion;
+  Result := m_iADM_DbInfVersion;
 end;
 
-function TDtTstDb.GetDtTstDbInfProduct() : string;
+function TDtTstDb.ADM_GetDbInfProduct() : string;
 begin
-  Result := m_sDtTstDbInfProduct;
+  Result := m_sADM_DbInfProduct;
 end;
 
 function TDtTstDb.TableExists(sTable: string) : Boolean;
@@ -310,10 +371,54 @@ end;
 
 function TDtTstDb.FIXOBJNAME(sTable: string) : string;
 begin
+
   Result := sTable.ToUpper();
+
+  if Result = 'USER' then raise Exception.Create('Firebird Reserved Word: ' + Result);
+
 end;
 
-procedure TDtTstDb.META_CreateTable_DtTstDb_DBINFO();
+function TDtTstDb.ADM_DoDbUpdates() : Boolean;
+begin
+  Result := True; // Indicates that Database is Up-To-Date!!!
+end;
+
+procedure TDtTstDb.ADM_Increment_DBINFO_VER();
+begin
+  ADM_Update_DBINFO_VER( m_iADM_DbInfVersion + 1);
+  m_iADM_DbInfVersion := m_iADM_DbInfVersion + 1;
+end;
+
+procedure TDtTstDb.ADM_Update_DBINFO_VER(iVersion: integer);
+var
+  oQry: TSQLQuery;
+begin
+
+  // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
+  oQry := TSQLQuery.Create(nil);
+  try
+
+    oQry.SQLConnection := m_oCon;
+    oQry.ParamCheck := True;
+    // oQry.PrepareStatement;
+    oQry.SQL.Add(m_oLog.LogSQL('UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+                 ' SET ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
+                 ' = :VER' +
+                 ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) + ' = 1' ));
+
+    oQry.Params.ParamByName('VER').AsInteger  := iVersion;
+
+    //oQry.Prepared := True;
+
+    oQry.ExecSQL(False);
+
+  finally
+    oQry.Close();
+    FreeAndNil(oQry);
+  end;
+end;
+
+procedure TDtTstDb.ADM_CreateTable_DBINFO();
 var
   oProvider: TDBXDataExpressMetaDataProvider;
   oTable: TDBXMetaDataTable;
@@ -326,6 +431,9 @@ begin
 
     oTable := TDBXMetaDataTable.Create;
     try
+
+      { Table }
+
       oTable.TableName := FIXOBJNAME(csDB_TBL_ADM_DBINF);
 
       META_AddColumn_INT32(  oTable, csDB_FLD_ADM_DBINF_ID , False {bNullable});
@@ -336,26 +444,34 @@ begin
 
       oProvider.CreateTable(oTable);
 
+      { Generator }
+
+      // NONE...
+
+      { Trigger }
+
+      // NONE...
+
     finally
       FreeAndNil(oTable);
     end;
 
-    // SRC:
+    // SRC: http://codeverge.com/embarcadero.delphi.dbexpress/tsqlquery-params-and-insert-stat/1079500
     oQry := TSQLQuery.Create(nil);
     try
 
       oQry.SQLConnection := m_oCon;
       oQry.ParamCheck := True;
       // oQry.PrepareStatement;
-      oQry.SQL.Add('INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
+      oQry.SQL.Add(m_oLog.LogSQL('INSERT INTO ' + FIXOBJNAME(csDB_TBL_ADM_DBINF) +
                    ' (' + FIXOBJNAME(csDB_FLD_ADM_DBINF_ID) +
                    ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_VER) +
                    ', ' + FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD) +
-                   ') VALUES (:ID, :VER, :PRD)');
+                   ') VALUES (:ID, :VER, :PRD)'));
 
       oQry.Params.ParamByName('ID').AsInteger   := 1;
 
-      oQry.Params.ParamByName('VER').AsInteger  := ciDB_VERSION_100;
+      oQry.Params.ParamByName('VER').AsInteger  := 100;
 
       // ATTN: To write UTF8 string, nothing extra is required!!!
       {
@@ -364,14 +480,20 @@ begin
       //oQry.Params.ParamByName('PRD').AsWideString   := csCOMPANY + csPRODUCT;
       }
 
-      oQry.Params.ParamByName('PRD').AsString   := csCOMPANY + csPRODUCT;
+      oQry.Params.ParamByName('PRD').AsString   := csPRODUCT_FULL;
 
       //oQry.Prepared := True;
 
       m_oCon.StartTransaction(oTD);
       try
+
         oQry.ExecSQL(False);
+
         m_oCon.Commit(oTD);
+
+        m_iADM_DbInfVersion := 100;
+        m_sADM_DbInfProduct := csPRODUCT_FULL;
+
       except
         m_oCon.Rollback(oTD);
       end;
@@ -385,6 +507,24 @@ begin
     FreeAndNil(oProvider);
   end;
 
+end;
+
+procedure TDtTstDb.META_AfterDrop(oProvider: TDBXDataExpressMetaDataProvider; sTable: string);
+begin
+
+  // NOP...
+
+end;
+
+procedure TDtTstDb.META_AddColumn_TimeStamp(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
+var
+  oCol: TDBXTimestampColumn;
+begin
+  oCol := TDBXTimestampColumn.Create(FIXOBJNAME(sColumnName));
+
+  oCol.Nullable := bNullable;
+
+  oTable.AddColumn(oCol);
 end;
 
 procedure TDtTstDb.META_AddColumn_INT32(oTable: TDBXMetaDataTable; sColumnName: string; bNullable: Boolean);
@@ -414,6 +554,28 @@ begin
   oTable.AddColumn(oCol);
 end;
 
+procedure TDtTstDb.META_AddIndex_PrimaryKey(oProvider: TDBXDataExpressMetaDataProvider; sTableName, sColumnName: string);
+var
+  oIdx: TDBXMetaDataIndex;
+begin
+
+  oIdx := TDBXMetaDataIndex.Create;
+  try
+
+    {ATTN: OPTIONAL to name the Index!!!}
+    {      Original Sample does not do so!!!}
+    oIdx.IndexName := FIXOBJNAME(sTableName) + '_' + FIXOBJNAME(sColumnName);
+
+    oIdx.TableName := FIXOBJNAME(sTableName);
+    oIdx.AddColumn(FIXOBJNAME(sColumnName));
+
+    // Add the Primary Key with my provider
+    oProvider.CreatePrimaryKey(oIdx);
+  finally
+    FreeAndNil(oIdx);
+  end;
+end;
+
 procedure TDtTstDb.META_DropTable(sTable: string);
 var
   oProvider: TDBXDataExpressMetaDataProvider;
@@ -432,6 +594,8 @@ begin
       end;
 
     //end;
+
+    META_AfterDrop(oProvider, sTable);
 
   finally
     FreeAndNil(oProvider);

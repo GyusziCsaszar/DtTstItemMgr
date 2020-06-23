@@ -5,6 +5,8 @@ interface
 uses
   Vcl.Forms;
 
+procedure ExecuteApplication(sPath, sParameters: string; bVisible: Boolean);
+
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 procedure SaveFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 
@@ -16,7 +18,57 @@ function QuestionMsgDlg(sQun: string) : boolean;
 implementation
 
 uses
-  Vcl.Dialogs, Vcl.Controls, System.SysUtils, System.Win.Registry;
+  Vcl.Dialogs, Vcl.Controls,
+  System.SysUtils, System.Win.Registry,
+  Winapi.Windows;
+
+procedure ExecuteApplication(sPath, sParameters: string; bVisible: Boolean);
+// SRC: https://stackoverflow.com/questions/17336227/how-can-i-wait-until-an-external-process-has-completed
+var
+  struSI: TStartupInfo;
+  struPI: TProcessInformation;
+  sCmdLine: string;
+  dwCreationFlags : DWord;
+begin
+
+  sCmdLine := Trim(sPath);
+
+  if not Trim(sParameters).IsEmpty() then
+  begin
+    sCmdLine := sCmdLine + ' ' + Trim(sParameters);
+  end;
+
+  FillChar(struSI, SizeOf(struSI), 0);
+  with struSI do
+  begin
+    cb := SizeOf(TStartupInfo);
+    wShowWindow := SW_SHOW;
+
+    if not bVisible then wShowWindow := SW_HIDE;
+
+  end;
+
+  dwCreationFlags := 0;
+
+  if not bVisible then dwCreationFlags := CREATE_NO_WINDOW;
+
+  if CreateProcess(nil, PChar(sCmdLine), nil, nil, True, dwCreationFlags, nil, nil, struSI, struPI) then
+  begin
+
+    // loop every 100 ms
+    while WaitForSingleObject(struPI.hProcess, 100) > 0 do
+    begin
+      Application.ProcessMessages;
+    end;
+
+    CloseHandle(struPI.hProcess);
+    CloseHandle(struPI.hThread);
+  end
+  else
+  begin
+    RaiseLastOSError;
+  end;
+end;
 
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 var
@@ -157,23 +209,23 @@ end;
 
 procedure ErrorMsgDlg(sErr: string);
 begin
-  MessageDlg(sErr, mtError, [mbOk], 0);
+  MessageDlg(Application.Title + CHR(10) + CHR(10) + sErr, mtError, [mbOk], 0);
 end;
 
 procedure InfoMsgDlg(sInf: string);
 begin
-  MessageDlg(sInf, mtInformation, [mbOk], 0);
+  MessageDlg(Application.Title + CHR(10) + CHR(10) + sInf, mtInformation, [mbOk], 0);
 end;
 
 procedure WarningMsgDlg(sWrn: string);
 begin
-  MessageDlg(sWrn, mtWarning, [mbOk], 0);
+  MessageDlg(Application.Title + CHR(10) + CHR(10) + sWrn, mtWarning, [mbOk], 0);
 end;
 
 function QuestionMsgDlg(sQun: string) : boolean;
 begin
   Result := False;
-  if mrYes = MessageDlg(sQun, mtConfirmation, [mbYes, mbNo], 0, mbNo) then
+  if mrYes = MessageDlg(Application.Title + CHR(10) + CHR(10) + sQun, mtConfirmation, [mbYes, mbNo], 0, mbNo) then
   begin
     Result := True;
   end;

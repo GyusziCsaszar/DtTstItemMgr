@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
-  { DtTs Units: } uDtTstConsts, uDtTstLog, uDtTstDb,
+  { DtTst Units: } uDtTstConsts, uDtTstLog, uDtTstDb,
   { ATTN: for DBExpress: } midaslib,
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
@@ -45,6 +45,9 @@ type
     btnInitDtTstDb: TButton;
     chbServerCharsetUtf8: TCheckBox;
     con_Firebird_UTF8: TSQLConnection;
+    chbDoDbUpdate: TCheckBox;
+    btnIsql: TButton;
+    chbIsqlVisible: TCheckBox;
     procedure btnConnectClick(Sender: TObject);
     procedure sds_BottomAfterPost(DataSet: TDataSet);
     procedure cds_TopAfterPost(DataSet: TDataSet);
@@ -61,6 +64,7 @@ type
     procedure btnCreTblSampleClick(Sender: TObject);
     procedure btnDrpTblClick(Sender: TObject);
     procedure btnInitDtTstDbClick(Sender: TObject);
+    procedure btnIsqlClick(Sender: TObject);
   private
     { Private declarations }
     con_Firebird: TSQLConnection;
@@ -70,6 +74,8 @@ type
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
+
+    procedure AttachDbItemManager();
   end;
 
 var
@@ -80,7 +86,7 @@ implementation
 {$R *.dfm}
 
 uses
-  { DtTs Units: } uDtTstWin,
+  { DtTst Units: } uDtTstWin, uDtTstFirebird, uDtTstDbItemMgr,
   System.IOUtils;
 
 constructor TFrmMain.Create(AOwner: TComponent);
@@ -132,14 +138,16 @@ end;
 
 procedure TFrmMain.FormShow(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.FormShow BEGIN');
+
   // NOTE: FormShow is called just before Form becomes visible BUT during construction!!!
 
   self.Caption := Application.Title;
 
   // First LogINFO...
-  m_oLog.LogINFO('App Path: '  + Application.ExeName);
-  m_oLog.LogINFO('App Title: ' + Application.Title);
-  m_oLog.LogINFO('App Info: PRD = ' + csPRODUCT + ' VER = ' + IntToStr(ciVERSION) + ' DB(' + csPRODUCT + ').VER = ' + IntToStr(ciDB_VERSION));
+  m_oLog.LogVERSION('App Path: '  + Application.ExeName);
+  m_oLog.LogVERSION('App Title: ' + Application.Title);
+  m_oLog.LogVERSION('App Info: PRD = ' + csPRODUCT + ', VER = ' + IntToStr(ciVERSION) + ', DB(' + csPRODUCT + ').VER = ' + IntToStr(ciDB_VERSION));
 
   // DB Info from INI file...
   cbbDb.Text := '';
@@ -151,15 +159,69 @@ begin
     Exit();
   end;
 
-  m_oDb.GetConnectStrings(cbbDb);
+  m_oDb.GetConnectStrings(cbbDb, nil {asConnectStrings});
 
   btnCreTblSample.Caption := btnCreTblSample.Caption + ' "' + csDB_TBL_SAMPLE + '"';
+
+  m_oLog.LogUI('TFrmMain.FormShow END');
+end;
+
+procedure TFrmMain.btnIsqlClick(Sender: TObject);
+var
+  sTerm, sStatements, sOutput: string;
+begin
+  m_oLog.LogUI('TFrmMain.btnIsql BEGIN');
+
+  if m_oDb.IsqlPath.IsEmpty() then
+  begin
+    ErrorMsgDlg('No isql Path is specified!');
+    exit;
+  end;
+
+  try
+
+    sTerm := '';
+    sStatements := '';
+
+    // BUG LOOKUP!
+    {
+    sTerm := '!!';
+    sStatements := 'CREATE TRIGGER ADMUSERS_BI FOR ADMUSERS' + CHR(13) + CHR(10) +
+                   ' ACTIVE BEFORE INSERT' + CHR(13) + CHR(10) +
+                   ' POSITION 0' + CHR(13) + CHR(10) +
+                   ' AS' + CHR(13) + CHR(10) +
+                   ' BEGIN' + CHR(13) + CHR(10) +
+                   '  IF (NEW.ID IS NULL) THEN NEW.ID = GEN_ID(ADMUSERS_ID, 1);' + CHR(13) + CHR(10) +
+                   ' END ' + sTerm;
+    }
+
+    sOutput := IsqlExec(m_oLog, TPath.GetDirectoryName(Application.ExeName),
+                        m_oDb.IsqlPath,
+                        cbbDb.Text,
+                        m_oDb.ConnectUser, m_oDb.ConnectPassword,
+                        True {bGetOutput},
+                        chbIsqlVisible.Checked {bVisible},
+                        sStatements,
+                        sTerm);
+
+    InfoMsgDlg('isql output (cch = ' + IntToStr(sOutput.Length) + '):' + CHR(10) + CHR(10) + sOutput);
+
+  except
+    on exc : Exception do
+    begin
+      m_oLog.LogERROR(exc);
+      ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
+  end;
+
+  m_oLog.LogUI('TFrmMain.btnIsql END');
 end;
 
 procedure TFrmMain.btnCreTblSampleClick(Sender: TObject);
 var
   oDb: TDtTstDb;
 begin
+  m_oLog.LogUI('TFrmMain.btnCreTblSampleClick BEGIN');
 
   // try SRC: https://stackoverflow.com/questions/6601147/how-to-correctly-write-try-finally-except-statements
   try
@@ -183,12 +245,15 @@ begin
 
   if btnGetMetadata.Enabled then btnGetMetadata.Click;
 
+  m_oLog.LogUI('TFrmMain.btnCreTblSampleClick END');
 end;
 
 procedure TFrmMain.btnDrpTblClick(Sender: TObject);
 var
   sTable: string;
 begin
+  m_oLog.LogUI('TFrmMain.btnDrpTblClick BEGIN');
+
   if lbResult.ItemIndex < 0 then
   begin
     WarningMsgDlg('No table is selected!');
@@ -235,20 +300,26 @@ begin
 
   if btnGetMetadata.Enabled then btnGetMetadata.Click;
 
-  end;
+  m_oLog.LogUI('TFrmMain.btnDrpTblClick END');
+end;
 
 procedure TFrmMain.cds_TopAfterPost(DataSet: TDataSet);
 begin
+  m_oLog.LogUI('TFrmMain.cds_TopAfterPost BEGIN');
   cds_Top.ApplyUpdates(0);
+  m_oLog.LogUI('TFrmMain.cds_TopAfterPost END');
 end;
 
 procedure TFrmMain.sds_BottomAfterPost(DataSet: TDataSet);
 begin
+  m_oLog.LogUI('TFrmMain.sds_BottomAfterPost BEGIN');
   sds_Bottom.ApplyUpdates(0);
+  m_oLog.LogUI('TFrmMain.sds_BottomAfterPost END');
 end;
 
 procedure TFrmMain.btnDeleteTopClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnDeleteTopClick BEGIN');
 
   if not cds_Top.Active then exit;
 
@@ -263,10 +334,12 @@ begin
     end;
   end;
 
+  m_oLog.LogUI('TFrmMain.btnDeleteTopClick END');
 end;
 
 procedure TFrmMain.btnDeleteBottomClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnDeleteBottomClick BEGIN');
 
   if not sds_Bottom.Active then exit;
 
@@ -281,10 +354,12 @@ begin
     end;
   end;
 
+  m_oLog.LogUI('TFrmMain.btnDeleteBottomClick END');
 end;
 
 procedure TFrmMain.btnInsertTopClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnInsertTopClick BEGIN');
 
   if not cds_Top.Active then exit;
 
@@ -298,10 +373,12 @@ begin
     end;
   end;
 
+  m_oLog.LogUI('TFrmMain.btnInsertTopClick END');
 end;
 
 procedure TFrmMain.btnInsertBottomClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnInsertBottomClick BEGIN');
 
   if not sds_Bottom.Active then exit;
 
@@ -315,10 +392,12 @@ begin
     end;
   end;
 
+  m_oLog.LogUI('TFrmMain.btnInsertBottomClick END');
 end;
 
 procedure TFrmMain.btnRefreshTopClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnRefreshTopClick BEGIN');
 
   if not cds_Top.Active then exit;
 
@@ -337,10 +416,13 @@ begin
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
+
+  m_oLog.LogUI('TFrmMain.btnRefreshTopClick END');
 end;
 
 procedure TFrmMain.btnRefreshBottomClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.btnRefreshBottomClick BEGIN');
 
   if not sds_Bottom.Active then exit;
 
@@ -356,6 +438,8 @@ begin
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
+
+  m_oLog.LogUI('TFrmMain.btnRefreshBottomClick END');
 end;
 
 procedure TFrmMain.lbResultDblClick(Sender: TObject);
@@ -363,6 +447,8 @@ var
   sTable, sSQL: string;
   bDUAL: Boolean;
 begin
+  m_oLog.LogUI('TFrmMain.lbResultDblClick BEGIN');
+
   if lbResult.ItemIndex < 0 then
   begin
     WarningMsgDlg('No table is selected!');
@@ -407,7 +493,7 @@ begin
 
     if not sSQL.IsEmpty() then
     begin
-      qry_Top.SQL.Add(sSQL);
+      qry_Top.SQL.Add(m_oLog.LogSQL(sSQL));
       qry_Top.Active := True;
       m_oLog.LogINFO('SQL Query is Active!');
       cds_Top.Active := True;
@@ -429,7 +515,7 @@ begin
 
     if not sSQL.IsEmpty() then
     begin
-      sds_Bottom.DataSet.CommandText := sSQL;
+      sds_Bottom.DataSet.CommandText := m_oLog.LogSQL(sSQL);
       sds_Bottom.Active := True;
       m_oLog.LogINFO('Simple DataSet is Active!');
       lblBottom.Caption := sTable + ' (Simple DataSet):';
@@ -441,11 +527,15 @@ begin
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
+
+  m_oLog.LogUI('TFrmMain.lbResultDblClick END');
 end;
 
 procedure TFrmMain.chbMetadataTablesOnlyClick(Sender: TObject);
 begin
+  m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick BEGIN');
   if btnGetMetadata.Enabled then btnGetMetadata.Click();
+  m_oLog.LogUI('TFrmMain.chbMetadataTablesOnlyClick END');
 end;
 
 procedure TFrmMain.btnGetMetadataClick(Sender: TObject);
@@ -455,6 +545,8 @@ var
   asItems: TStringList;
   sItem: string;
 begin
+  m_oLog.LogUI('TFrmMain.btnGetMetadataClick BEGIN');
+
   lbResult.Items.Clear();
 
   con_Firebird.GetTableNames(lbResult.Items, False);
@@ -475,7 +567,7 @@ begin
 
     // Table Fields
     asItems := TStringList.Create();
-    begin
+    try
 
       con_Firebird.GetFieldNames(sTable, asItems);
 
@@ -487,12 +579,22 @@ begin
         iIdx := iIdx + 1;
         lbResult.Items.Insert(iIdx, '    ' + sItem);
       end;
+
+    except
+      on exc : Exception do
+      begin
+        m_oLog.LogERROR(exc);
+
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + '<ERROR RETRIVING...>');
+      end;
     end;
+
     FreeAndNil(asItems);
 
     // Table Indices
     asItems := TStringList.Create();
-    begin
+    try
 
       con_Firebird.GetIndexNames(sTable, asItems);
 
@@ -504,7 +606,17 @@ begin
         iIdx := iIdx + 1;
         lbResult.Items.Insert(iIdx, '    ' + sItem);
       end;
+
+    except
+      on exc : Exception do
+      begin
+        m_oLog.LogERROR(exc);
+
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + '<ERROR RETRIVING...>');
+      end;
     end;
+
     FreeAndNil(asItems);
 
   end;
@@ -521,10 +633,14 @@ begin
 
   lbResult.Items.Insert(5, 'DUAL (in firebird RDB$DATABASE)');
 
+  m_oLog.LogUI('TFrmMain.btnGetMetadataClick END');
 end;
 
 procedure TFrmMain.btnInitDtTstDbClick(Sender: TObject);
+var
+  sDbInfo: string;
 begin
+  m_oLog.LogUI('TFrmMain.btnInitDtTstDbClick BEGIN');
 
   if (not Assigned(con_Firebird)) or (not con_Firebird.Connected) then
   begin
@@ -532,15 +648,15 @@ begin
     Exit;
   end;
 
-  if not m_oDb.DtTstDbInfProduct.IsEmpty() then
+  if not m_oDb.ADM_DbInfProduct.IsEmpty() then
   begin
-    if m_oDb.DtTstDbInfProduct = csCOMPANY + csPRODUCT then
+    if m_oDb.ADM_DbInfProduct = csPRODUCT_FULL then
     begin
-      WarningMsgDlg('Database already contains Tables for Product "' + csCOMPANY + csPRODUCT + '"!');
+      WarningMsgDlg('Database already contains Tables for Product "' + csPRODUCT_FULL + '"!');
     end
     else
     begin
-      ErrorMsgDlg('Database contains Tables for DIFFERENT Product "' + m_oDb.DtTstDbInfProduct + '"!' +
+      ErrorMsgDlg('Database contains Tables for DIFFERENT Product "' + m_oDb.ADM_DbInfProduct + '"!' +
                   CHR(10) + CHR(10) + 'No mixed Products are allowed in a single Database!');
     end;
 
@@ -557,7 +673,18 @@ begin
   end;
 
   try
-    m_oDb.META_CreateTable_DtTstDb_DBINFO();
+
+    // NOTE: DbUpdate to v100 by adding single table and ADM Generator...
+    m_oDb.ADM_CreateTable_DBINFO();
+
+    sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
+    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
+                ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
+
+    edDbInfo.Text := sDbInfo;
+
+    AttachDbItemManager();
+
   except
     on exc : Exception do
     begin
@@ -568,17 +695,16 @@ begin
 
   btnGetMetadata.Click();
 
+  m_oLog.LogUI('TFrmMain.btnInitDtTstDbClick END');
 end;
 
 procedure TFrmMain.btnConnectClick(Sender: TObject);
 var
   sDbInfo: string;
 begin
+  m_oLog.LogUI('TFrmMain.btnConnectClick BEGIN');
 
   try
-
-    m_oLog.LogINFO('Button Connect is Pressed!');
-
     if chbServerCharSetUtf8.Checked then
     begin
       con_Firebird := con_Firebird_UTF8;
@@ -592,10 +718,12 @@ begin
     m_oDb.Connect(con_Firebird);
 
     sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
-    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.DtTstDbInfVersion) +
-                ', Product = "' + m_oDb.DtTstDbInfProduct + '" )';
+    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
+                ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
 
     edDbInfo.Text := sDbInfo;
+
+    AttachDbItemManager();
 
     // ATTN: Required!!!
     qry_Top.SQLConnection := con_Firebird;
@@ -635,6 +763,46 @@ begin
       m_oLog.LogERROR(exc);
       ErrorMsgDlg('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
+  end;
+
+  m_oLog.LogUI('TFrmMain.btnConnectClick END');
+end;
+
+procedure TFrmMain.AttachDbItemManager();
+var
+  oDbItemMgr: TDtTstDbItemMgr;
+  sDbInfo: string;
+begin
+
+  // ATTN: In case of (one-and-only) Known DB...
+  if m_oDb.ADM_DbInfProduct = csPRODUCT_FULL then
+  begin
+
+    // Replace oDb with oDbItemMgr...
+    oDbItemMgr := TDtTstDbItemMgr.Create(m_oLog, m_oDb);
+    FreeAndNil(m_oDb);
+    m_oDb := oDbItemMgr;
+
+    if chbDoDbUpdate.Checked then
+    begin
+      while True do
+      begin
+
+        if oDbItemMgr.ADM_DoDbUpdates() then
+        begin
+          Break; // Database is Up-To-Date!!!
+        end;
+
+      end;
+    end;
+
+    sDbInfo := 'LoginUsername = "' + m_oDb.LoginUser + '"';
+    sDbInfo := sDbInfo + ', DtTstDb( Version = ' + IntToStr(m_oDb.ADM_DbInfVersion) +
+                ', Product = "' + m_oDb.ADM_DbInfProduct + '" )';
+    sDbInfo := sDbInfo + ', DtTstDbItemMgr( UserID = ' + IntToStr(oDbItemMgr.ADM_UserID) + ' )';
+
+    edDbInfo.Text := sDbInfo;
+
   end;
 
 end;

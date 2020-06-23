@@ -7,7 +7,9 @@ uses
   uDtTstLog in 'uDtTstLog.pas',
   uDtTstUtils in 'uDtTstUtils.pas',
   uDtTstConsts in 'uDtTstConsts.pas',
-  uDtTstWin in 'uDtTstWin.pas';
+  uDtTstWin in 'uDtTstWin.pas',
+  uDtTstDbItemMgr in 'uDtTstDbItemMgr.pas',
+  uDtTstFirebird in 'uDtTstFirebird.pas';
 
 {$R *.res}
 

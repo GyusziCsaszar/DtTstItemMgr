@@ -16,7 +16,10 @@ type
     constructor Create(sLogPath: string; sIniPath: string);
     destructor Destroy(); override;
     function LogERROR(exc: Exception) : Exception;
+    procedure LogVERSION(sLogLine: string);
     procedure LogLIFE(sLogLine: string);
+    procedure LogUI(sLogLine: string);
+    function LogSQL(sSql: string) : string;
     procedure LogINFO(sLogLine: string);
     procedure LogLINE(iLogLevel: integer; sLogLine: string);
   private
@@ -25,12 +28,13 @@ type
 implementation
 
 uses
-  { DtTs Units: } uDtTstConsts, uDtTstUtils,
+  { DtTst Units: } uDtTstConsts, uDtTstUtils,
   System.IOUtils, IniFiles;
 
 constructor TDtTstLog.Create(sLogPath: string; sIniPath: string);
 var
   fIni: TIniFile;
+  bIniPresent: Boolean;
 begin
   m_lbLogView := nil;
 
@@ -38,6 +42,8 @@ begin
   m_iLogLevel_REQU := ciLOGLEVEL_ALL;
 
   inherited Create();
+
+  bIniPresent := False;
 
   if not sIniPath.IsEmpty then
   begin
@@ -59,6 +65,8 @@ begin
         else
         begin
           m_iLogLevel_REQU := fIni.ReadInteger(csINI_SEC_LOG, csINI_VAL_LOG_LEVEL, m_iLogLevel_REQU);
+
+          bIniPresent := True;
         end;
 
       finally
@@ -68,7 +76,14 @@ begin
   end;
 
   LogLINE(ciLOGLEVEL_DECORATION, '');
-  LogLINE(ciLOGLEVEL_DECORATION, '-=<[LOG START (LEVEL=' + IntToStr(m_iLogLevel_REQU) + ')]>=-');
+  LogLINE(ciLOGLEVEL_DECORATION, '-=<[LOG START (LEVEL = ' + IntToStr(m_iLogLevel_REQU) + ' )]>=-');
+
+  if bIniPresent then
+  begin
+    LogVERSION('INI Path (for TDtTstLog): ' + sIniPath);
+  end;
+
+  LogVERSION('LOG Path (for TDtTstLog): ' + m_sLogPath);
 end;
 
 destructor TDtTstLog.Destroy();
@@ -86,9 +101,25 @@ begin
   LogLINE(ciLOGLEVEL_ERROR, 'ERR | ERROR: (' + exc.ClassName + ') ' + exc.Message);
 end;
 
+procedure TDtTstLog.LogVERSION(sLogLine: string);
+begin
+  LogLINE(ciLOGLEVEL_VERSION, 'VER | ' + sLogLine);
+end;
+
 procedure TDtTstLog.LogLIFE(sLogLine: string);
 begin
   LogLINE(ciLOGLEVEL_LIFETIME, 'LFE | ' + sLogLine);
+end;
+
+procedure TDtTstLog.LogUI(sLogLine: string);
+begin
+  LogLINE(ciLOGLEVEL_UI, 'GUI | ' + sLogLine);
+end;
+
+function TDtTstLog.LogSQL(sSql: string) : string;
+begin
+  Result := sSql;
+  LogLINE(ciLOGLEVEL_SQL, 'SQL | ' + sSql);
 end;
 
 procedure TDtTstLog.LogINFO(sLogLine: string);

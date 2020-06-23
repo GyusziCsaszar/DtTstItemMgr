@@ -133,6 +133,8 @@
         <DCCReference Include="uDtTstUtils.pas"/>
         <DCCReference Include="uDtTstConsts.pas"/>
         <DCCReference Include="uDtTstWin.pas"/>
+        <DCCReference Include="uDtTstDbItemMgr.pas"/>
+        <DCCReference Include="uDtTstFirebird.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
