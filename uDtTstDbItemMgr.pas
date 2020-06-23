@@ -17,8 +17,8 @@ type
 
     function ADM_DoDbUpdates_internal(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress; ADMIN_MODE: Boolean) : Boolean; override;
 
-    procedure ADM_CreateTable_ITEM(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
     procedure ADM_CreateTable_ITEMTYPE(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+    procedure ADM_CreateTable_ITEM(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
     procedure ADM_CreateTable_ITEMGROUP(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 
     procedure META_After_DropTable(oProvider: TDBXDataExpressMetaDataProvider; sTable : string); override;
@@ -233,6 +233,145 @@ begin
   end;
 
   inherited META_Before_DropTable(oProvider, sTable);
+
+end;
+
+procedure TDtTstDbItemMgr.ADM_CreateTable_ITEMTYPE(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
+var
+  oTable: TDBXMetaDataTable;
+  oTD: TTransactionDesc;
+begin
+
+  oTable := TDBXMetaDataTable.Create;
+  try
+
+    { Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_USR_ITEMTYPE);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    oTable.TableName := FIXOBJNAME(csDB_TBL_USR_ITEMTYPE);
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_X_USRCRE       , False {bNullable}, ciDB_FLD_ADM_X_USR_Lenght);
+
+    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPCRE       , False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_X_USRUPD       , False {bNullable}, ciDB_FLD_ADM_X_USR_Lenght);
+
+    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPUPD       , False {bNullable});
+
+    META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMTYPE_NAME  , False {bNullable},  ciDB_FLD_USR_ITEMTYPE_NAME_Length);
+
+    oProvider.CreateTable(oTable);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+  finally
+    FreeAndNil(oTable);
+  end;
+
+  { Foreign Key }
+
+  // NONE...
+
+  { Generator }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_USR_ITEMTYPE +  '_' + csDB_FLD_ADM_X_ID);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateGenerator(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_ADM_X_ID);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { Trigger }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_USR_ITEMTYPE + '_BI');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateTrigger( FIXOBJNAME(csDB_TBL_USR_ITEMTYPE),
+                      FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + '_BI',
+                      ' ACTIVE BEFORE INSERT OR UPDATE' + CHR(13) + CHR(10) +
+                      ' POSITION 0' + CHR(13) + CHR(10) +
+                      ' AS' + CHR(13) + CHR(10) +
+                      ' BEGIN' + CHR(13) + CHR(10) +
+                      { INSERTING - ID }
+                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
+                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
+                      FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
+                      '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
+                      { INSERTING - USRCRE, TSPCRE}
+                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) +
+                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) + ' = current_user;' + CHR(13) + CHR(10) +
+                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
+                      { INSERTING OR UPDATING - USRUPD, TSPUPD }
+                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                      ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
+                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
+                      ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
+                      ' END');
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { Indices }
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating Primary Key index ' + csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_ADM_X_ID);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_PrimaryKey(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_ADM_X_ID);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating UNIQUE index ' + csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_USR_ITEMTYPE_NAME);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_USR_ITEMTYPE_NAME);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  { VIEWS }
+
+  // NONE...
+
+  { ROWS }
+
+  m_oCon.StartTransaction(oTD);
+  try
+
+    { Tables Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Inserting table ' + csDB_TBL_USR_ITEMTYPE + ' into table ' + csDB_TBL_ADM_TABLES);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_USR_ITEMTYPE);
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    { DB Version Increment }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Incrementing database version number');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    ADM_Increment_DBINFO_VER_PRD(m_oCon {nil = DO Transaction} );
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    m_oCon.Commit(oTD);
+
+  except
+    m_oCon.Rollback(oTD);
+  end;
 
 end;
 
@@ -553,145 +692,6 @@ begin
 
 end;
 
-procedure TDtTstDbItemMgr.ADM_CreateTable_ITEMTYPE(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
-var
-  oTable: TDBXMetaDataTable;
-  oTD: TTransactionDesc;
-begin
-
-  oTable := TDBXMetaDataTable.Create;
-  try
-
-    { Table }
-
-    if Assigned(frmPrs) then frmPrs.AddStep('Creating table ' + csDB_TBL_USR_ITEMTYPE);
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-    oTable.TableName := FIXOBJNAME(csDB_TBL_USR_ITEMTYPE);
-
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_X_USRCRE       , False {bNullable}, ciDB_FLD_ADM_X_USR_Lenght);
-
-    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPCRE       , False {bNullable});
-
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_ADM_X_USRUPD       , False {bNullable}, ciDB_FLD_ADM_X_USR_Lenght);
-
-    META_AddColumn_TimeStamp( oTable, csDB_FLD_ADM_X_TSPUPD       , False {bNullable});
-
-    META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
-
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMTYPE_NAME  , False {bNullable},  ciDB_FLD_USR_ITEMTYPE_NAME_Length);
-
-    oProvider.CreateTable(oTable);
-
-    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-  finally
-    FreeAndNil(oTable);
-  end;
-
-  { Foreign Key }
-
-  // NONE...
-
-  { Generator }
-
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating generator ' + csDB_TBL_USR_ITEMTYPE +  '_' + csDB_FLD_ADM_X_ID);
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  META_CreateGenerator(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_ADM_X_ID);
-
-  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  { Trigger }
-
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating trigger ' + csDB_TBL_USR_ITEMTYPE + '_BI');
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  META_CreateTrigger( FIXOBJNAME(csDB_TBL_USR_ITEMTYPE),
-                      FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) + '_BI',
-                      ' ACTIVE BEFORE INSERT OR UPDATE' + CHR(13) + CHR(10) +
-                      ' POSITION 0' + CHR(13) + CHR(10) +
-                      ' AS' + CHR(13) + CHR(10) +
-                      ' BEGIN' + CHR(13) + CHR(10) +
-                      { INSERTING - ID }
-                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) +
-                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = GEN_ID(' +
-                      FIXOBJNAME(csDB_TBL_USR_ITEMTYPE) +
-                      '_' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ', 1);' + CHR(13) + CHR(10) +
-                      { INSERTING - USRCRE, TSPCRE}
-                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) +
-                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRCRE) + ' = current_user;' + CHR(13) + CHR(10) +
-                      ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
-                      ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
-                      { INSERTING OR UPDATING - USRUPD, TSPUPD }
-                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
-                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
-                      ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
-                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
-                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMTYPE_NAME) +
-                      ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
-                      ' END');
-
-  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  { Indices }
-
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating Primary Key index ' + csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_ADM_X_ID);
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  META_CreateIndex_PrimaryKey(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_ADM_X_ID);
-
-  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating UNIQUE index ' + csDB_TBL_USR_ITEMTYPE + '_' + csDB_FLD_USR_ITEMTYPE_NAME);
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEMTYPE, csDB_FLD_USR_ITEMTYPE_NAME);
-
-  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-  if Assigned(frmPrs) then Application.ProcessMessages;
-
-  { VIEWS }
-
-  // NONE...
-
-  { ROWS }
-
-  m_oCon.StartTransaction(oTD);
-  try
-
-    { Tables Table }
-
-    if Assigned(frmPrs) then frmPrs.AddStep('Inserting table ' + csDB_TBL_USR_ITEMTYPE + ' into table ' + csDB_TBL_ADM_TABLES);
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-    ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_USR_ITEMTYPE);
-
-    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-    { DB Version Increment }
-
-    if Assigned(frmPrs) then frmPrs.AddStep('Incrementing database version number');
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-    ADM_Increment_DBINFO_VER_PRD(m_oCon {nil = DO Transaction} );
-
-    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
-    if Assigned(frmPrs) then Application.ProcessMessages;
-
-    m_oCon.Commit(oTD);
-
-  except
-    m_oCon.Rollback(oTD);
-  end;
-
-end;
-
 procedure TDtTstDbItemMgr.ADM_CreateTable_ITEMGROUP(oProvider: TDBXDataExpressMetaDataProvider; frmPrs: TFrmProgress);
 var
   oTable: TDBXMetaDataTable;
@@ -718,7 +718,11 @@ begin
 
     META_AddColumn_INT32(     oTable, csDB_FLD_ADM_X_ID           , False {bNullable});
 
-    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMGROUP_NAME , False {bNullable},  ciDB_FLD_USR_ITEMGROUP_NAME_Length);
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMGROUP_NODE , False {bNullable},  ciDB_FLD_USR_ITEMGROUP_NODE_Length);
+
+    META_AddColumn_INT32(     oTable, csDB_FLD_USR_ITEMGROUP_LEVEL, False {bNullable});
+
+    META_AddColumn_VARCHAR(   oTable, csDB_FLD_USR_ITEMGROUP_PATH , False {bNullable},  ciDB_FLD_USR_ITEMGROUP_PATH_Length);
 
     oProvider.CreateTable(oTable);
 
@@ -765,11 +769,11 @@ begin
                       ' IF (INSERTING AND NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
                       ' IS NULL) THEN NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' = current_timestamp;' + CHR(13) + CHR(10) +
                       { INSERTING OR UPDATING - USRUPD, TSPUPD }
-                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NAME) +
-                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NAME) +
+                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
+                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
                       ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_USRUPD) + ' = current_user;' + CHR(13) + CHR(10) +
-                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NAME) +
-                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NAME) +
+                      ' IF (INSERTING ' + 'OR (NEW.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
+                      ' <> OLD.' + FIXOBJNAME(csDB_FLD_USR_ITEMGROUP_NODE) +
                       ') ' + ') THEN ' + 'NEW.' + FIXOBJNAME(csDB_FLD_ADM_X_TSPUPD) + ' = current_timestamp;' + CHR(13) + CHR(10) +
                       ' END');
 
@@ -786,10 +790,26 @@ begin
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;
 
-  if Assigned(frmPrs) then frmPrs.AddStep('Creating NON-Unique index ' + csDB_TBL_USR_ITEMGROUP + '_' + csDB_FLD_USR_ITEMGROUP_NAME);
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating NON-Unique index ' + csDB_TBL_USR_ITEMGROUP + '_' + csDB_FLD_USR_ITEMGROUP_NODE);
   if Assigned(frmPrs) then Application.ProcessMessages;
 
-  META_CreateIndex_NON_Unique(oProvider, csDB_TBL_USR_ITEMGROUP, csDB_FLD_USR_ITEMGROUP_NAME);
+  META_CreateIndex_NON_Unique(oProvider, csDB_TBL_USR_ITEMGROUP, csDB_FLD_USR_ITEMGROUP_NODE);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating NON-Unique index ' + csDB_TBL_USR_ITEMGROUP + '_' + csDB_FLD_USR_ITEMGROUP_LEVEL);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_NON_Unique(oProvider, csDB_TBL_USR_ITEMGROUP, csDB_FLD_USR_ITEMGROUP_LEVEL);
+
+  if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  if Assigned(frmPrs) then frmPrs.AddStep('Creating UNIQUE index ' + csDB_TBL_USR_ITEMGROUP + '_' + csDB_FLD_USR_ITEMGROUP_PATH);
+  if Assigned(frmPrs) then Application.ProcessMessages;
+
+  META_CreateIndex_UNIQUE(oProvider, csDB_TBL_USR_ITEMGROUP, csDB_FLD_USR_ITEMGROUP_PATH);
 
   if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
   if Assigned(frmPrs) then Application.ProcessMessages;

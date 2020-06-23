@@ -46,14 +46,14 @@ object FrmDataImport: TFrmDataImport
     object grpTbl: TGroupBox
       Left = 12
       Top = 183
-      Width = 733
+      Width = 485
       Height = 203
-      Anchors = [akLeft, akRight, akBottom]
+      Anchors = [akLeft, akBottom]
       Caption = 'Database Table'
       TabOrder = 0
       Visible = False
       DesignSize = (
-        733
+        485
         203)
       object lblTblCol: TLabel
         Left = 16
@@ -72,7 +72,7 @@ object FrmDataImport: TFrmDataImport
       object cbbTblCol: TComboBox
         Left = 83
         Top = 18
-        Width = 130
+        Width = 190
         Height = 21
         Style = csDropDownList
         TabOrder = 0
@@ -80,14 +80,14 @@ object FrmDataImport: TFrmDataImport
       object cbbTblCsvCol: TComboBox
         Left = 83
         Top = 45
-        Width = 129
+        Width = 190
         Height = 21
         Style = csDropDownList
         TabOrder = 1
       end
       object btnTblColAdd: TButton
-        Left = 286
-        Top = 27
+        Left = 340
+        Top = 19
         Width = 55
         Height = 25
         Caption = 'Add'
@@ -97,7 +97,7 @@ object FrmDataImport: TFrmDataImport
       object sgrdDef: TStringGrid
         Left = 16
         Top = 72
-        Width = 701
+        Width = 453
         Height = 117
         Anchors = [akLeft, akTop, akRight, akBottom]
         ColCount = 1
@@ -105,14 +105,15 @@ object FrmDataImport: TFrmDataImport
         RowCount = 1
         FixedRows = 0
         TabOrder = 3
+        ExplicitWidth = 701
         ColWidths = (
           64)
         RowHeights = (
           24)
       end
       object btnTblColReset: TButton
-        Left = 354
-        Top = 27
+        Left = 409
+        Top = 19
         Width = 59
         Height = 25
         Caption = 'Clear'
@@ -120,14 +121,22 @@ object FrmDataImport: TFrmDataImport
         OnClick = btnTblColResetClick
       end
       object chbTblCsvTRIM: TCheckBox
-        Left = 232
-        Top = 31
+        Left = 286
+        Top = 23
         Width = 48
         Height = 17
         Caption = 'TRIM'
         Checked = True
         State = cbChecked
         TabOrder = 5
+      end
+      object chbTblCsvEmpty: TCheckBox
+        Left = 286
+        Top = 47
+        Width = 117
+        Height = 17
+        Caption = 'EMPTY text value'
+        TabOrder = 6
       end
     end
     object grpCsv: TGroupBox
@@ -302,6 +311,25 @@ object FrmDataImport: TFrmDataImport
       Caption = 'Close'
       TabOrder = 4
       OnClick = btnCloseClick
+    end
+    object lbTree: TListBox
+      Left = 506
+      Top = 189
+      Width = 239
+      Height = 197
+      Anchors = [akLeft, akRight, akBottom]
+      ItemHeight = 13
+      TabOrder = 5
+    end
+    object btnRememberDef: TButton
+      Left = 280
+      Top = 392
+      Width = 161
+      Height = 25
+      Anchors = [akLeft, akBottom]
+      Caption = 'Remember this Definition'
+      TabOrder = 6
+      OnClick = btnRememberDefClick
     end
   end
   object tmrStart: TTimer

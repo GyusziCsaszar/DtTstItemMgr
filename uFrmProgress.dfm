@@ -58,6 +58,7 @@ object FrmProgress: TFrmProgress
       Width = 75
       Height = 25
       Anchors = [akRight, akBottom]
+      Cancel = True
       Caption = 'Close'
       Enabled = False
       Font.Charset = DEFAULT_CHARSET
@@ -69,13 +70,13 @@ object FrmProgress: TFrmProgress
       TabOrder = 1
       OnClick = btnCloseClick
     end
-    object btnCancel: TButton
+    object btnAbort: TButton
       Left = 279
       Top = 240
       Width = 75
       Height = 25
       Anchors = [akRight, akBottom]
-      Caption = 'Cancel'
+      Caption = 'Abort'
       Enabled = False
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText

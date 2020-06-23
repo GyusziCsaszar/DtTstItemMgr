@@ -15,7 +15,7 @@ type
     pbPrs: TProgressBar;
     lbHistory: TListBox;
     btnClose: TButton;
-    btnCancel: TButton;
+    btnAbort: TButton;
     btnCopyToClipboard: TButton;
     procedure FormShow(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);

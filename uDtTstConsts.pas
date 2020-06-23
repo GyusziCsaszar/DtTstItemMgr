@@ -9,13 +9,13 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 128;
-  csVERSION_TITLE       = 'v1.28';
+  ciVERSION             = 129;
+  csVERSION_TITLE       = 'v1.29';
 
   { App - Strings }
-  csITEM                = '(#1) ITEM';
-  csITEM_TYPE           = '(#2) ITEM TYPE';
-  csITEM_GROUP          = '(#3) ITEM GROUP';
+  csITEM                = 'ITEM';
+  csITEM_TYPE           = 'ITEM TYPE';
+  csITEM_GROUP          = 'ITEM GROUP';
 
   { App - Menu }
   ccMnuBtn                     = '0';
@@ -101,6 +101,7 @@ const
   csDB_TBL_SAMPLE             = 'SAMPLETABLE';
 
   { Database - Base }
+  ciDB_VERSION_ADM_NONE       =   0;
 //ciDB_VERSION_ADM            = 100; // CRE admDbInfo
 //ciDB_VERSION_ADM            = 101; // CRE admUsers,  INS User
 //ciDB_VERSION_ADM            = 102; // CRE admTables, INS Table admUsers
@@ -125,27 +126,38 @@ const
   csDB_TBL_ADM_TABLES         = 'admTables';
   csDB_FLD_ADM_TABLES_NAME    = 'TableName';
 
+  { Database - Tree }
+
+  csDB_TREE_NODE    = '(TREE NODE)';
+  csDB_TREE_PARENT  = '(TREE PARENT NODE)';
+  csDB_TREE_PATH    = '(TREE PATH)';
+  csDB_TREE_LEVEL   = '(TREE LEVEL)';
+
   { Database - Product ItemMgr }
+  ciDB_VERSION_PRD_NONE       =   0;
 //ciDB_VERSION_PRD            = 100;
 //ciDB_VERSION_PRD            = 101; // CRE ItemType
 //ciDB_VERSION_PRD            = 102; // CRE Item
   ciDB_VERSION_PRD            = 103; // CRE ItemGroup
   // ------------------------------------
-  csDB_TBL_USR_ITEMGROUP              = 'ItemGroup';
-  ciDB_FLD_USR_ITEMGROUP_NAME_Length  = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
-  csDB_FLD_USR_ITEMGROUP_NAME         = 'ItemGroup_Name'; // ATTN: Keep UNIQUE NAME
-  // ------------------------------------
   csDB_TBL_USR_ITEMTYPE               = 'ItemType';
   ciDB_FLD_USR_ITEMTYPE_NAME_Length   = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
-  csDB_FLD_USR_ITEMTYPE_NAME          = 'ItemType_Name';  // ATTN: Keep UNIQUE NAME
+  csDB_FLD_USR_ITEMTYPE_NAME          = 'ItemType_Name';   // ATTN: Keep UNIQUE NAME
   // ------------------------------------
   csDB_TBL_USR_ITEM                   = 'Item';
   ciDB_FLD_USR_ITEM_ITEMNR_Length     = 10; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEM_ITEMNR            = 'Item_NR';
   ciDB_FLD_USR_ITEM_NAME_Length       = 30; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEM_NAME              = 'Item_Name';
-  csDB_FLD_USR_ITEM_ITEMTYPE_ID       = 'ItemType_ID';    // ATTN: Keep UNIQUE NAME
+  csDB_FLD_USR_ITEM_ITEMTYPE_ID       = 'ItemType_ID';     // ATTN: Keep UNIQUE NAME
   csDB_FLD_USR_ITEM_AMO               = 'Item_Amount';
+  // ------------------------------------
+  csDB_TBL_USR_ITEMGROUP              = 'ItemGroup';
+  ciDB_FLD_USR_ITEMGROUP_NODE_Length  = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEMGROUP_NODE         = 'ItemGroup_Node';  // ATTN: Keep UNIQUE NAME
+  csDB_FLD_USR_ITEMGROUP_LEVEL        = 'ItemGroup_Level'; // ATTN: Keep UNIQUE NAME
+  ciDB_FLD_USR_ITEMGROUP_PATH_Length  = ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  csDB_FLD_USR_ITEMGROUP_PATH         = 'ItemGroup_Path';  // ATTN: Keep UNIQUE NAME
 
 implementation
 

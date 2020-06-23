@@ -92,7 +92,7 @@ type
     procedure DoDeleteFromTable(cID_Object: char; sCaption_Object: string);
 
     procedure DoRefreshMetaData();
-    procedure DoRefreshMetaData_PRODUCT();
+    procedure DoRefreshMetaData_PRODUCT(var iIdx: integer);
 
     procedure DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
 
@@ -419,14 +419,19 @@ begin
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
 
-    if not sSQL.IsEmpty() then
+    if false then //m_oApp.ADMIN_MODE then
     begin
 
-      sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL(sSQL);
-      sds_Bottom.Active := True;
-      m_oApp.LOG.LogINFO('Simple DataSet is Active!');
+      if not sSQL.IsEmpty() then
+      begin
 
-      lblBottom.Caption := sTable;
+        sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL(sSQL);
+        sds_Bottom.Active := True;
+        m_oApp.LOG.LogINFO('Simple DataSet is Active!');
+
+        lblBottom.Caption := sTable;
+
+      end;
 
     end;
   except
@@ -456,7 +461,7 @@ begin
   sds_Bottom.ApplyRange();
   }
 
-  if sds_Bottom.Active then
+  //if sds_Bottom.Active then
   begin
 
     if ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMTYPE_ID) <> nil then
@@ -860,19 +865,27 @@ begin
 
     end;
 
-    lbObjects.Items.Insert(0, MnuGRP_Selectable(ccMnuGrpID_Database, 'Database', 0));
+    iIdx := -1;
 
-    lbObjects.Items.Insert(1, MnuGRP('Properties', 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuGRP_Selectable(ccMnuGrpID_Database, 'Database', 0));
 
-    lbObjects.Items.Insert(2, MnuITM('Login Username: ' + con_Firebird.GetLoginUsername(), 0));
+    {
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuGRP('Properties', 0));
+    }
 
-    lbObjects.Items.Insert(3, MnuITM('Default SchemaName: ' + con_Firebird.GetDefaultSchemaName(), 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuITM('Login Username: ' + con_Firebird.GetLoginUsername(), 0));
 
-    lbObjects.Items.Insert(4, MnuITM('Driver Func: ' + con_Firebird.GetDriverFunc, 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuITM('Default SchemaName: ' + con_Firebird.GetDefaultSchemaName(), 0));
 
-    lbObjects.Items.Insert(5, MnuITM('Server Charset: ' + con_Firebird.Params.Values['ServerCharset'] + ' // NOTE: Requested by client!', 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuITM('Driver Func: ' + con_Firebird.GetDriverFunc, 0));
 
-    iIdx := 5;
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuITM('Server Charset: ' + con_Firebird.Params.Values['ServerCharset'] + ' // NOTE: Requested by client!', 0));
 
     iIdx := iIdx + 1;
     lbObjects.Items.Insert(iIdx, MnuGRP('Generators', 0));
@@ -929,21 +942,54 @@ begin
 
   end;
 
-  DoRefreshMetaData_PRODUCT();
+  // NOTE: Increase Scroll Height...
+  lbObjects.Items.Add(MnuSPC());
+
+  iIdx := -1;
+  DoRefreshMetaData_PRODUCT(iIdx);
+
+  if m_oApp.DB.ADM_DbInfVersion_ADM > ciDB_VERSION_PRD_NONE then
+  begin
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuGRP('Database Administration Mode', 0));
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'DB INFO' + '|' +
+                                 'SELECT *' +
+                                 ' FROM ' + csDB_TBL_ADM_DBINF, 0));
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'USERS' + '|' +
+                                 'SELECT *' +
+                                 ' FROM ' + csDB_TBL_ADM_USERS +
+                                 ' ORDER BY ' + csDB_FLD_ADM_X_ID, 0));
+
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + 'TABLES' + '|' +
+                                 'SELECT *' +
+                                 ' FROM ' + csDB_TBL_ADM_TABLES +
+                                 ' ORDER BY ' + csDB_FLD_ADM_X_ID, 0));
+
+  end;
 
 end;
 
-procedure TFrmMain.DoRefreshMetaData_PRODUCT();
+procedure TFrmMain.DoRefreshMetaData_PRODUCT(var iIdx: integer);
 begin
+
+  iIdx := -1;
 
   if (m_oApp.DB.ADM_DbInfProduct = csPRODUCT_FULL) then
   begin
 
-    lbObjects.Items.Add(MnuGRP(csPRODUCT_TITLE, 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuGRP({csCOMPANY + ' ' +} csPRODUCT_TITLE, 0));
 
     // BUG: Unable to Edit!
     {
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
                        'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME +
                        ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
                        ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
@@ -954,7 +1000,8 @@ begin
 
     // BUG: Unable to Edit!
     {
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
                        'SELECT ' + csDB_FLD_USR_ITEM_NAME +
                        ', ' + '(SELECT ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
                                ' FROM ' + csDB_TBL_USR_ITEMTYPE + ' B' +
@@ -967,37 +1014,42 @@ begin
     // BUG: Unable to Edit!
     {
     // SRC: https://forums.devart.com/viewtopic.php?t=22628
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
                        'SELECT ' + 'A.' + csDB_FLD_USR_ITEM_NAME + ', ' + 'B.' + csDB_FLD_USR_ITEMTYPE_NAME +
                        ' FROM ' + csDB_TBL_USR_ITEM + ' A' +
                            ', ' + csDB_TBL_USR_ITEMTYPE + ' B' +
                        ' WHERE ' + 'A.' + csDB_FLD_USR_ITEM_ITEMTYPE_ID + ' = ' + 'B.' + csDB_FLD_ADM_X_ID +
                        ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEM_NAME, 0));
     }
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
-                       'SELECT ' + csDB_FLD_USR_ITEM_ITEMNR +
-                            ', ' + csDB_FLD_USR_ITEM_NAME +
-                            ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
-                            ', ' + csDB_FLD_USR_ITEM_AMO +
-                       ' FROM ' + csDB_TBL_USR_ITEM +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + '|' +
+                                 'SELECT ' + csDB_FLD_USR_ITEM_ITEMNR +
+                                      ', ' + csDB_FLD_USR_ITEM_NAME +
+                                      ', ' + csDB_FLD_USR_ITEM_ITEMTYPE_ID +
+                                      ', ' + csDB_FLD_USR_ITEM_AMO +
+                                 ' FROM ' + csDB_TBL_USR_ITEM +
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
 
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View)' + '|' +
-                       'SELECT *' +
-                       ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM + ' (View)' + '|' +
+                                 'SELECT *' +
+                                 ' FROM ' + 'V_' + csDB_TBL_USR_ITEM +
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEM_NAME, 0));
 
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|' +
-                       'SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
-                       ' FROM ' + csDB_TBL_USR_ITEMTYPE +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_TYPE + '|' +
+                                 'SELECT ' + csDB_FLD_USR_ITEMTYPE_NAME +
+                                 ' FROM ' + csDB_TBL_USR_ITEMTYPE +
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMTYPE_NAME, 0));
 
-    lbObjects.Items.Add(MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + '|' +
-                       'SELECT ' + csDB_FLD_USR_ITEMGROUP_NAME +
-                       ' FROM ' + csDB_TBL_USR_ITEMGROUP +
-                       ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NAME, 0));
-
-    lbObjects.Items.Add(MnuSPC());
+    iIdx := iIdx + 1;
+    lbObjects.Items.Insert(iIdx, MnuCAP_Selectable(ccMnuItmID_Query, '|' + csITEM_GROUP + '|' +
+                                 'SELECT ' + csDB_FLD_USR_ITEMGROUP_NODE +
+                                      ', ' + csDB_FLD_USR_ITEMGROUP_LEVEL +
+                                      ', ' + csDB_FLD_USR_ITEMGROUP_PATH +
+                                 ' FROM ' + csDB_TBL_USR_ITEMGROUP +
+                                 ' ORDER BY ' + csDB_FLD_USR_ITEMGROUP_NODE, 0));
   end;
 
 end;
@@ -1005,7 +1057,7 @@ end;
 procedure TFrmMain.DoImportTable(sCaption, sTable: string; asColsOverride: TStringList);
 var
   asCols, asCols_InUse, asInfos, asTmp: TStringList;
-  sCol: string;
+  sCol, sColReal: string;
   frmImp: TFrmDataImport;
 begin
 
@@ -1024,10 +1076,46 @@ begin
       begin
         asTmp.Clear();
 
-        if m_oApp.DB.Select_Fields(nil {asNames}, asTmp, sTable, sCol, False {bDecorate}) then
-          asInfos.Add(asTmp[0])
+        sColReal := sCol;
+
+        { DB TREE }
+        if {EndsText not worked!} ContainsText(sCol, csDB_TREE_NODE) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_NODE, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_PARENT) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_PARENT, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_PATH) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_PATH, '', [rfReplaceAll]));
+        end
+        else if {EndsText not worked!} ContainsText(sCol, csDB_TREE_LEVEL) then
+        begin
+          sColReal := TRIM(sCol.Replace(csDB_TREE_LEVEL, '', [rfReplaceAll]));
+        end;
+
+        if sColReal.IsEmpty() then
+        begin
+          if asInfos.Count = 0 then
+          begin
+            raise Exception.Create('ERROR: No DB Info available for column "' + sCol + '"! No DB Info to copy!');
+          end;
+
+          // ATTN: Copy DB Info of previous column!!!
+          asInfos.Add(asInfos[asInfos.Count - 1]);
+
+        end
         else
-          asInfos.Add(''); // ERROR...
+        begin
+
+          if m_oApp.DB.Select_Fields(nil {asNames}, asTmp, sTable, sColReal, False {bDecorate}) then
+            asInfos.Add(asTmp[0])
+          else
+            asInfos.Add(''); // ERROR...
+
+        end;
       end;
 
     end
@@ -1853,7 +1941,10 @@ begin
         Split('|', sCaption_Object, asParts);
 
         asCols := TStringList.Create();
-        asCols.Add(csDB_FLD_USR_ITEMGROUP_NAME);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE); //  + ' ' + csDB_TREE_NODE);
+        //asCols.Add(csDB_TREE_PARENT);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_PATH); //  + ' ' + csDB_TREE_PATH);
+        asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL); // + ' ' + csDB_TREE_LEVEL);
 
         DoImportTable(asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
 

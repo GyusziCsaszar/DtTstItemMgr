@@ -5,6 +5,9 @@ interface
 uses
   System.Classes, Vcl.StdCtrls, StrUtils;
 
+function Boolean2String(b: Boolean) : string;
+function String2Boolean(s: string) : Boolean;
+
 procedure CreateUTF8BOMFile(sPath: string; bOverWrite: Boolean);
 
 procedure Split(cDelimiter: Char; str: string; ListOfStrings: TStringList);
@@ -20,6 +23,22 @@ implementation
 
 uses
   SysUtils, System.IOUtils;
+
+function Boolean2String(b: Boolean) : string;
+begin
+  if b then
+    Result := '1'
+  else
+    Result := '0';
+end;
+
+function String2Boolean(s: string) : Boolean;
+begin
+  if s = '1' then
+    Result := True
+  else
+    Result := False;
+end;
 
 procedure CreateUTF8BOMFile(sPath: string; bOverWrite: Boolean);
 begin

@@ -164,10 +164,10 @@ begin
   m_sConnectUser            := '';
   m_sConnectPassword        := '';
   m_oCon                    := nil;
-  m_iADM_DbInfVersion_ADM   := 0;
+  m_iADM_DbInfVersion_ADM   := ciDB_VERSION_ADM_NONE;
   m_sADM_DbInfProduct       := '';
   m_iADM_UserID             := 0;
-  m_iADM_DbInfVersion_PRD   := 0;
+  m_iADM_DbInfVersion_PRD   := ciDB_VERSION_PRD_NONE;
   { ATTN: Copy ABOVE members in descendants!!! }
 
   inherited Create();
@@ -404,8 +404,9 @@ var
   oQry: TSQLQuery;
 begin
 
-  m_iADM_DbInfVersion_ADM := -1;
+  m_iADM_DbInfVersion_ADM := ciDB_VERSION_ADM_NONE;
   m_sADM_DbInfProduct     := '';
+  m_iADM_DbInfVersion_PRD := ciDB_VERSION_PRD_NONE;
 
   if TableExists(csDB_TBL_ADM_DBINF) then
   begin
@@ -427,10 +428,6 @@ begin
         if ADM_DbInfVersion_ADM > 102 then
         begin
           m_iADM_DbInfVersion_PRD := oQry.FieldByName(FIXOBJNAME(csDB_FLD_ADM_DBINF_PRD_VER)).AsInteger;
-        end
-        else
-        begin
-          m_iADM_DbInfVersion_PRD := 0;
         end;
 
        end;
@@ -1558,6 +1555,24 @@ begin
 
   m_oCon.StartTransaction(oTD);
   try
+
+    { Db Info Table }
+
+    if Assigned(frmPrs) then frmPrs.AddStep('Inserting table ' + csDB_TBL_ADM_DBINF + ' into table ' + csDB_TBL_ADM_TABLES);
+    if Assigned(frmPrs) then Application.ProcessMessages;
+
+    // ATTN: USERS table already created, now we add to TABLES...
+    ADM_UpdateOrInsert_NewTable(m_oCon {nil = DO Transaction}, csDB_TBL_ADM_DBINF);
+
+    // NOTE: Updating to original (???) creation timestamp...
+    ExecuteSQL(m_oCon {nil = DO Transaction}, 'UPDATE ' + FIXOBJNAME(csDB_TBL_ADM_TABLES) +
+               ' SET ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) +
+               ' = (SELECT ' + FIXOBJNAME(csDB_FLD_ADM_X_TSPCRE) + ' FROM ' + FIXOBJNAME(csDB_TBL_ADM_USERS) +
+               ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_X_ID) + ' = 1)' +
+               ' WHERE ' + FIXOBJNAME(csDB_FLD_ADM_TABLES_NAME) + ' = ''' + csDB_TBL_ADM_DBINF + '''');
+
+    if Assigned(frmPrs) then frmPrs.AddStepEnd('Done!');
+    if Assigned(frmPrs) then Application.ProcessMessages;
 
     { Users Table }
 

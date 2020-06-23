@@ -48,7 +48,7 @@ object FrmMain: TFrmMain
   end
   object lblLog: TLabel
     Left = 528
-    Top = 431
+    Top = 383
     Width = 218
     Height = 16
     Anchors = [akLeft, akBottom]
@@ -62,9 +62,10 @@ object FrmMain: TFrmMain
   end
   object lblBottom: TLabel
     Left = 528
-    Top = 237
+    Top = 189
     Width = 21
     Height = 16
+    Anchors = [akLeft, akBottom]
     Caption = 'N/A'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -118,8 +119,8 @@ object FrmMain: TFrmMain
     Left = 539
     Top = 43
     Width = 369
-    Height = 177
-    Anchors = [akLeft, akTop, akRight]
+    Height = 134
+    Anchors = [akLeft, akTop, akRight, akBottom]
     DataSource = ds_cds_Top
     TabOrder = 0
     TitleFont.Charset = DEFAULT_CHARSET
@@ -130,10 +131,10 @@ object FrmMain: TFrmMain
   end
   object db_grid_Bottom: TDBGrid
     Left = 539
-    Top = 264
+    Top = 216
     Width = 369
     Height = 153
-    Anchors = [akLeft, akTop, akRight, akBottom]
+    Anchors = [akLeft, akRight, akBottom]
     DataSource = ds_sds_Bottom
     TabOrder = 1
     TitleFont.Charset = DEFAULT_CHARSET
@@ -216,9 +217,9 @@ object FrmMain: TFrmMain
   end
   object lbLog: TListBox
     Left = 539
-    Top = 456
+    Top = 408
     Width = 369
-    Height = 124
+    Height = 172
     Anchors = [akLeft, akRight, akBottom]
     Color = clInfoBk
     Font.Charset = DEFAULT_CHARSET
