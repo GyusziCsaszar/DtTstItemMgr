@@ -2,10 +2,10 @@ object FrmMain: TFrmMain
   Left = 0
   Top = 0
   Caption = 
-    'Dt Test Item Manager v1.05 - EMPLOYEE.FDB Firebird Sample Databa' +
+    'Dt Test Item Manager v1.06 - EMPLOYEE.FDB Firebird Sample Databa' +
     'se'
   ClientHeight = 577
-  ClientWidth = 643
+  ClientWidth = 917
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -15,36 +15,43 @@ object FrmMain: TFrmMain
   OldCreateOrder = False
   Position = poScreenCenter
   DesignSize = (
-    643
+    917
     577)
   PixelsPerInch = 96
   TextHeight = 13
   object lblLog: TLabel
     Left = 8
-    Top = 389
+    Top = 397
     Width = 24
     Height = 13
     Caption = 'LOG:'
   end
   object lblCustomer: TLabel
-    Left = 96
+    Left = 300
     Top = 32
     Width = 236
     Height = 13
     Caption = 'Customers (Query, Provider and Client DataSet):'
   end
   object lblEmployee: TLabel
-    Left = 96
+    Left = 300
     Top = 215
     Width = 138
     Height = 13
     Caption = 'Employees (Simple DataSet):'
   end
+  object lblResult: TLabel
+    Left = 8
+    Top = 118
+    Width = 34
+    Height = 13
+    Caption = 'Result:'
+  end
   object lbLog: TListBox
     Left = 8
-    Top = 408
-    Width = 627
-    Height = 161
+    Top = 416
+    Width = 901
+    Height = 153
     Anchors = [akLeft, akTop, akRight, akBottom]
     ItemHeight = 13
     TabOrder = 0
@@ -52,16 +59,16 @@ object FrmMain: TFrmMain
   object btnConnect: TButton
     Left = 8
     Top = 32
-    Width = 75
+    Width = 273
     Height = 49
     Caption = 'Connect'
     TabOrder = 1
     OnClick = btnConnectClick
   end
   object db_grid_Customer: TDBGrid
-    Left = 96
+    Left = 300
     Top = 51
-    Width = 539
+    Width = 609
     Height = 158
     Anchors = [akLeft, akTop, akRight]
     DataSource = ds_cds_Customer
@@ -73,9 +80,9 @@ object FrmMain: TFrmMain
     TitleFont.Style = []
   end
   object db_grid_Employee: TDBGrid
-    Left = 96
+    Left = 300
     Top = 234
-    Width = 539
+    Width = 609
     Height = 158
     Anchors = [akLeft, akTop, akRight]
     DataSource = ds_sds_Employee
@@ -89,10 +96,10 @@ object FrmMain: TFrmMain
   object pAttn: TPanel
     Left = 8
     Top = 3
-    Width = 627
+    Width = 901
     Height = 25
     Anchors = [akLeft, akTop, akRight]
-    Caption = 'ATTN: Any change to DB data will be lost!'
+    Caption = 'NOTE: Before creating DB Table.'
     Color = clCream
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clRed
@@ -102,6 +109,24 @@ object FrmMain: TFrmMain
     ParentBackground = False
     ParentFont = False
     TabOrder = 4
+  end
+  object btnGetMetadata: TButton
+    Left = 8
+    Top = 87
+    Width = 273
+    Height = 25
+    Caption = 'Get Metadata'
+    Enabled = False
+    TabOrder = 5
+    OnClick = btnGetMetadataClick
+  end
+  object lbResult: TListBox
+    Left = 8
+    Top = 137
+    Width = 273
+    Height = 255
+    ItemHeight = 13
+    TabOrder = 6
   end
   object con_Employee: TSQLConnection
     ConnectionName = 'FirstDB'
@@ -144,8 +169,8 @@ object FrmMain: TFrmMain
       'RoleName=RoleName'
       'ServerCharSet='
       'Trim Char=False')
-    Left = 32
-    Top = 160
+    Left = 224
+    Top = 32
   end
   object qry_Customer: TSQLQuery
     MaxBlobSize = -1
@@ -153,24 +178,25 @@ object FrmMain: TFrmMain
     SQL.Strings = (
       'select * from customer;')
     SQLConnection = con_Employee
-    Left = 128
+    Left = 332
     Top = 64
   end
   object dsp_Customer: TDataSetProvider
     DataSet = qry_Customer
-    Left = 216
+    Left = 420
     Top = 64
   end
   object cds_Customer: TClientDataSet
     Aggregates = <>
     Params = <>
     ProviderName = 'dsp_Customer'
-    Left = 296
+    AfterPost = cds_CustomerAfterPost
+    Left = 500
     Top = 64
   end
   object ds_cds_Customer: TDataSource
     DataSet = cds_Customer
-    Left = 520
+    Left = 724
     Top = 64
   end
   object sds_Employee: TSimpleDataSet
@@ -180,12 +206,13 @@ object FrmMain: TFrmMain
     DataSet.MaxBlobSize = -1
     DataSet.Params = <>
     Params = <>
-    Left = 128
+    AfterPost = sds_EmployeeAfterPost
+    Left = 332
     Top = 248
   end
   object ds_sds_Employee: TDataSource
     DataSet = sds_Employee
-    Left = 520
+    Left = 724
     Top = 248
   end
 end

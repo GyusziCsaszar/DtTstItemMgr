@@ -27,7 +27,13 @@ type
     db_grid_Employee: TDBGrid;
     lblEmployee: TLabel;
     pAttn: TPanel;
+    btnGetMetadata: TButton;
+    lblResult: TLabel;
+    lbResult: TListBox;
     procedure btnConnectClick(Sender: TObject);
+    procedure sds_EmployeeAfterPost(DataSet: TDataSet);
+    procedure cds_CustomerAfterPost(DataSet: TDataSet);
+    procedure btnGetMetadataClick(Sender: TObject);
   private
     { Private declarations }
     procedure LoadDbConnectPropsFromIni();
@@ -54,6 +60,16 @@ const
   sINI_VAL_DBCON_DB = 'Database';
   sINI_VAL_DBCON_USR = 'User';
   sINI_VAL_DBCON_PW = 'Password';
+
+procedure TFrmMain.cds_CustomerAfterPost(DataSet: TDataSet);
+begin
+  cds_Customer.ApplyUpdates(0);
+end;
+
+procedure TFrmMain.sds_EmployeeAfterPost(DataSet: TDataSet);
+begin
+  sds_Employee.ApplyUpdates(0);
+end;
 
 procedure TFrmMain.btnConnectClick(Sender: TObject);
 begin
@@ -84,6 +100,8 @@ begin
 
     btnConnect.Enabled := False;
 
+    btnGetMetadata.Enabled := True;
+
   except
     on exc : Exception do
     begin
@@ -91,6 +109,75 @@ begin
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
     end;
   end;
+
+end;
+
+procedure TFrmMain.btnGetMetadataClick(Sender: TObject);
+var
+  iIdx: integer;
+  sTable: string;
+  asItems: TStringList;
+  sItem: string;
+begin
+  lbResult.Items.Clear();
+
+  con_Employee.GetTableNames(lbResult.Items, False);
+
+  iIdx := -1;
+  while True do
+  begin
+    iIdx := iIdx + 1;
+
+    if iIdx >= lbResult.Items.Count then
+    begin
+      break;
+    end;
+
+    sTable := lbResult.Items[iIdx];
+
+    // Table Fields
+    asItems := TStringList.Create();
+    begin
+
+      con_Employee.GetFieldNames(sTable, asItems);
+
+      iIdx := iIdx + 1;
+      lbResult.Items.Insert(iIdx, '  [Fields]');
+
+      for sItem in asItems do
+      begin
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + sItem);
+      end;
+    end;
+    asItems.Free();
+
+    // Table Indices
+    asItems := TStringList.Create();
+    begin
+
+      con_Employee.GetIndexNames(sTable, asItems);
+
+      iIdx := iIdx + 1;
+      lbResult.Items.Insert(iIdx, '  [Indices]');
+
+      for sItem in asItems do
+      begin
+        iIdx := iIdx + 1;
+        lbResult.Items.Insert(iIdx, '    ' + sItem);
+      end;
+    end;
+    asItems.Free();
+
+  end;
+
+  lbResult.Items.Insert(0, 'Login Username: ' + con_Employee.GetLoginUsername());
+
+  lbResult.Items.Insert(1, 'Default SchemaName: ' + con_Employee.GetDefaultSchemaName());
+
+  lbResult.Items.Insert(2, 'Driver Func: ' + con_Employee.GetDriverFunc);
+
+  lbResult.Items.Insert(3, '[Tables]');
 
 end;
 
