@@ -14,14 +14,14 @@ type
   TFrmMain = class(TForm)
     lblLog: TLabel;
     lbLog: TListBox;
-    con_SalesCatalog: TSQLConnection;
+    con_Employee: TSQLConnection;
     btnConnect: TButton;
-    qry_SalesCatalog: TSQLQuery;
-    db_grid_SalesCatalog: TDBGrid;
-    lblSalesCatalog: TLabel;
-    dsp_SalesCatalog: TDataSetProvider;
-    cds_SalesCatalog: TClientDataSet;
-    ds_cds_SalesCatalog: TDataSource;
+    qry_Customer: TSQLQuery;
+    db_grid_Customer: TDBGrid;
+    lblCustomer: TLabel;
+    dsp_Customer: TDataSetProvider;
+    cds_Customer: TClientDataSet;
+    ds_cds_Customer: TDataSource;
     procedure btnConnectClick(Sender: TObject);
   private
     { Private declarations }
@@ -61,15 +61,15 @@ begin
 
     LogINFO('Button Connect is Pressed!');
 
-    con_SalesCatalog.Connected := True;
+    con_Employee.Connected := True;
 
     LogINFO('SQL Connection is Connected!');
 
-    qry_SalesCatalog.Active := True;
+    qry_Customer.Active := True;
 
     LogINFO('SQL Query is Active!');
 
-    cds_SalesCatalog.Active := True;
+    cds_Customer.Active := True;
 
     LogINFO('Client DataSet is Active!');
 
@@ -77,7 +77,10 @@ begin
 
   except
     on exc : Exception do
+    begin
+      LogERROR(exc);
       ShowMessage('Error: ' + exc.ClassName + ' - ' + exc.Message);
+    end;
   end;
 
 end;
@@ -93,7 +96,7 @@ begin
 
   if not FileExists(sIniPath) then
   begin
-    raise LogERROR(Exception.Create('INI File: "' + sIniPath + '" does not exist!'));
+    raise Exception.Create('INI File: "' + sIniPath + '" does not exist!');
   end;
 
   try
@@ -101,22 +104,22 @@ begin
 
     if not fIni.SectionExists(sINI_SEC_DBCON) then
     begin
-      raise LogERROR(Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+      raise Exception.Create('No INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
     end;
 
-    con_SalesCatalog.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
+    con_Employee.Params.Values['Database'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_DB, '');
 
-    if con_SalesCatalog.Params.Values['Database'].Length = 0 then
+    if con_Employee.Params.Values['Database'].Length = 0 then
     begin
-      raise LogERROR(Exception.Create('No "' + sINI_VAL_DBCON_DB + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath));
+      raise Exception.Create('No "' + sINI_VAL_DBCON_DB + '" value in INI Section "' + sINI_SEC_DBCON + '"! INI File: ' + sIniPath);
     end;
 
-    con_SalesCatalog.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
-    con_SalesCatalog.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
+    con_Employee.Params.Values['User_Name'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_USR, '');
+    con_Employee.Params.Values['Password'] := fIni.ReadString(sINI_SEC_DBCON, sINI_VAL_DBCON_PW, '');
 
-    if (con_SalesCatalog.Params.Values['User_Name'].Length > 0) and (con_SalesCatalog.Params.Values['Password'].Length > 0) then
+    if (con_Employee.Params.Values['User_Name'].Length > 0) and (con_Employee.Params.Values['Password'].Length > 0) then
     begin
-      con_SalesCatalog.LoginPrompt := False;
+      con_Employee.LoginPrompt := False;
     end;
 
   finally
@@ -153,7 +156,10 @@ begin
     //extract the number of microseconds
     dt := Frac(dt); //fractional part of day
     dt := dt * 24*60*60; //number of seconds in that day
-    sMs := IntToStr(Round(Frac(dt)*1000000));
+
+    //FIX: Using Round it is possible to get value of 1000000!!!
+    //sMs := IntToStr(Round(Frac(dt)*1000000));
+    sMs := IntToStr(Trunc(Frac(dt)*1000000));
 
     //Add the us integer to the end:
     // '20160801 11:34:36.' + '00' + '123456'

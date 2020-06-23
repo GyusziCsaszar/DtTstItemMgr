@@ -1,7 +1,9 @@
 object FrmMain: TFrmMain
   Left = 0
   Top = 0
-  Caption = 'Dt Test Item Manager v1.03'
+  Caption = 
+    'Dt Test Item Manager v1.04 - EMPLOYEE.FDB Firebird Sample Databa' +
+    'se'
   ClientHeight = 577
   ClientWidth = 643
   Color = clBtnFace
@@ -24,12 +26,12 @@ object FrmMain: TFrmMain
     Height = 13
     Caption = 'LOG:'
   end
-  object lblSalesCatalog: TLabel
+  object lblCustomer: TLabel
     Left = 8
     Top = 69
-    Width = 69
+    Width = 55
     Height = 13
-    Caption = 'Sales Catalog:'
+    Caption = 'Customers:'
   end
   object lbLog: TListBox
     Left = 8
@@ -49,13 +51,13 @@ object FrmMain: TFrmMain
     TabOrder = 1
     OnClick = btnConnectClick
   end
-  object db_grid_SalesCatalog: TDBGrid
+  object db_grid_Customer: TDBGrid
     Left = 8
     Top = 88
     Width = 627
     Height = 279
     Anchors = [akLeft, akTop, akRight]
-    DataSource = ds_cds_SalesCatalog
+    DataSource = ds_cds_Customer
     TabOrder = 2
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
@@ -63,7 +65,7 @@ object FrmMain: TFrmMain
     TitleFont.Name = 'Tahoma'
     TitleFont.Style = []
   end
-  object con_SalesCatalog: TSQLConnection
+  object con_Employee: TSQLConnection
     ConnectionName = 'FirstDB'
     DriverName = 'Firebird'
     Params.Strings = (
@@ -104,33 +106,33 @@ object FrmMain: TFrmMain
       'RoleName=RoleName'
       'ServerCharSet='
       'Trim Char=False')
-    Left = 120
+    Left = 48
     Top = 160
   end
-  object qry_SalesCatalog: TSQLQuery
+  object qry_Customer: TSQLQuery
     MaxBlobSize = -1
     Params = <>
     SQL.Strings = (
-      'select * from sales_catalog;')
-    SQLConnection = con_SalesCatalog
-    Left = 120
-    Top = 216
+      'select * from customer;')
+    SQLConnection = con_Employee
+    Left = 152
+    Top = 160
   end
-  object dsp_SalesCatalog: TDataSetProvider
-    DataSet = qry_SalesCatalog
+  object dsp_Customer: TDataSetProvider
+    DataSet = qry_Customer
+    Left = 264
+    Top = 104
+  end
+  object cds_Customer: TClientDataSet
+    Aggregates = <>
+    Params = <>
+    ProviderName = 'dsp_Customer'
     Left = 264
     Top = 160
   end
-  object cds_SalesCatalog: TClientDataSet
-    Aggregates = <>
-    Params = <>
-    ProviderName = 'dsp_SalesCatalog'
+  object ds_cds_Customer: TDataSource
+    DataSet = cds_Customer
     Left = 264
     Top = 216
-  end
-  object ds_cds_SalesCatalog: TDataSource
-    DataSet = cds_SalesCatalog
-    Left = 264
-    Top = 272
   end
 end
