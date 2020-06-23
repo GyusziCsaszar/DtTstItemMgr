@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 136;
-  csVERSION_TITLE       = 'v1.36';
+  ciVERSION             = 137;
+  csVERSION_TITLE       = 'v1.37';
 
   { App - Titles }
   csITEM                = 'ITEM';

@@ -137,6 +137,13 @@ begin
   if not m_sLogPath_SQL.IsEmpty() then
   begin
 
+    if m_iLogLevel_REQU = ciLOGLEVEL_NONE then Exit;
+
+    if m_iLogLevel_REQU > ciLOGLEVEL_NONE then
+    begin
+      if ciLOGLEVEL_SQL > m_iLogLevel_REQU then Exit;
+    end;
+
     AppendLogFile(m_sLogPath_SQL, DateTimeToStrHu(Now) + ' | ' + sSql);
 
   end;
@@ -153,6 +160,13 @@ begin
 
   if not m_sLogPath_SQL.IsEmpty() then
   begin
+
+    if m_iLogLevel_REQU = ciLOGLEVEL_NONE then Exit;
+
+    if m_iLogLevel_REQU > ciLOGLEVEL_NONE then
+    begin
+      if ciLOGLEVEL_SQL > m_iLogLevel_REQU then Exit;
+    end;
 
     AppendLogFile(m_sLogPath_SQL, DateTimeToStrHu(Now) + ' | ' + sLogLine);
 
