@@ -121,7 +121,7 @@ begin
     begin
 
       frmPrs.Show();
-      frmPrs.Init('Database Update');
+      frmPrs.Init(False {bCanAbort}, 'Database Update');
 
       Application.ProcessMessages;
 

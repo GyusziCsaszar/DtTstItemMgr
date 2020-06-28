@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 137;
-  csVERSION_TITLE       = 'v1.37';
+  ciVERSION             = 138;
+  csVERSION_TITLE       = 'v1.38';
 
   { App - Titles }
   csITEM                = 'ITEM';
@@ -24,6 +24,9 @@ const
   //
   csADD                 = 'Add';
   csREMOVE              = 'Remove';
+
+  { App - Misc }
+  ciDBGRID_COLWIDTH_DEF = 100;
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';
@@ -119,7 +122,7 @@ const
   ciDB_VERSION_PRD            = 104; // CRE Item_ItemGroup
   // ------------------------------------
   csDB_TBL_USR_ITEMTYPE               = 'ItemType';
-  ciDB_FLD_USR_ITEMTYPE_NAME_Length   = 10; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
+  ciDB_FLD_USR_ITEMTYPE_NAME_Length   = 20; //ciFDB_INDEXED_VARCHAR_UF8_MAX_LEN;
   csDB_FLD_USR_ITEMTYPE_NAME          = 'ItemType_Name';   // ATTN: Keep UNIQUE NAME
   // ------------------------------------
   csDB_TBL_USR_ITEM                   = 'Item';

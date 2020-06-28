@@ -1348,7 +1348,7 @@ begin
     begin
 
       frmPrs.Show();
-      frmPrs.Init('Database Update');
+      frmPrs.Init(False {bCanAbort}, 'Database Update');
       frmPrs.SetProgressMinMax(ADM_DbInfVersion_ADM, ciDB_VERSION_ADM);
 
       Application.ProcessMessages;

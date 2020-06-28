@@ -363,7 +363,7 @@ begin
     try
 
       frmPrs.Show();
-      frmPrs.Init('Calling Firebird Isql tool');
+      frmPrs.Init(False {bCanAbort}, 'Calling Firebird Isql tool');
       frmPrs.SetProgressToMax();
 
       frmPrs.AddStep('Starting Firebird Isql tool');

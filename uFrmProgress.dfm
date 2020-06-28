@@ -86,6 +86,7 @@ object FrmProgress: TFrmProgress
       ParentFont = False
       TabOrder = 2
       Visible = False
+      OnClick = btnAbortClick
     end
     object btnCopyToClipboard: TButton
       Left = 24

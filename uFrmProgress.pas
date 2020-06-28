@@ -20,15 +20,19 @@ type
     procedure FormShow(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure btnCopyToClipboardClick(Sender: TObject);
+    procedure btnAbortClick(Sender: TObject);
   private
     { Private declarations }
     m_oApp: TDtTstApp;
+
+    m_bCanAbort: Boolean;
+    m_bAbortPressed: Boolean;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
-    procedure Init(sTitle: string);
+    procedure Init(bCanAbort: Boolean; sTitle: string);
 
     procedure SetProgressToMax();
     procedure SetProgressMinMax(iMin, iMax: integer);
@@ -37,6 +41,11 @@ type
     procedure AddStep(sStep: string);
     procedure AddStepEnd(sStepEnd: string);
     procedure Done();
+
+    function GetAbortPressed() : Boolean;
+    procedure SetAbortPressed(bValue: Boolean);
+    property AbortPressed: Boolean read GetAbortPressed write SetAbortPressed;
+
   end;
 
 var
@@ -75,12 +84,22 @@ end;
 
 procedure TFrmProgress.FormShow(Sender: TObject);
 begin
+
   self.Caption := Application.Title;
 end;
 
-procedure TFrmProgress.Init(sTitle: string);
+procedure TFrmProgress.Init(bCanAbort: Boolean; sTitle: string);
 begin
+
   lblCaption.Caption := sTitle + '...';
+
+  m_bCanAbort      := bCanAbort;
+  m_bAbortPressed  := False;
+
+  btnAbort.Visible := m_bCanAbort;
+  btnAbort.Enabled := m_bCanAbort;
+
+  btnClose.Enabled := False;
 end;
 
 procedure TFrmProgress.SetProgressToMax();
@@ -133,6 +152,12 @@ begin
   lbHistory.Items[lbHistory.Items.Count - 1] := lbHistory.Items[lbHistory.Items.Count - 1] + ' ...' + sStepEnd;
 end;
 
+procedure TFrmProgress.btnAbortClick(Sender: TObject);
+begin
+  m_bAbortPressed  := True;
+  btnAbort.Enabled := False;
+end;
+
 procedure TFrmProgress.btnCloseClick(Sender: TObject);
 begin
   self.Close();
@@ -154,7 +179,21 @@ begin
   // NOTE: Scroll into view...
   lbHistory.ItemIndex := lbHistory.Items.Count - 1;
 
-  btnClose.Enabled := true;
+  btnClose.Enabled := True;
+  btnAbort.Enabled := False;
 end;
+
+function TFrmProgress.GetAbortPressed() : Boolean;
+begin
+  Result := m_bAbortPressed;
+end;
+
+procedure TFrmProgress.SetAbortPressed(bValue: Boolean);
+begin
+  m_bAbortPressed  := bValue;
+
+  btnAbort.Enabled := (not m_bAbortPressed);
+end;
+
 
 end.
