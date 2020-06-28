@@ -95,10 +95,12 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
 
-    procedure DoGrid_Refresh();
     procedure DoGrid_Insert();
     procedure DoGrid_Delete();
 
+    procedure DoGrid_Refresh();
+    procedure SaveGridColumns(oGrd: TDBGrid; sName: string);
+    procedure LoadGridColumns(oGrd: TDBGrid; sName: string);
     procedure OpenSql(sTable, sSql: string);
 
     procedure UpdateTree(sID, sTreeNode: string);
@@ -116,7 +118,7 @@ type
 
     procedure DoEditTable(sAction, sCaption, sTable: string; asColsOverride, asColSources, asValues: TStringList;
                         sWhere, sChangeTagTable: string; bKeyEditAllowed: Boolean);
-    procedure DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
+    procedure DoImportTable(bInsertOnly: Boolean; iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
 
     procedure DoObjectsDblClick();
     procedure DoDetailsClick(cID_Object: char; sCaption_Object: string);
@@ -214,6 +216,10 @@ begin
 
   SaveFormSizeReg(self, csCOMPANY, csPRODUCT, 'FrmMain');
 
+  // Saving Columns...
+  if cds_Top.Active    then SaveGridColumns(db_grid_Top,    lblTop   .Caption);
+  if sds_Bottom.Active then SaveGridColumns(db_grid_Bottom, lblBottom.Caption);
+
   inherited Destroy();
 
   FreeAndNil(m_oApp);
@@ -286,13 +292,6 @@ begin
   tmrStart.Enabled := True;
 
   m_oApp.LOG.LogUI('TFrmMain.FormShow END');
-end;
-
-procedure TFrmMain.tmrRefreshTimer(Sender: TObject);
-begin
-  tmrRefresh.Enabled := False;
-
-  DoGrid_Refresh();
 end;
 
 procedure TFrmMain.tmrStartTimer(Sender: TObject);
@@ -383,6 +382,10 @@ end;
 procedure TFrmMain.DoGrid_Refresh();
 begin
 
+  // Saving Columns...
+  if cds_Top.Active    then SaveGridColumns(db_grid_Top,    lblTop   .Caption);
+  if sds_Bottom.Active then SaveGridColumns(db_grid_Bottom, lblBottom.Caption);
+
   if cds_Top.Active then
   begin
     try
@@ -395,6 +398,9 @@ begin
 
       cds_Top.Active := True;
       m_oApp.LOG.LogINFO('Client DataSet is Active!');
+
+      // Loading Columns...
+      LoadGridColumns(db_grid_Top, lblTop.Caption);
 
     except
       on exc : Exception do
@@ -415,6 +421,9 @@ begin
       sds_Bottom.Active := True;
       m_oApp.LOG.LogINFO('Simple DataSet is Active!');
 
+      // Loading Columns...
+      LoadGridColumns(db_grid_Bottom, lblBottom.Caption);
+
     except
       on exc : Exception do
       begin
@@ -425,8 +434,57 @@ begin
   end;
 end;
 
+procedure TFrmMain.tmrRefreshTimer(Sender: TObject);
+begin
+  tmrRefresh.Enabled := False;
+
+  DoGrid_Refresh();
+end;
+
+procedure TFrmMain.SaveGridColumns(oGrd: TDBGrid; sName: string);
+var
+  iCol: integer;
+begin
+
+  SaveIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName, 'ColumnCount', oGrd.Columns.Count);
+
+  for iCol := 0 to oGrd.Columns.Count - 1 do
+  begin
+    SaveIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName, 'Column' + IntToStr(iCol + 1), oGrd.Columns[iCol].Width);
+  end;
+
+end;
+
+procedure TFrmMain.LoadGridColumns(oGrd: TDBGrid; sName: string);
+var
+  iCount, iCol: integer;
+begin
+
+  iCount := LoadIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName, 'ColumnCount', -1);
+
+  // Column Widths...
+  for iCol := 0 to oGrd.Columns.Count - 1 do
+  begin
+    if iCount = oGrd.Columns.Count then
+    begin
+      oGrd.Columns[iCol].Width := LoadIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName,
+                                  'Column' + IntToStr(iCol + 1), ciDBGRID_COLWIDTH_DEF);
+    end
+    else
+    begin
+      oGrd.Columns[iCol].Width := ciDBGRID_COLWIDTH_DEF;
+    end;
+  end;
+
+end;
+
 procedure TFrmMain.OpenSql(sTable, sSql: string);
 begin
+
+  // Saving Columns...
+  if cds_Top.Active    then SaveGridColumns(db_grid_Top,    lblTop   .Caption);
+  if sds_Bottom.Active then SaveGridColumns(db_grid_Bottom, lblBottom.Caption);
+
   try
     lblTop.Caption := 'N/A';
 
@@ -445,7 +503,13 @@ begin
 
       lblTop.Caption := sTable;
 
-      // FIX: Force Refresh...
+      // Loading Columns...
+      LoadGridColumns(db_grid_Top, lblTop.Caption);
+
+      //  FIX: Force Refresh...
+      // NOTE: Not doing so, TFrmMain.ds_cds_TopDataChange
+      //       will be called WITHOUT ACTIVE ROW
+      //       which is otherwise MARKED ACTIVE!
       tmrRefresh.Enabled := True;
 
     end;
@@ -500,6 +564,8 @@ begin
   if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMNR) <> nil) then
   begin
 
+    // FIX - MUST NOT!!!
+    {
     if db_grid_Bottom.Visible then
     begin
       db_grid_Bottom.Visible := False;
@@ -508,6 +574,7 @@ begin
       lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
       lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
+    }
 
     lblBottom.Caption := csITEM_ITEMGROUP;
     UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
@@ -516,6 +583,8 @@ begin
   else if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEMGROUP_NODE) <> nil) then
   begin
 
+    // FIX - MUST NOT!!!
+    {
     if db_grid_Bottom.Visible then
     begin
       db_grid_Bottom.Visible := False;
@@ -524,6 +593,7 @@ begin
       lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
       lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
+    }
 
     lblBottom.Caption := csITEM_ITEMGROUP;
     UpdateTree ('', ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMGROUP_NODE).AsString);
@@ -573,6 +643,9 @@ begin
         sds_Bottom.Active := True;
 
         lblBottom.Caption := 'Details' + ' for ' + lblTop.Caption;
+
+        // Loading Columns...
+        LoadGridColumns(db_grid_Bottom, lblBottom.Caption);
 
         Break;
       end;
@@ -1508,7 +1581,7 @@ begin
   end;
 end;
 
-procedure TFrmMain.DoImportTable(iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
+procedure TFrmMain.DoImportTable(bInsertOnly: Boolean; iIniImportDefIndex: integer; sCaption, sTable: string; asColsOverride: TStringList);
 var
   asCols, asCols_InUse, asInfos, asTmp: TStringList;
   sCol, sColReal: string;
@@ -1583,7 +1656,7 @@ begin
       asCols_InUse := asCols;
     end;
 
-    frmImp.Init(iIniImportDefIndex, sCaption, sTable, asCols_InUse, asInfos);
+    frmImp.Init(bInsertOnly, iIniImportDefIndex, sCaption, sTable, asCols_InUse, asInfos);
 
     FreeAndNil(asCols);
     FreeAndNil(asInfos);
@@ -2190,7 +2263,7 @@ begin
     try
 
       frmPrs.Show();
-      frmPrs.Init('Calling Firebird Isql tool');
+      frmPrs.Init(False {bCanAbort}, 'Calling Firebird Isql tool');
       frmPrs.SetProgressToMax();
 
       frmPrs.AddStep('Starting Firebird Isql tool');
@@ -2471,7 +2544,7 @@ begin
       end;
 
       ccMnuBtnID_Import_Table : begin
-        DoImportTable(-1 {iIniImportDefIndex}, sCaption_Object, sCaption_Object, nil);
+        DoImportTable(False {bInsertOnly / or InsertOrUpdate}, -1 {iIniImportDefIndex}, sCaption_Object, sCaption_Object, nil);
       end;
 
       ccMnuBtnID_Drop_View : begin
@@ -2513,7 +2586,7 @@ begin
         asCols := TStringList.Create();
         asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
 
-        DoImportTable(1 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMTYPE, asCols);
+        DoImportTable(False {bInsertOnly / or InsertOrUpdate}, 1 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMTYPE, asCols);
 
       end;
 
@@ -2529,7 +2602,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEMTYPE_NAME);
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
 
-        DoImportTable(2 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
+        DoImportTable(False {bInsertOnly / or InsertOrUpdate}, 2 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM), asCols);
 
       end;
 
@@ -2546,7 +2619,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEM_AMO);
         asCols.Add(csDB_FLD_USR_ITEMGROUP_NODE);
 
-        DoImportTable(3 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
+        DoImportTable(True {bInsertOnly / or InsertOrUpdate}, 3 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;
@@ -2566,7 +2639,7 @@ begin
         asCols.Add(csDB_FLD_USR_ITEMGROUP_PATH  + ' ' + csDB_TREE_PATH);
         asCols.Add(csDB_FLD_USR_ITEMGROUP_LEVEL + ' ' + csDB_TREE_LEVEL);
 
-        DoImportTable(0 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
+        DoImportTable(False {bInsertOnly / or InsertOrUpdate}, 0 {iIniImportDefIndex}, asParts[1], csDB_TBL_USR_ITEMGROUP, asCols);
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;

@@ -380,7 +380,7 @@ object FrmMain: TFrmMain
     Enabled = False
     Interval = 250
     OnTimer = tmrStartTimer
-    Left = 16
+    Left = 24
     Top = 80
   end
   object ilTree: TImageList
@@ -389,7 +389,7 @@ object FrmMain: TFrmMain
     Left = 856
     Top = 472
     Bitmap = {
-      494C010104002C004C000D000D00FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010104002C0058000D000D00FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000340000001A00000001002000000000002015
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -575,7 +575,7 @@ object FrmMain: TFrmMain
     Enabled = False
     Interval = 250
     OnTimer = tmrRefreshTimer
-    Left = 64
-    Top = 80
+    Left = 24
+    Top = 384
   end
 end

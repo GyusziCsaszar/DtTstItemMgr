@@ -68,6 +68,8 @@ type
     { Private declarations }
     m_oApp: TDtTstApp;
 
+    m_bInsertOnly: Boolean;
+
     m_iIniImportDefIndex: integer;
 
     m_sTableOrView: string;
@@ -119,7 +121,7 @@ type
     constructor Create(AOwner: TComponent; oApp: TDtTstApp); reintroduce;
     destructor Destroy(); override;
 
-    procedure Init(iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
+    procedure Init(bInsertOnly: Boolean; iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 
   end;
 
@@ -231,12 +233,14 @@ begin
   end;
 end;
 
-procedure TFrmDataImport.Init(iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
+procedure TFrmDataImport.Init(bInsertOnly: Boolean; iIniImportDefIndex: integer; sCaption, sTableOrView: string; asCols, asColInfos: TStringList);
 begin
 
-  m_iIniImportDefIndex := iIniImportDefIndex;
+  m_bInsertOnly         := bInsertOnly;
 
-  m_sTableOrView := sTableOrView;
+  m_iIniImportDefIndex  := iIniImportDefIndex;
+
+  m_sTableOrView        := sTableOrView;
 
   m_asColInfos.Clear();
   if Assigned(asColInfos) then m_asColInfos.AddStrings(asColInfos);
@@ -244,6 +248,11 @@ begin
   if m_oApp.ADMIN_MODE then
   begin
     lblCaption.Caption := 'Importing from CSV File into table ' + sCaption + ' (' + sTableOrView + ')';
+
+    if m_bInsertOnly then
+      lblCaption.Caption := lblCaption.Caption + ' (Insert)'
+    else
+      lblCaption.Caption := lblCaption.Caption + ' (InsertOrUpdate)';
   end
   else
   begin
@@ -870,7 +879,7 @@ begin
   try
 
     frmPrs.Show();
-    frmPrs.Init('Preview CSV File');
+    frmPrs.Init(False {bCanAbort}, 'Preview CSV File');
     frmPrs.SetProgressToMax();
     frmPrs.AddStepHeader('CSV file "' + edCsvPath.Text + '"');
     Application.ProcessMessages;
@@ -953,13 +962,24 @@ begin
             begin
 
               iIdx := cbbTblCol.Items.IndexOf(asDefItems[0]);
-              if iIdx < 0 then Break;
+              if iIdx < 0 then
+              begin
+                WarningMsgDlg('Error loading Import Definition!' + CHR(10) + CHR(10) +
+                    'Required Table Column "' + asDefItems[0] + '" is not available!');
+                Break;
+              end;
               cbbTblCol.ItemIndex := iIdx;
 
               if not asDefItems[1].IsEmpty then
               begin
                 iIdx := cbbTblCsvCol.Items.IndexOf(asDefItems[1]);
-                if iIdx < 0 then Break;
+                if iIdx < 0 then
+                begin
+                  WarningMsgDlg('Error loading Import Definition!' + CHR(10) + CHR(10) +
+                      'Required CSV Column "' + asDefItems[1] + '" is not available!' + CHR(10) + CHR(10) +
+                      'TIP: Select CSV file containing required CSV Column!');
+                  Break;
+                end;
                 cbbTblCsvCol.ItemIndex := iIdx;
               end;
 
@@ -1036,9 +1056,9 @@ begin
 
     frmPrs.Show();
     if bChkOnly then
-      frmPrs.Init('Checking CSV File')
+      frmPrs.Init(True {bCanAbort}, 'Checking CSV File')
     else
-      frmPrs.Init('Importing CSV File');
+      frmPrs.Init(True {bCanAbort}, 'Importing CSV File');
     frmPrs.SetProgressToMax();
     frmPrs.AddStepHeader('CSV file "' + edCsvPath.Text + '"');
     Application.ProcessMessages;
@@ -1311,6 +1331,19 @@ begin
     while (not bBreak) do
     begin
 
+      if frmPrs.AbortPressed then
+      begin
+        if QuestionMsgDlg('Do you want to Abort Import?') then
+        begin
+          bBreak := True;
+          Break;
+        end
+        else
+        begin
+          frmPrs.AbortPressed := False;
+        end;
+      end;
+
       if sgrd.RowCount > 1 then
       begin
         sgrd.RowCount := 1;
@@ -1520,7 +1553,10 @@ begin
 
                   try
 
-                    dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+                    if m_bInsertOnly then
+                      dbSql.Insert(m_sTableOrView, asTblCols, asCsvVals)
+                    else
+                      dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
 
                   except
                     on exc : Exception do
@@ -1560,7 +1596,10 @@ begin
 
               try
 
-                dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
+                if m_bInsertOnly then
+                  dbSql.Insert(m_sTableOrView, asTblCols, asCsvVals)
+                else
+                  dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
 
               except
                 on exc : Exception do
@@ -1619,6 +1658,7 @@ begin
               asCsvVals[m_iCol_DB_TREE_PATH]   := sTreePath.Replace(sTreePath[1], csDB_TREE_Delimiter);
               asCsvVals[m_iCol_DB_TREE_LEVEL]  := IntToStr(asTreePath.Count);
 
+              // ATTN: DO NOT INSERT only HERE!!!
               dbSql.InsertOrUpdate(m_sTableOrView, asTblCols, asCsvVals);
 
           except

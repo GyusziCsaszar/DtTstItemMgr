@@ -13,6 +13,9 @@ procedure SaveStringReg(sCompany, sProduct, sKey, sValueName: string; sValue: st
 function LoadBooleanReg(sCompany, sProduct, sKey, sValueName: string; bDefault: Boolean) : Boolean;
 procedure SaveBooleanReg(sCompany, sProduct, sKey, sValueName: string; bValue: Boolean);
 
+function LoadIntegerReg(sCompany, sProduct, sKey, sValueName: string; iDefault: integer) : integer;
+procedure SaveIntegerReg(sCompany, sProduct, sKey, sValueName: string; iValue: integer);
+
 procedure LoadFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 procedure SaveFormSizeReg(frm: TForm; sCompany, sProduct, sKey: string);
 
@@ -196,6 +199,68 @@ begin
     end;
 
     reg.WriteInteger(sValueName, IIF(bValue, 1, 0));
+
+  finally
+    FreeAndNil(reg);
+  end;
+
+end;
+
+function LoadIntegerReg(sCompany, sProduct, sKey, sValueName: string; iDefault: integer) : integer;
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+  Result := iDefault;
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    if reg.ValueExists(sValueName) then
+    begin
+      Result := reg.ReadInteger(sValueName);
+    end;
+
+  finally
+    FreeAndNil(reg);
+  end;
+
+end;
+
+procedure SaveIntegerReg(sCompany, sProduct, sKey, sValueName: string; iValue: integer);
+var
+  sKeyPath: string;
+  reg: TRegistry;
+begin
+
+  reg := TRegistry.Create;
+
+  try
+
+    sKeyPath := 'Software\' + sCompany + '\' + sProduct;
+    if not sKey.IsEmpty() then
+    begin
+      sKeyPath := sKeyPath + '\' + sKey;
+    end;
+
+    if not reg.OpenKey(sKeyPath, True) then
+    begin
+      RaiseLastOSError();
+    end;
+
+    reg.WriteInteger(sValueName, iValue);
 
   finally
     FreeAndNil(reg);
