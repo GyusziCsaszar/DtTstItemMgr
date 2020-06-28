@@ -9,8 +9,8 @@ const
   csPRODUCT             = 'TstItemMgr';
   csPRODUCT_FULL        = csCOMPANY + csPRODUCT;
   csPRODUCT_TITLE       = 'Test Item Manager';
-  ciVERSION             = 138;
-  csVERSION_TITLE       = 'v1.38';
+  ciVERSION             = 139;
+  csVERSION_TITLE       = 'v1.39';
 
   { App - Titles }
   csITEM                = 'ITEM';
@@ -27,6 +27,7 @@ const
 
   { App - Misc }
   ciDBGRID_COLWIDTH_DEF = 100;
+  ciDBGRID_COLWIDTH_MAX = 300;
 
   { LOG levels }
   //csLOG_EXT             = '.LOG';

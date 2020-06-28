@@ -10,7 +10,8 @@ uses
   Data.DB, Data.SqlExpr,
   Data.DBXFirebird, Data.FMTBcd, Datasnap.DBClient, Datasnap.Provider,
   Vcl.Grids, Vcl.DBGrids, SimpleDS, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Tabs,
-  System.ImageList, Vcl.ImgList;
+  System.ImageList, Vcl.ImgList,
+  Generics.Collections;
 
 type
   TFrmMain = class(TForm)
@@ -90,6 +91,8 @@ type
     m_iLbLog_WidthEx: integer;
     m_iDbGrdBottom_HeightEx: integer;
 
+    m_atnChecked: TObjectList<TObject>;
+
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -103,7 +106,8 @@ type
     procedure LoadGridColumns(oGrd: TDBGrid; sName: string);
     procedure OpenSql(sTable, sSql: string);
 
-    procedure UpdateTree(sID, sTreeNode: string);
+    procedure TREE_Refresh();
+    procedure TREE_Update(bResetTree: Boolean; sID, sTreeNode: string);
 
     procedure DoDbConnect();
 
@@ -160,7 +164,13 @@ implementation
 uses
   { DtTst Units: } uDtTstConstsMenu, uDtTstUtils, uDtTstWin, uDtTstFirebird, uDtTstDb, uDtTstDbSql, uDtTstDbItemMgr,
   { DtTst Forms: } uFrmProgress, uFrmDataImport, uFrmFDB, uFrmDataEdit,
-  System.IOUtils, StrUtils, Clipbrd;
+  System.IOUtils, StrUtils, Clipbrd, Math;
+
+type
+  TMyTreeNode = class(TObject)
+  public
+    m_tn: TTreeNode;
+  end;
 
 constructor TFrmMain.Create(AOwner: TComponent);
 begin
@@ -178,6 +188,8 @@ begin
   m_iDbInfo_HeightEx      := 0;
   m_iLbLog_WidthEx        := 0;
   m_iDbGrdBottom_HeightEx := 0;
+
+  m_atnChecked := TObjectList<TObject>.Create();
 
   m_oApp := TDtTstAppDb.Create(TPath.ChangeExtension(Application.ExeName, csLOG_UTF8_EXT), //csLOG_EXT),
                              TPath.ChangeExtension(Application.ExeName, csINI_EXT));
@@ -221,6 +233,9 @@ begin
   if sds_Bottom.Active then SaveGridColumns(db_grid_Bottom, lblBottom.Caption);
 
   inherited Destroy();
+
+  if Assigned(m_atnChecked) then m_atnChecked.Clear();
+  FreeAndNil(m_atnChecked);
 
   FreeAndNil(m_oApp);
 end;
@@ -308,8 +323,9 @@ begin
   if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) then
   begin
 
+    // TREE...
     lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree ('', '');
+    TREE_Refresh();
 
   end;
 
@@ -393,6 +409,10 @@ begin
       cds_Top.Active := False;
       qry_Top.Active := False;
 
+      // TREE...
+      lblBottom.Caption := csITEM_ITEMGROUP;
+      TREE_Refresh();
+
       qry_Top.Active := True;
       m_oApp.LOG.LogINFO('SQL Query is Active!');
 
@@ -457,7 +477,7 @@ end;
 
 procedure TFrmMain.LoadGridColumns(oGrd: TDBGrid; sName: string);
 var
-  iCount, iCol: integer;
+  iCount, iCol, iWidth: integer;
 begin
 
   iCount := LoadIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName, 'ColumnCount', -1);
@@ -467,8 +487,10 @@ begin
   begin
     if iCount = oGrd.Columns.Count then
     begin
-      oGrd.Columns[iCol].Width := LoadIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName,
-                                  'Column' + IntToStr(iCol + 1), ciDBGRID_COLWIDTH_DEF);
+      iWidth := LoadIntegerReg(csCOMPANY, csPRODUCT, 'ColumnWidths\' + sName,
+                  'Column' + IntToStr(iCol + 1), ciDBGRID_COLWIDTH_DEF);
+
+      oGrd.Columns[iCol].Width := Min(iWidth, ciDBGRID_COLWIDTH_MAX);
     end
     else
     begin
@@ -527,24 +549,6 @@ begin
     sds_Bottom.Active := False;
     sds_Bottom.DataSet.CommandText := '';
 
-    {
-    if false then //m_oApp.ADMIN_MODE then
-    begin
-
-      if not sSQL.IsEmpty() then
-      begin
-
-        sds_Bottom.DataSet.CommandText := m_oApp.LOG.LogSQL(sSQL);
-        sds_Bottom.Active := True;
-        m_oApp.LOG.LogINFO('Simple DataSet is Active!');
-
-        lblBottom.Caption := sTable;
-
-      end;
-
-    end;
-    }
-
   except
     on exc : Exception do
     begin
@@ -564,46 +568,24 @@ begin
   if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEM_ITEMNR) <> nil) then
   begin
 
-    // FIX - MUST NOT!!!
-    {
-    if db_grid_Bottom.Visible then
-    begin
-      db_grid_Bottom.Visible := False;
-      tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
-      tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
-      lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
-      lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
-    end;
-    }
-
+    // TREE...
     lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
+    TREE_Update(False {bResetTree}, ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '' {sTreeNode});
 
   end
   else if (m_oApp.DB.ADM_DbInfVersion_PRD > 0) and (ds_cds_Top.DataSet.FindField(csDB_FLD_USR_ITEMGROUP_NODE) <> nil) then
   begin
 
-    // FIX - MUST NOT!!!
-    {
-    if db_grid_Bottom.Visible then
-    begin
-      db_grid_Bottom.Visible := False;
-      tvTree.Top    := tvTree.Top    - m_iDbGrdBottom_HeightEx;
-      tvTree.Height := tvTree.Height + m_iDbGrdBottom_HeightEx;
-      lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
-      lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
-    end;
-    }
-
+    // TREE...
     lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree ('', ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMGROUP_NODE).AsString);
+    TREE_Update(False {bResetTree}, '' {sID}, ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEMGROUP_NODE).AsString);
 
   end
   else
   begin
-    // TREE...
-    lblBottom.Caption := csITEM_ITEMGROUP;
-    UpdateTree ('', '');
+
+    //NOP...
+
   end;
 
   bHasRel := False;
@@ -655,6 +637,7 @@ begin
 
   if not bHasRel then
   begin
+
     if db_grid_Bottom.Visible then
     begin
       db_grid_Bottom.Visible := False;
@@ -663,11 +646,17 @@ begin
       lbLog.Top     := lbLog.Top     - m_iDbGrdBottom_HeightEx;
       lbLog.Height  := lbLog.Height  + m_iDbGrdBottom_HeightEx;
     end;
+
   end;
 
 end;
 
-procedure TFrmMain.UpdateTree(sID, sTreeNode: string);
+procedure TFrmMain.TREE_Refresh();
+begin
+  TREE_Update(True {bResetTree}, '' {sID}, '' {sTreeNode});
+end;
+
+procedure TFrmMain.TREE_Update(bResetTree: Boolean; sID, sTreeNode: string);
 var
   sSql: string;
   oQry: TSQLQuery;
@@ -677,37 +666,68 @@ var
   tn, tnTmp: TTreeNode;
   sNode: string;
   i, iLevel: integer;
+  myTn: TMyTreeNode;
 begin
 
   asNodes := TStringList.Create();
   oQry := TSQLQuery.Create(nil);
   try
 
-    if not sID.IsEmpty() then
+    if bResetTree then
     begin
-      sSql := 'SELECT ' +
-                   '(SELECT COUNT(*) FROM ' + csDB_TBL_USR_ITEM_ITEMGROUP + ' B' +
-                   ' JOIN ' + csDB_TBL_USR_ITEM + ' C ON C.' + csDB_FLD_ADM_X_ID + ' = B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
-                   ' WHERE B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID + ' = A.' + csDB_FLD_ADM_X_ID +
-                     ' AND C.' + csDB_FLD_USR_ITEM_ITEMNR + ' = ''' + sID + ''') AS ItemCount' +
-                   ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
-               ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
-           ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
-    end
-    else if not sTreeNode.IsEmpty() then
-    begin
-      sSql := 'SELECT ' +
-                   '(IIF(A.' + csDB_FLD_USR_ITEMGROUP_NODE + ' = ''' + sTreeNode + ''', 1, 0)) AS ItemCount' +
-                   ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
-               ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
-           ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
-    end
-    else
-    begin
+
       sSql := 'SELECT ' + '0 AS ItemCount' +
                    ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
                ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
            ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+
+    end
+    else
+    begin
+
+      if not sID.IsEmpty() then
+      begin
+
+        // FIX: We need only the checked item(s)!!!
+        {
+        sSql := 'SELECT ' +
+                     '(SELECT COUNT(*) FROM ' + csDB_TBL_USR_ITEM_ITEMGROUP + ' B' +
+                     ' JOIN ' + csDB_TBL_USR_ITEM + ' C ON C.' + csDB_FLD_ADM_X_ID + ' = B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
+                     ' WHERE B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID + ' = A.' + csDB_FLD_ADM_X_ID +
+                       ' AND C.' + csDB_FLD_USR_ITEM_ITEMNR + ' = ''' + sID + ''') AS ItemCount' +
+                     ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+                 ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+             ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+        }
+
+        sSql := 'SELECT ' + '1 AS ItemCount' +
+                     ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+                 ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+                 ' JOIN ' + csDB_TBL_USR_ITEM_ITEMGROUP + ' B' + ' ON ' + 'B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEMGROUP_ID + ' = A.' + csDB_FLD_ADM_X_ID +
+                 ' JOIN ' + csDB_TBL_USR_ITEM + ' C ON C.' + csDB_FLD_ADM_X_ID + ' = B.' + csDB_TBL_USR_ITEM_ITEMGROUP_ITEM_ID +
+                 ' WHERE ' + 'C.' + csDB_FLD_USR_ITEM_ITEMNR + ' = ''' + sID + '''' +
+             ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+
+      end
+      else //if not sTreeNode.IsEmpty() then
+      begin
+
+        // FIX: We need only the checked item(s)!!!
+        {
+        sSql := 'SELECT ' +
+                     '(IIF(A.' + csDB_FLD_USR_ITEMGROUP_NODE + ' = ''' + sTreeNode + ''', 1, 0)) AS ItemCount' +
+                     ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+                 ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+             ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+        }
+
+        sSql := 'SELECT ' + '1 AS ItemCount' +
+                     ', ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH +
+                 ' FROM ' + csDB_TBL_USR_ITEMGROUP + ' A' +
+                 ' WHERE ' + 'A.' + csDB_FLD_USR_ITEMGROUP_NODE + ' = ''' + sTreeNode + '''' +
+             ' ORDER BY ' + 'A.' + csDB_FLD_USR_ITEMGROUP_PATH;
+
+      end;
     end;
 
     oQry.SQLConnection := m_oApp.DB.SQLConnection;
@@ -720,7 +740,24 @@ begin
 
     tvTree.Items.BeginUpdate;
 
-    tvTree.Items.Clear();
+    if bResetTree then
+    begin
+      tvTree.Items.Clear();
+    end
+    else
+    begin
+
+      // Clear previous Check-marks...
+      for i := 0 to m_atnChecked.Count - 1 do
+      begin
+        if Assigned((m_atnChecked[i] as TMyTreeNode).m_tn) then
+        begin
+          (m_atnChecked[i] as TMyTreeNode).m_tn.StateIndex := 1;
+        end;
+      end;
+    end;
+
+    m_atnChecked.Clear();
 
     while not oQry.Eof do
     begin
@@ -830,6 +867,11 @@ begin
 
                 tnTmp.StateIndex := 3; //tn.StateIndex;
 
+                // Remember Check...
+                myTn := TMyTreeNode.Create();
+                myTn.m_tn := tnTmp;
+                m_atnChecked.Add(myTn);
+
               end;
 
               tnTmp.Expanded := True;
@@ -839,7 +881,13 @@ begin
             if iLevel = (asNodes.Count - 1) then
             begin
               tn.Expanded := True;
+
               tn.StateIndex := 2;
+
+              // Remember Check...
+              myTn := TMyTreeNode.Create();
+              myTn.m_tn := tn;
+              m_atnChecked.Add(myTn);
             end;
           end;
 
@@ -2511,6 +2559,7 @@ var
   sWhere, sChangeTagTable: string;
   bKeyEditAllowed: Boolean;
   sSql: string;
+  bm: TBookmark;
 begin
 
   if lbTasks.ItemIndex < 0 then Exit;
@@ -2621,10 +2670,6 @@ begin
 
         DoImportTable(True {bInsertOnly / or InsertOrUpdate}, 3 {iIniImportDefIndex}, asParts[1], 'V_' + m_oApp.DB.FIXOBJNAME(csDB_TBL_USR_ITEM) + '_EX', asCols);
 
-        // TREE...
-        lblBottom.Caption := csITEM_ITEMGROUP;
-        UpdateTree ('', '');
-
       end;
 
       ccMnuBtnID_Import_Item_Group : begin
@@ -2643,7 +2688,7 @@ begin
 
         // TREE...
         lblBottom.Caption := csITEM_ITEMGROUP;
-        UpdateTree ('', '');
+        TREE_Refresh();
 
       end;
 
@@ -2757,10 +2802,6 @@ begin
           WarningMsgDlg('Select a record to ' + sCaption_Task + '!');
         end;
 
-        // TREE...
-        lblBottom.Caption := csITEM_ITEMGROUP;
-        UpdateTree ('', '');
-
       end;
 
       ccMnuBtnID_Assign_Item : begin
@@ -2802,6 +2843,7 @@ begin
                             ' );';
 
                   // FIX: ISC Error...
+                  bm := ds_cds_Top.DataSet.GetBookmark();
                   ds_cds_Top.DataSet.Active := False;
                   try
 
@@ -2821,11 +2863,22 @@ begin
 
                   finally
                     ds_cds_Top.DataSet.Active := True;
-                  end;
 
-                  // TREE...
-                  lblBottom.Caption := csITEM_ITEMGROUP;
-                  UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
+                    // Loading Columns...
+                    LoadGridColumns(db_grid_Top, lblTop.Caption);
+
+                    // Restory Active Row...
+                    if ds_cds_Top.DataSet.BookmarkValid(bm) then
+                    begin
+                      try
+                        ds_cds_Top.DataSet.GotoBookmark(bm);
+                        ds_cds_Top.DataSet.FreeBookmark(bm);
+                      except
+                        //NOP...
+                      end;
+                    end;
+
+                  end;
 
                 end;
 
@@ -2857,6 +2910,7 @@ begin
                          ')';
 
                   // FIX: ISC Error...
+                  bm := ds_cds_Top.DataSet.GetBookmark();
                   ds_cds_Top.DataSet.Active := False;
                   try
 
@@ -2876,11 +2930,21 @@ begin
 
                   finally
                     ds_cds_Top.DataSet.Active := True;
-                  end;
 
-                  // TREE...
-                  lblBottom.Caption := csITEM_ITEMGROUP;
-                  UpdateTree (ds_cds_Top.DataSet.FieldByName(csDB_FLD_USR_ITEM_ITEMNR).AsString, '');
+                    // Loading Columns...
+                    LoadGridColumns(db_grid_Top, lblTop.Caption);
+
+                    // Restory Active Row...
+                    if ds_cds_Top.DataSet.BookmarkValid(bm) then
+                    begin
+                      try
+                        ds_cds_Top.DataSet.GotoBookmark(bm);
+                        ds_cds_Top.DataSet.FreeBookmark(bm);
+                      except
+                        //NOP...
+                      end;
+                    end;
+                  end;
 
                 end;
 
